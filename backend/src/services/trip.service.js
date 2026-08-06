@@ -1,0 +1,160 @@
+// src/services/trip.service.js
+'use strict'
+
+const { v4: uuid } = require('uuid')
+const { TripRepository } = require('../repositories/trip.repository')
+const { DestinationRepository } = require('../repositories/destination.repository')
+const { calculateTSI, computeRescueReadiness } = require('./tsi.service')
+const { generatePublicToken } = require('../utils/crypto')
+const { TRIP_STATUSES } = require('../constants/enums')
+const { ERRORS } = require('../constants/errors')
+const logger = require('../utils/logger')
+
+const VALID_TRANSITIONS = {
+  [TRIP_STATUSES.PLANNED]:   [TRIP_STATUSES.ACTIVE, TRIP_STATUSES.CANCELLED],
+  [TRIP_STATUSES.ACTIVE]:    [TRIP_STATUSES.COMPLETED, TRIP_STATUSES.CANCELLED],
+  [TRIP_STATUSES.COMPLETED]: [],
+  [TRIP_STATUSES.CANCELLED]: [],
+}
+
+async function enrichStops(stops) {
+  const destRepo = new DestinationRepository()
+  const destinationIds = stops
+    .map(s => s.destinationId)
+    .filter(id => id && id !== 'null' && id !== 'undefined')
+
+  const destMap = {}
+  if (destinationIds.length > 0) {
+    const dests = await destRepo.findByIds(destinationIds)
+    dests.forEach(d => { destMap[d.id] = d })
+  }
+
+  return stops.map(stop => {
+    const dest = destMap[stop.destinationId] || {}
+    return {
+      city:          stop.city,
+      state:         stop.state,
+      destinationId: stop.destinationId || null,
+      lat:           stop.lat ?? dest.latitude ?? null,
+      lng:           stop.lng ?? dest.longitude ?? null,
+      days:          stop.days,
+      arrivalDate:   stop.arrivalDate || null,
+      departureDate: stop.departureDate || null,
+      activities:    (stop.activities || []).map(a => ({ ...a })),
+      notes:         stop.notes || null,
+      connectivity:  stop.connectivity || dest.connectivity || 'MODERATE',
+      difficulty:    stop.difficulty  || dest.difficulty   || 'EASY',
+      altitude_m:    stop.altitude_m  ?? dest.altitude_m   ?? 0,
+      zone_type:     stop.zone_type   || dest.zone_type    || 'SAFE',
+      hospital_km:   stop.hospital_km ?? dest.nearest_hospital_km ?? 0,
+      eta_minutes:   stop.eta_minutes || null,
+    }
+  })
+}
+
+async function createTrip(touristId, data, tourist) {
+  const tripRepo = new TripRepository()
+
+  const enrichedStops = await enrichStops(data.stops || [])
+  const publicToken = data.isPublic ? generatePublicToken() : null
+  const tsiResult = calculateTSI({ ...data, travel_type: data.travelType, stops: enrichedStops }, {})
+  const readiness = computeRescueReadiness(tourist, { tsi_score: tsiResult.score, rescue_readiness: {} }, false)
+
+  const trip = await tripRepo.create({
+    touristId,
+    title:              data.title,
+    description:        data.description || null,
+    travelType:         data.travelType || 'SOLO',
+    startDate:          data.startDate,
+    endDate:            data.endDate,
+    stops:              enrichedStops,
+    budgetInr:          data.budgetInr || null,
+    coverImageUrl:      data.coverImageUrl || null,
+    isPublic:           data.isPublic || false,
+    publicToken,
+    tsiScore:           tsiResult.score,
+    tsiLabel:           tsiResult.label,
+    tsiFactors:         tsiResult.factors,
+    tsiRecommendations: tsiResult.recommendations,
+    rescueReadiness:    readiness.items,
+    rescueReadinessScore: readiness.score,
+    packingChecklist:   [],
+  })
+
+  logger.info({ tripId: trip.id, touristId, tsi: tsiResult.score }, 'Trip created')
+  return trip
+}
+
+async function getMyTrips(touristId, filters) {
+  return new TripRepository().findByTouristId(touristId, filters)
+}
+
+async function getTrip(tripId, touristId) {
+  const repo = new TripRepository()
+  const trip = await repo.findById(tripId, touristId)
+  if (!trip) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
+  return trip
+}
+
+async function getPublicTrip(publicToken) {
+  const trip = await new TripRepository().findByPublicToken(publicToken)
+  if (!trip) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
+  return trip
+}
+
+async function updateTrip(tripId, touristId, data, tourist) {
+  const tripRepo = new TripRepository()
+  const existing = await tripRepo.findById(tripId, touristId)
+  if (!existing) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
+
+  const enrichedStops = await enrichStops(data.stops || [])
+  const tsiResult = calculateTSI({ ...data, travel_type: data.travelType, stops: enrichedStops }, {})
+  const readiness = computeRescueReadiness(tourist, { tsi_score: tsiResult.score, rescue_readiness: existing.rescue_readiness || {} }, false)
+
+  return tripRepo.update(tripId, touristId, {
+    ...data, stops: enrichedStops,
+    tsiScore: tsiResult.score, tsiLabel: tsiResult.label,
+    tsiFactors: tsiResult.factors, tsiRecommendations: tsiResult.recommendations,
+    rescueReadiness: readiness.items, rescueReadinessScore: readiness.score,
+  })
+}
+
+async function updateTripStatus(tripId, touristId, newStatus) {
+  const tripRepo = new TripRepository()
+  const trip = await tripRepo.findById(tripId, touristId)
+  if (!trip) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
+
+  const allowed = VALID_TRANSITIONS[trip.status] || []
+  if (!allowed.includes(newStatus)) {
+    throw Object.assign(
+      new Error(`${ERRORS.INVALID_TRIP_TRANSITION}: ${trip.status} → ${newStatus}`),
+      { statusCode: 400 }
+    )
+  }
+
+  if (newStatus === TRIP_STATUSES.ACTIVE) {
+    const active = await tripRepo.findActiveByTouristId(touristId)
+    if (active && active.id !== tripId) {
+      throw Object.assign(new Error(ERRORS.TRIP_ALREADY_ACTIVE), { statusCode: 400 })
+    }
+  }
+
+  return tripRepo.updateStatus(tripId, touristId, newStatus)
+}
+
+async function updateChecklist(tripId, touristId, checklist) {
+  const repo = new TripRepository()
+  const trip = await repo.findById(tripId, touristId)
+  if (!trip) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
+  const normalized = checklist.map(i => ({ ...i, id: i.id || uuid() }))
+  return repo.updateChecklist(tripId, touristId, normalized)
+}
+
+async function deleteTrip(tripId, touristId) {
+  const repo = new TripRepository()
+  const deleted = await repo.delete(tripId, touristId)
+  if (!deleted) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
+  return deleted
+}
+
+module.exports = { createTrip, getMyTrips, getTrip, getPublicTrip, updateTrip, updateTripStatus, updateChecklist, deleteTrip }
