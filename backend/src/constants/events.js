@@ -1,0 +1,38 @@
+// src/constants/events.js
+// All Socket.IO event names. Import this constant — never type event strings raw.
+'use strict'
+
+const SOCKET_EVENTS = Object.freeze({
+  // Server → Govt Dashboard room
+  SOS_RECEIVED:        'SOS_RECEIVED',
+  SOS_STATUS_UPDATED:  'SOS_STATUS_UPDATED',
+  SOS_RESOLVED:        'SOS_RESOLVED',
+  RESCUE_ASSIGNED:     'RESCUE_ASSIGNED',
+  DMS_TRIGGERED:       'DMS_TRIGGERED',
+  TSI_BULK_UPDATE:     'TSI_BULK_UPDATE',
+  LIVE_MAP_UPDATE:     'LIVE_MAP_UPDATE',
+
+  // Server → Tourist room (tourist:{touristId})
+  TSI_UPDATED:         'TSI_UPDATED',
+  DMS_WARNING:         'DMS_WARNING',
+  DMS_TRIGGERED_OWN:  'DMS_TRIGGERED_OWN',
+  CHECKIN_CONFIRMED:   'CHECKIN_CONFIRMED',
+
+  // Server → Guardian room (guardian:{guardianToken})
+  GUARDIAN_STATUS_CHANGE:    'GUARDIAN_STATUS_CHANGE',
+  GUARDIAN_LOCATION_UPDATE:  'GUARDIAN_LOCATION_UPDATE',
+  GUARDIAN_SOS_ALERT:        'GUARDIAN_SOS_ALERT',
+  GUARDIAN_ETA_UPDATE:       'GUARDIAN_ETA_UPDATE',
+
+  // Client → Server (from govt dashboard)
+  GOVT_JOIN_DISTRICT: 'GOVT_JOIN_DISTRICT',
+})
+
+const SOCKET_ROOMS = Object.freeze({
+  GOVT_DASHBOARD: 'govt:dashboard',
+  govtDistrict: (district) => `govt:district:${district}`,
+  tourist:       (touristId) => `tourist:${touristId}`,
+  guardian:      (guardianToken) => `guardian:${guardianToken}`,
+})
+
+module.exports = { SOCKET_EVENTS, SOCKET_ROOMS }
