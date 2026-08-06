@@ -5,30 +5,47 @@ const router = require('express').Router()
 const ctrl   = require('../controllers/auth.controller')
 const { validate }  = require('../middleware/validate')
 const { authenticateTourist } = require('../middleware/auth')
+const { createAuthLimiter, createOtpLimiter } = require('../middleware/rateLimiter')
+
+// Each auth-sensitive route gets its own limiter instance/counter — see
+// rateLimiter.js for why a single shared instance is wrong here. Registration
+// gets a more generous budget than login: every attempt counts, including
+// recoverable validation/conflict errors (typo'd Aadhaar, duplicate phone),
+// so login's tight brute-force budget would lock out legitimate multi-try
+// signups, not just abuse.
+const registerLimiter          = createAuthLimiter(20)
+const loginLimiter             = createAuthLimiter()
+const resetPasswordLimiter     = createAuthLimiter()
+const govtRegisterLimiter      = createAuthLimiter(20)
+const govtLoginLimiter         = createAuthLimiter()
+const forgotPasswordOtpLimiter = createOtpLimiter()
+const verifyOtpLimiter         = createOtpLimiter()
+const resendOtpLimiter         = createOtpLimiter()
+const verificationOtpLimiter   = createOtpLimiter()
 const {
   RegisterTouristSchema, LoginTouristSchema, RegisterGovtSchema, LoginGovtSchema,
   ForgotPasswordSchema, VerifyOTPSchema, ResetPasswordSchema, ResendOTPSchema,
 } = require('../validators/auth.validator')
 
 // ── Tourist auth ──────────────────────────────────────────────────────
-router.post('/register',      validate(RegisterTouristSchema), ctrl.register)
-router.post('/login',         validate(LoginTouristSchema),    ctrl.login)
+router.post('/register',      registerLimiter, validate(RegisterTouristSchema), ctrl.register)
+router.post('/login',         loginLimiter,    validate(LoginTouristSchema),    ctrl.login)
 
 // ── Forgot password 3-step flow ───────────────────────────────────────
 // Step 1: Request OTP (no auth — this is for forgotten passwords)
-router.post('/forgot-password', validate(ForgotPasswordSchema), ctrl.forgotPassword)
+router.post('/forgot-password', forgotPasswordOtpLimiter, validate(ForgotPasswordSchema), ctrl.forgotPassword)
 // Step 2: Verify OTP → receive resetToken
-router.post('/verify-otp',      validate(VerifyOTPSchema),      ctrl.verifyOTP)
+router.post('/verify-otp',      verifyOtpLimiter, validate(VerifyOTPSchema),      ctrl.verifyOTP)
 // Step 3: Reset password using resetToken
-router.post('/reset-password',  validate(ResetPasswordSchema),  ctrl.resetPassword)
+router.post('/reset-password',  resetPasswordLimiter, validate(ResetPasswordSchema), ctrl.resetPassword)
 // Resend OTP (same rate limits apply)
-router.post('/resend-otp',      validate(ResendOTPSchema),      ctrl.resendOTP)
+router.post('/resend-otp',      resendOtpLimiter, validate(ResendOTPSchema),      ctrl.resendOTP)
 
 // ── Phone verification (requires login — optional post-signup step) ────
-router.post('/send-verification-otp', authenticateTourist, ctrl.sendVerificationOTP)
+router.post('/send-verification-otp', authenticateTourist, verificationOtpLimiter, ctrl.sendVerificationOTP)
 
 // ── Government auth ────────────────────────────────────────────────────
-router.post('/govt/register',  validate(RegisterGovtSchema),  ctrl.registerGovt)
-router.post('/govt/login',     validate(LoginGovtSchema),     ctrl.loginGovt)
+router.post('/govt/register',  govtRegisterLimiter, validate(RegisterGovtSchema), ctrl.registerGovt)
+router.post('/govt/login',     govtLoginLimiter,    validate(LoginGovtSchema),    ctrl.loginGovt)
 
 module.exports = router

@@ -4,6 +4,7 @@
 const { z } = require('zod')
 const { GOVT_ID_TYPES, GOVT_ROLES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
+const { PhoneSchema } = require('./common.validator')
 
 // Govt ID number format validator
 const govtIdNumberRefinement = (type) => (num, ctx) => {
@@ -24,7 +25,7 @@ const govtIdNumberRefinement = (type) => (num, ctx) => {
 
 const EmergencyContactSchema = z.object({
   name:        z.string().min(2).max(100),
-  phone:       z.string().min(10).max(15),
+  phone:       PhoneSchema,
   relation:    z.string().min(2).max(50),
   tier:        z.number().int().min(1).max(2).optional().default(1),
   notifyOnSOS: z.boolean().optional().default(true),
@@ -32,7 +33,7 @@ const EmergencyContactSchema = z.object({
 
 const RegisterTouristSchema = z.object({
   fullName:          z.string().min(2).max(255),
-  phone:             z.string().min(10).max(15),
+  phone:             PhoneSchema,
   email:             z.string().email().optional(),
   bloodGroup:        z.enum(['A+','A-','B+','B-','AB+','AB-','O+','O-']).optional(),
   medicalInfo:       z.string().max(1000).optional(),
@@ -47,7 +48,7 @@ const RegisterTouristSchema = z.object({
 })
 
 const LoginTouristSchema = z.object({
-  phone:    z.string().min(10).max(15),
+  phone:    PhoneSchema,
   password: z.string().min(1),
 })
 
@@ -66,11 +67,11 @@ const LoginGovtSchema = z.object({
 })
 
 const ForgotPasswordSchema = z.object({
-  phone: z.string().min(10).max(15),
+  phone: PhoneSchema,
 })
 
 const VerifyOTPSchema = z.object({
-  phone:   z.string().min(10).max(15),
+  phone:   PhoneSchema,
   otp:     z.string().length(6).regex(/^\d{6}$/, 'OTP must be exactly 6 digits'),
   purpose: z.enum(['PASSWORD_RESET', 'PHONE_VERIFY']).optional().default('PASSWORD_RESET'),
 })
@@ -81,7 +82,7 @@ const ResetPasswordSchema = z.object({
 })
 
 const ResendOTPSchema = z.object({
-  phone:   z.string().min(10).max(15),
+  phone:   PhoneSchema,
   purpose: z.enum(['PASSWORD_RESET', 'PHONE_VERIFY']).optional().default('PASSWORD_RESET'),
 })
 

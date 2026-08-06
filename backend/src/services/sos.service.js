@@ -75,6 +75,10 @@ async function markFalseAlarm(sosId, touristId) {
   }
 
   const updated = await repo.updateStatus(sosId, SOS_STATUSES.FALSE_ALARM)
+  // The findById check above is TOCTOU-racy against a concurrent resolve/
+  // false-alarm; the DB-level guard in updateStatus is the real source of
+  // truth, so re-check its result rather than trusting the pre-check alone.
+  if (!updated) throw Object.assign(new Error(ERRORS.SOS_ALREADY_CLOSED), { statusCode: 400 })
   emitSOSResolved(sosId, 'Tourist confirmed false alarm')
   logger.info({ sosId, touristId }, 'SOS marked false alarm')
   return updated

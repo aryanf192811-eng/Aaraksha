@@ -79,7 +79,14 @@ async function resolveSOS(sosId, resolutionNotes) {
     const rescueRepo_t = new RescueRepository(client)
 
     const resolved = await sosRepo_t.updateStatus(sosId, SOS_STATUSES.RESOLVED, { resolutionNotes })
-    if (!resolved) throw Object.assign(new Error(ERRORS.SOS_NOT_FOUND), { statusCode: 404 })
+    if (!resolved) {
+      // updateStatus returns null both when the SOS doesn't exist and when a
+      // concurrent request already closed it (DB-level guard) — disambiguate
+      // so two people resolving the same SOS get distinct, correct errors.
+      const existing = await sosRepo_t.findById(sosId)
+      if (!existing) throw Object.assign(new Error(ERRORS.SOS_NOT_FOUND), { statusCode: 404 })
+      throw Object.assign(new Error(ERRORS.SOS_ALREADY_CLOSED), { statusCode: 400 })
+    }
 
     const assignment = await rescueRepo_t.resolveAssignment(sosId)
     if (assignment?.team_id) {

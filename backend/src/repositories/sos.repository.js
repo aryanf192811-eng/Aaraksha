@@ -88,8 +88,9 @@ class SOSRepository extends BaseRepository {
   }
 
   async updateStatus(id, status, extra = {}) {
+    const isClosing = status === 'RESOLVED' || status === 'FALSE_ALARM'
     const fields = { status }
-    if (status === 'RESOLVED' || status === 'FALSE_ALARM') {
+    if (isClosing) {
       fields.resolved_at = new Date()
       if (extra.resolutionNotes) fields.resolution_notes = extra.resolutionNotes
     }
@@ -97,8 +98,12 @@ class SOSRepository extends BaseRepository {
 
     const setClauses = Object.keys(fields).map((k, i) => `${k} = $${i+2}`)
     const values = [id, ...Object.values(fields)]
+    // Closing transitions are guarded atomically at the DB level — WHERE status
+    // NOT IN (...) — so two concurrent resolve/false-alarm requests for the same
+    // SOS can't both "win" silently; the second one gets null (already closed).
+    const guard = isClosing ? ` AND status NOT IN ('RESOLVED','FALSE_ALARM')` : ''
     return this.queryOne(
-      `UPDATE sos_events SET ${setClauses.join(', ')} WHERE id = $1 RETURNING *`,
+      `UPDATE sos_events SET ${setClauses.join(', ')} WHERE id = $1${guard} RETURNING *`,
       values
     )
   }
