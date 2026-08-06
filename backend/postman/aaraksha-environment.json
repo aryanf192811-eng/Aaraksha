@@ -1,0 +1,32 @@
+{
+  "name": "Aaraksha Test Environment",
+  "values": [
+    { "key": "BASE_URL", "value": "http://localhost:5000/api", "type": "default", "enabled": true },
+    { "key": "BASE_URL_ROOT", "value": "http://localhost:5000", "type": "default", "enabled": true },
+    { "key": "SOCKET_URL", "value": "http://localhost:5000", "type": "default", "enabled": true },
+    { "key": "TOURIST_TOKEN", "value": "", "type": "secret", "enabled": true },
+    { "key": "TOURIST_2_TOKEN", "value": "", "type": "secret", "enabled": true },
+    { "key": "GOVT_TOKEN", "value": "", "type": "secret", "enabled": true },
+    { "key": "TOURIST_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "TOURIST_2_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "TRIP_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "SOS_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "DMS_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "CHECKIN_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "DESTINATION_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "SCAM_REPORT_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "GUARDIAN_TOKEN", "value": "", "type": "default", "enabled": true },
+    { "key": "RESET_TOKEN", "value": "", "type": "secret", "enabled": true },
+    { "key": "PUBLIC_TRIP_TOKEN", "value": "", "type": "default", "enabled": true },
+    { "key": "RESCUE_TEAM_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "RESCUE_TEAM_ID_AVAILABLE", "value": "", "type": "default", "enabled": true },
+    { "key": "NEW_SOS_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "ACTIVE_SOS_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "unixTimestamp", "value": "", "type": "default", "enabled": true },
+    { "key": "TEST_PHONE_1", "value": "8200000001", "type": "default", "enabled": true },
+    { "key": "TEST_PHONE_2", "value": "8200000002", "type": "default", "enabled": true },
+    { "key": "GOVT_EMAIL", "value": "admin@aaraksha.gov.in", "type": "default", "enabled": true },
+    { "key": "GOVT_PASSWORD", "value": "Admin@123", "type": "secret", "enabled": true },
+    { "key": "TIMESTAMP", "value": "", "type": "default", "enabled": true }
+  ]
+}

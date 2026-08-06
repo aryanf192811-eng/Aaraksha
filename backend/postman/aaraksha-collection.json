@@ -1,0 +1,4146 @@
+{
+  "info": {
+    "name": "Aaraksha Backend — Full API Test Suite",
+    "description": "Complete automated test suite for the Aaraksha Session 1 backend. 88 tests across 18 folders (+ cleanup) covering all 42 endpoints, auth flows, security guards, validation, and edge cases. Run against http://localhost:5000.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "test",
+      "item": [
+        {
+          "name": "00 - Health Check",
+          "item": [
+            {
+              "name": "GET /health",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL_ROOT}}/health",
+                  "host": [
+                    "{{BASE_URL_ROOT}}"
+                  ],
+                  "path": [
+                    "health"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.environment.set('TIMESTAMP', new Date().toISOString());"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Response has correct structure', () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body).to.have.property('status').that.equals('ok');",
+                      "  pm.expect(body).to.have.property('service').that.equals('aaraksha-backend');",
+                      "  pm.expect(body).to.have.property('timestamp');",
+                      "});",
+                      "pm.test('Response time under 1500ms', () => { pm.expect(pm.response.responseTime).to.be.below(1500); });",
+                      "pm.test('Content-Type is JSON', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "01 - Tourist Auth",
+          "item": [
+            {
+              "name": "Registration",
+              "item": [
+                {
+                  "name": "Test 1: Register — Valid",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/register",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "register"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fullName\": \"Arjun Test Tourist\",\n  \"phone\": \"{{TEST_PHONE_1}}\",\n  \"email\": \"arjun.test@aaraksha.in\",\n  \"bloodGroup\": \"B+\",\n  \"medicalInfo\": \"No known allergies\",\n  \"govtIdType\": \"AADHAAR\",\n  \"govtIdNumber\": \"432156789012\",\n  \"password\": \"Test@1234\",\n  \"emergencyContacts\": [\n    {\n      \"name\": \"Test Parent\",\n      \"phone\": \"9800000001\",\n      \"relation\": \"Parent\",\n      \"tier\": 1,\n      \"notifyOnSOS\": true\n    },\n    {\n      \"name\": \"Test Sibling\",\n      \"phone\": \"9800000002\",\n      \"relation\": \"Sibling\",\n      \"tier\": 2,\n      \"notifyOnSOS\": true\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "if (pm.response.code === 201) {",
+                          "  const body = pm.response.json();",
+                          "  pm.environment.set('TOURIST_TOKEN', body.data.token);",
+                          "  pm.environment.set('TOURIST_ID', body.data.tourist.id);",
+                          "  pm.environment.set('GUARDIAN_TOKEN', body.data.tourist.guardian_token);",
+                          "}",
+                          "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                          "pm.test('Response has success flag', () => { pm.expect(pm.response.json().success).to.be.true; });",
+                          "pm.test('JWT token returned', () => {",
+                          "  const body = pm.response.json();",
+                          "  pm.expect(body.data).to.have.property('token');",
+                          "  pm.expect(body.data.token).to.be.a('string').with.length.above(50);",
+                          "});",
+                          "pm.test('Tourist object has required fields', () => {",
+                          "  const tourist = pm.response.json().data.tourist;",
+                          "  pm.expect(tourist).to.have.property('id');",
+                          "  pm.expect(tourist).to.have.property('full_name').that.equals('Arjun Test Tourist');",
+                          "  pm.expect(tourist).to.have.property('phone');",
+                          "  pm.expect(tourist).to.have.property('guardian_token');",
+                          "  pm.expect(tourist).to.have.property('emergency_contacts');",
+                          "  pm.expect(tourist).to.have.property('govt_id_type').that.equals('AADHAAR');",
+                          "  pm.expect(tourist).to.have.property('govt_id_suffix').that.equals('9012');",
+                          "});",
+                          "pm.test('Password hash is NOT exposed', () => {",
+                          "  const tourist = pm.response.json().data.tourist;",
+                          "  pm.expect(tourist).to.not.have.property('password_hash');",
+                          "  pm.expect(tourist).to.not.have.property('password');",
+                          "});",
+                          "pm.test('Govt ID hash is NOT exposed', () => {",
+                          "  pm.expect(pm.response.json().data.tourist).to.not.have.property('govt_id_hash');",
+                          "});",
+                          "pm.test('Guardian token is 128 chars', () => {",
+                          "  pm.expect(pm.response.json().data.tourist.guardian_token.length).to.equal(128);",
+                          "});",
+                          "pm.test('Emergency contacts stored correctly', () => {",
+                          "  const tourist = pm.response.json().data.tourist;",
+                          "  pm.expect(tourist.emergency_contacts).to.be.an('array').with.length(2);",
+                          "  pm.expect(tourist.emergency_contacts[0]).to.have.property('name').that.equals('Test Parent');",
+                          "  pm.expect(tourist.emergency_contacts[0]).to.have.property('tier').that.equals(1);",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Test 2: Register — Duplicate Phone (409)",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/register",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "register"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fullName\": \"Duplicate User\",\n  \"phone\": \"{{TEST_PHONE_1}}\",\n  \"govtIdType\": \"AADHAAR\",\n  \"govtIdNumber\": \"999988887777\",\n  \"password\": \"Test@1234\",\n  \"emergencyContacts\": [\n    {\n      \"name\": \"Parent User\",\n      \"phone\": \"9876543210\",\n      \"relation\": \"Parent\"\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));",
+                          "pm.test('Error message mentions phone', () => {",
+                          "  const body = pm.response.json();",
+                          "  pm.expect(body.success).to.be.false;",
+                          "  pm.expect(body.message.toLowerCase()).to.include('phone');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Test 3: Register — Duplicate Govt ID (409)",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/register",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "register"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fullName\": \"Another User\",\n  \"phone\": \"{{TEST_PHONE_2}}\",\n  \"govtIdType\": \"AADHAAR\",\n  \"govtIdNumber\": \"432156789012\",\n  \"password\": \"Test@1234\",\n  \"emergencyContacts\": [\n    {\n      \"name\": \"Parent User\",\n      \"phone\": \"9876543210\",\n      \"relation\": \"Parent\"\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 409 for duplicate Govt ID', () => pm.response.to.have.status(409));",
+                          "pm.test('Error mentions govt ID', () => { pm.expect(pm.response.json().message.toLowerCase()).to.include('government id'); });"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Test 4: Register — Invalid Aadhaar Format (400)",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/register",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "register"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fullName\": \"Bad Aadhaar User\",\n  \"phone\": \"8200000099\",\n  \"govtIdType\": \"AADHAAR\",\n  \"govtIdNumber\": \"123\",\n  \"password\": \"Test@1234\",\n  \"emergencyContacts\": [\n    {\n      \"name\": \"Parent User\",\n      \"phone\": \"9876543210\",\n      \"relation\": \"Parent\"\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                          "pm.test('Validation error returned', () => {",
+                          "  const body = pm.response.json();",
+                          "  pm.expect(body.success).to.be.false;",
+                          "  pm.expect(body.message).to.equal('Validation failed');",
+                          "  pm.expect(body.errors).to.be.an('array').with.length.above(0);",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Test 5: Register — Missing Emergency Contacts (400)",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/register",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "register"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fullName\": \"No Contacts\",\n  \"phone\": \"8200000098\",\n  \"govtIdType\": \"AADHAAR\",\n  \"govtIdNumber\": \"111122223344\",\n  \"password\": \"Test@1234\",\n  \"emergencyContacts\": []\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                          "pm.test('Errors mention emergency contacts', () => {",
+                          "  const body = pm.response.json();",
+                          "  pm.expect(body.success).to.be.false;",
+                          "  const errorMessages = JSON.stringify(body.errors);",
+                          "  pm.expect(errorMessages.toLowerCase()).to.include('contact');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Test 6: Register — Second Tourist",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/register",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "register"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fullName\": \"Priya Test Tourist\",\n  \"phone\": \"{{TEST_PHONE_2}}\",\n  \"govtIdType\": \"PASSPORT\",\n  \"govtIdNumber\": \"P1234567\",\n  \"password\": \"Test@5678\",\n  \"emergencyContacts\": [\n    {\n      \"name\": \"Priya's Parent\",\n      \"phone\": \"9900000001\",\n      \"relation\": \"Parent\"\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "if (pm.response.code === 201) {",
+                          "  const body = pm.response.json();",
+                          "  pm.environment.set('TOURIST_2_TOKEN', body.data.token);",
+                          "  pm.environment.set('TOURIST_2_ID', body.data.tourist.id);",
+                          "}",
+                          "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                          "pm.test('Passport ID accepted', () => {",
+                          "  pm.expect(pm.response.json().data.tourist.govt_id_type).to.equal('PASSPORT');",
+                          "  pm.expect(pm.response.json().data.tourist.govt_id_suffix).to.equal('4567');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Login",
+              "item": [
+                {
+                  "name": "Test 7: Login — Valid",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/login",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"{{TEST_PHONE_1}}\",\n  \"password\": \"Test@1234\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "if (pm.response.code === 200) { pm.environment.set('TOURIST_TOKEN', pm.response.json().data.token); }",
+                          "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                          "pm.test('Token returned', () => pm.expect(pm.response.json().data.token).to.be.a('string'));",
+                          "pm.test('Tourist data returned', () => {",
+                          "  const tourist = pm.response.json().data.tourist;",
+                          "  pm.expect(tourist.phone).to.equal(pm.environment.get('TEST_PHONE_1'));",
+                          "  pm.expect(tourist).to.not.have.property('password_hash');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Test 8: Login — Wrong Password (401)",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/login",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"{{TEST_PHONE_1}}\",\n  \"password\": \"WrongPass123\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                          "pm.test('Generic error (no info leak)', () => {",
+                          "  const body = pm.response.json();",
+                          "  pm.expect(body.success).to.be.false;",
+                          "  pm.expect(body.message.toLowerCase()).to.include('invalid');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Test 9: Login — Non-existent Phone (401)",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/login",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"0000000000\",\n  \"password\": \"Test@1234\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                          "pm.test('Same error as wrong password (no enumeration)', () => {",
+                          "  pm.expect(pm.response.json().message.toLowerCase()).to.include('invalid');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Forgot Password OTP Flow",
+              "item": [
+                {
+                  "name": "Test 10: Forgot Password — Step 1",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/forgot-password",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "forgot-password"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"{{TEST_PHONE_1}}\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 200 always (anti-enumeration)', () => pm.response.to.have.status(200));",
+                          "pm.test('Generic message returned', () => {",
+                          "  const body = pm.response.json();",
+                          "  pm.expect(body.success).to.be.true;",
+                          "  pm.expect(body.message).to.be.a('string');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Test 11: Forgot Password — Non-existent Phone",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/forgot-password",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "forgot-password"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"0000000000\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 200 even for unknown phone', () => pm.response.to.have.status(200));",
+                          "pm.test('Same message as known phone', () => { pm.expect(pm.response.json().success).to.be.true; });"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Test 12: Verify OTP — Invalid OTP (400)",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/verify-otp",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "verify-otp"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"{{TEST_PHONE_1}}\",\n  \"otp\": \"000000\",\n  \"purpose\": \"PASSWORD_RESET\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 400 for invalid OTP', () => pm.response.to.have.status(400));",
+                          "pm.test('Error message returned', () => pm.expect(pm.response.json().success).to.be.false);"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Test 13: Verify OTP — Non-numeric OTP (400)",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/verify-otp",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "verify-otp"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"{{TEST_PHONE_1}}\",\n  \"otp\": \"abc123\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 400 for non-numeric OTP', () => pm.response.to.have.status(400));",
+                          "pm.test('Validation error returned', () => { pm.expect(pm.response.json().message).to.equal('Validation failed'); });"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Test 14: Resend OTP — Valid",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/resend-otp",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "resend-otp"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone\": \"{{TEST_PHONE_1}}\",\n  \"purpose\": \"PASSWORD_RESET\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                          "pm.test('Response is successful', () => pm.expect(pm.response.json().success).to.be.true);"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "Test 15: Reset Password — Invalid Reset Token (400)",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{BASE_URL}}/auth/reset-password",
+                      "host": [
+                        "{{BASE_URL}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "reset-password"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"resetToken\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n  \"newPassword\": \"NewPass@123\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 400 for invalid token', () => pm.response.to.have.status(400));",
+                          "pm.test('Error message returned', () => pm.expect(pm.response.json().success).to.be.false);"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02 - Govt Auth",
+          "item": [
+            {
+              "name": "Test 16: Govt Login — Valid Admin",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/auth/govt/login",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "govt",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{GOVT_EMAIL}}\",\n  \"password\": \"{{GOVT_PASSWORD}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) { pm.environment.set('GOVT_TOKEN', pm.response.json().data.token); }",
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Govt JWT returned', () => { pm.expect(pm.response.json().data.token).to.be.a('string').with.length.above(50); });",
+                      "pm.test('User role is SUPER_ADMIN', () => { pm.expect(pm.response.json().data.user.role).to.equal('SUPER_ADMIN'); });",
+                      "pm.test('Password not exposed', () => { pm.expect(pm.response.json().data.user).to.not.have.property('password_hash'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 17: Govt Login — Wrong Credentials (401)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/auth/govt/login",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "govt",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{GOVT_EMAIL}}\",\n  \"password\": \"WrongPassword\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 18: Govt Register — New Officer",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/auth/govt/register",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "govt",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Test Officer\",\n  \"email\": \"officer.test@meghalaya.gov.in\",\n  \"password\": \"Officer@1234\",\n  \"role\": \"TOURISM_OFFICER\",\n  \"district\": \"East Khasi Hills\",\n  \"state\": \"Meghalaya\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                      "pm.test('Officer registered with correct role', () => {",
+                      "  const user = pm.response.json().data.user;",
+                      "  pm.expect(user.role).to.equal('TOURISM_OFFICER');",
+                      "  pm.expect(user.district).to.equal('East Khasi Hills');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "03 - Tourist Profile",
+          "item": [
+            {
+              "name": "Test 19: Get Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/tourists/me",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "tourists",
+                    "me"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns correct tourist', () => {",
+                      "  const tourist = pm.response.json().data;",
+                      "  pm.expect(tourist.id).to.equal(pm.environment.get('TOURIST_ID'));",
+                      "  pm.expect(tourist.phone).to.equal(pm.environment.get('TEST_PHONE_1'));",
+                      "});",
+                      "pm.test('Sensitive data not exposed', () => {",
+                      "  const tourist = pm.response.json().data;",
+                      "  pm.expect(tourist).to.not.have.property('password_hash');",
+                      "  pm.expect(tourist).to.not.have.property('govt_id_hash');",
+                      "});",
+                      "pm.test('Guardian token included', () => { pm.expect(pm.response.json().data.guardian_token.length).to.equal(128); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 20: Get Profile — Without Token (401)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/tourists/me",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "tourists",
+                    "me"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 401 without auth', () => pm.response.to.have.status(401));",
+                      "pm.test('Unauthorized message', () => { pm.expect(pm.response.json().success).to.be.false; });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 21: Update Profile",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/tourists/me",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "tourists",
+                    "me"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"bloodGroup\": \"O+\",\n  \"medicalInfo\": \"Updated: mild penicillin allergy\",\n  \"emergencyContacts\": [\n    {\n      \"name\": \"Updated Parent\",\n      \"phone\": \"9800000001\",\n      \"relation\": \"Parent\",\n      \"tier\": 1,\n      \"notifyOnSOS\": true\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Blood group updated', () => { pm.expect(pm.response.json().data.blood_group).to.equal('O+'); });",
+                      "pm.test('Medical info updated', () => { pm.expect(pm.response.json().data.medical_info).to.include('penicillin'); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "04 - Destinations (Public)",
+          "item": [
+            {
+              "name": "Test 22: Get All Destinations",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/destinations",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "destinations"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const dests = pm.response.json().data;",
+                      "  if (dests.length > 0) { pm.environment.set('DESTINATION_ID', dests[0].id); }",
+                      "}",
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns array of destinations', () => { pm.expect(pm.response.json().data).to.be.an('array').with.length.above(0); });",
+                      "pm.test('Destinations have required fields', () => {",
+                      "  const dest = pm.response.json().data[0];",
+                      "  pm.expect(dest).to.have.property('id');",
+                      "  pm.expect(dest).to.have.property('name');",
+                      "  pm.expect(dest).to.have.property('state');",
+                      "  pm.expect(dest).to.have.property('connectivity');",
+                      "  pm.expect(dest).to.have.property('zone_type');",
+                      "  pm.expect(dest).to.have.property('altitude_m');",
+                      "  pm.expect(dest).to.have.property('ilp_required');",
+                      "});",
+                      "pm.test('No auth required for public endpoint', () => { pm.expect(pm.response.code).to.not.equal(401); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 23: Filter by State",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/destinations?state=Meghalaya",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "destinations?state=Meghalaya"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('All returned destinations are in Meghalaya', () => {",
+                      "  const dests = pm.response.json().data;",
+                      "  dests.forEach(d => pm.expect(d.state).to.equal('Meghalaya'));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 24: Get Destination By ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/destinations/{{DESTINATION_ID}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "destinations",
+                    "{{DESTINATION_ID}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns correct destination', () => { pm.expect(pm.response.json().data.id).to.equal(pm.environment.get('DESTINATION_ID')); });",
+                      "pm.test('Includes scam report aggregates', () => {",
+                      "  const dest = pm.response.json().data;",
+                      "  pm.expect(dest).to.have.property('scamReports');",
+                      "  pm.expect(dest).to.have.property('scamAggregate');",
+                      "});",
+                      "pm.test('Hospital info included', () => {",
+                      "  const dest = pm.response.json().data;",
+                      "  pm.expect(dest).to.have.any.keys(['nearest_hospital_name', 'nearest_hospital_km']);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 25: Invalid UUID (400)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/destinations/not-a-valid-uuid",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "destinations",
+                    "not-a-valid-uuid"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for invalid UUID', () => { pm.expect([400, 404]).to.include(pm.response.code); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "05 - Trips",
+          "item": [
+            {
+              "name": "Test 26: Create Trip with Stops",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"NE India Expedition — API Test\",\n  \"description\": \"Testing the trip creation API with full stops\",\n  \"travelType\": \"SOLO\",\n  \"startDate\": \"2026-09-01\",\n  \"endDate\": \"2026-09-14\",\n  \"budgetInr\": 35000,\n  \"isPublic\": true,\n  \"stops\": [\n    {\n      \"city\": \"Kaziranga\",\n      \"state\": \"Assam\",\n      \"destinationId\": \"{{DESTINATION_ID}}\",\n      \"days\": 3,\n      \"connectivity\": \"MODERATE\",\n      \"difficulty\": \"EASY\",\n      \"altitude_m\": 80,\n      \"zone_type\": \"SAFE\",\n      \"hospital_km\": 12,\n      \"activities\": [\n        {\n          \"name\": \"Elephant Safari\",\n          \"type\": \"ACTIVITY\",\n          \"cost\": 2000\n        },\n        {\n          \"name\": \"Jeep Safari\",\n          \"type\": \"ACTIVITY\",\n          \"cost\": 1500\n        }\n      ]\n    },\n    {\n      \"city\": \"Shillong\",\n      \"state\": \"Meghalaya\",\n      \"days\": 4,\n      \"connectivity\": \"GOOD\",\n      \"difficulty\": \"EASY\",\n      \"altitude_m\": 1496,\n      \"zone_type\": \"SAFE\",\n      \"hospital_km\": 2.1,\n      \"activities\": [\n        {\n          \"name\": \"Ward Lake\",\n          \"type\": \"ACTIVITY\",\n          \"cost\": 50\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const trip = pm.response.json().data;",
+                      "  pm.environment.set('TRIP_ID', trip.id);",
+                      "  pm.environment.set('PUBLIC_TRIP_TOKEN', trip.public_token || '');",
+                      "}",
+                      "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                      "pm.test('Trip has TSI score', () => {",
+                      "  const trip = pm.response.json().data;",
+                      "  pm.expect(trip).to.have.property('tsi_score');",
+                      "  pm.expect(trip.tsi_score).to.be.a('number').within(10, 100);",
+                      "});",
+                      "pm.test('Trip has TSI label', () => {",
+                      "  const labels = ['Low Risk', 'Moderate Risk', 'High Risk', 'Extreme Risk'];",
+                      "  pm.expect(labels).to.include(pm.response.json().data.tsi_label);",
+                      "});",
+                      "pm.test('Stops are stored', () => {",
+                      "  const stops = pm.response.json().data.stops;",
+                      "  pm.expect(stops).to.be.an('array').with.length(2);",
+                      "  pm.expect(stops[0].city).to.equal('Kaziranga');",
+                      "});",
+                      "pm.test('Rescue readiness score calculated', () => {",
+                      "  const trip = pm.response.json().data;",
+                      "  pm.expect(trip).to.have.property('rescue_readiness_score');",
+                      "  pm.expect(trip.rescue_readiness_score).to.be.a('number').within(0, 100);",
+                      "});",
+                      "pm.test('Public token set when isPublic=true', () => { pm.expect(pm.response.json().data.public_token).to.be.a('string').with.length.above(0); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 27: Create Trip — Without Auth (401)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Unauthorized Trip\",\n  \"startDate\": \"2026-09-01\",\n  \"endDate\": \"2026-09-05\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 28: Create Trip — Invalid Date Range (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Bad Dates\",\n  \"startDate\": \"2026-09-14\",\n  \"endDate\": \"2026-09-01\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for invalid dates', () => pm.response.to.have.status(400));",
+                      "pm.test('Date validation error', () => { pm.expect(pm.response.json().message).to.equal('Validation failed'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 29: Get My Trips",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Paginated response structure', () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body).to.have.property('pagination');",
+                      "  pm.expect(body.pagination).to.have.property('total');",
+                      "  pm.expect(body.pagination).to.have.property('page');",
+                      "  pm.expect(body.pagination).to.have.property('limit');",
+                      "  pm.expect(body.pagination).to.have.property('hasNext');",
+                      "  pm.expect(body.pagination).to.have.property('hasPrev');",
+                      "});",
+                      "pm.test('Created trip appears in list', () => {",
+                      "  const trips = pm.response.json().data;",
+                      "  const found = trips.some(t => t.id === pm.environment.get('TRIP_ID'));",
+                      "  pm.expect(found).to.be.true;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 30: Get Trip By ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips/{{TRIP_ID}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{TRIP_ID}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns correct trip', () => { pm.expect(pm.response.json().data.id).to.equal(pm.environment.get('TRIP_ID')); });",
+                      "pm.test('Full trip data including stops', () => {",
+                      "  const trip = pm.response.json().data;",
+                      "  pm.expect(trip.stops).to.be.an('array');",
+                      "  pm.expect(trip.tsi_recommendations).to.be.an('array');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 31: Access Another User's Trip (404)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_2_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips/{{TRIP_ID}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{TRIP_ID}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 404 for cross-user access', () => pm.response.to.have.status(404));",
+                      "pm.test('Access denied error', () => pm.expect(pm.response.json().success).to.be.false);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 32: Update Trip",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips/{{TRIP_ID}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{TRIP_ID}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"UPDATED — NE India Expedition\",\n  \"description\": \"Updated description for testing\",\n  \"travelType\": \"FRIENDS\",\n  \"startDate\": \"2026-09-01\",\n  \"endDate\": \"2026-09-14\",\n  \"budgetInr\": 50000,\n  \"isPublic\": true,\n  \"stops\": [\n    {\n      \"city\": \"Kaziranga\",\n      \"state\": \"Assam\",\n      \"days\": 3,\n      \"connectivity\": \"MODERATE\",\n      \"difficulty\": \"EASY\",\n      \"altitude_m\": 80,\n      \"zone_type\": \"SAFE\",\n      \"hospital_km\": 12,\n      \"activities\": [\n        {\n          \"name\": \"Rhino Watch\",\n          \"type\": \"ACTIVITY\",\n          \"cost\": 3000\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Title updated', () => { pm.expect(pm.response.json().data.title).to.include('UPDATED'); });",
+                      "pm.test('TSI recalculated after update', () => { pm.expect(pm.response.json().data.tsi_score).to.be.a('number'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 33: Activate Trip",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips/{{TRIP_ID}}/status",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{TRIP_ID}}",
+                    "status"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"ACTIVE\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Trip status is now ACTIVE', () => { pm.expect(pm.response.json().data.status).to.equal('ACTIVE'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 34: Status — Invalid Transition (400)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips/{{TRIP_ID}}/status",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{TRIP_ID}}",
+                    "status"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"PLANNED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for invalid transition ACTIVE→PLANNED', () => { pm.response.to.have.status(400); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 35: Update Packing Checklist",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips/{{TRIP_ID}}/checklist",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{TRIP_ID}}",
+                    "checklist"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"packingChecklist\": [\n    {\n      \"item\": \"Passport\",\n      \"category\": \"DOCUMENTS\",\n      \"packed\": true\n    },\n    {\n      \"item\": \"First aid kit\",\n      \"category\": \"MEDICINE\",\n      \"packed\": false\n    },\n    {\n      \"item\": \"Power bank\",\n      \"category\": \"ELECTRONICS\",\n      \"packed\": false\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Checklist saved', () => {",
+                      "  const checklist = pm.response.json().data.packing_checklist;",
+                      "  pm.expect(checklist).to.be.an('array').with.length(3);",
+                      "  checklist.forEach(item => pm.expect(item).to.have.property('id'));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 36: Get Public Trip (No Auth)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips/public/{{PUBLIC_TRIP_TOKEN}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "public",
+                    "{{PUBLIC_TRIP_TOKEN}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Public trip returned without auth', () => { pm.expect(pm.response.json().data.is_public).to.be.true; });",
+                      "pm.test('Author name included', () => { pm.expect(pm.response.json().data).to.have.property('author_name'); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "06 - SOS Events",
+          "item": [
+            {
+              "name": "Test 37: Create Manual SOS",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sos",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 25.5788,\n  \"longitude\": 91.8933,\n  \"category\": \"MEDICAL\",\n  \"message\": \"Test SOS — automated testing. Not a real emergency.\",\n  \"batteryPct\": 45,\n  \"tripId\": \"{{TRIP_ID}}\",\n  \"locationAccuracyM\": 15.5,\n  \"isStaleLocation\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) { pm.environment.set('SOS_ID', pm.response.json().data.id); }",
+                      "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                      "pm.test('SOS has correct fields', () => {",
+                      "  const sos = pm.response.json().data;",
+                      "  pm.expect(sos).to.have.property('id');",
+                      "  pm.expect(sos.category).to.equal('MEDICAL');",
+                      "  pm.expect(sos.status).to.equal('ACTIVE');",
+                      "  pm.expect(sos.trigger_type).to.equal('MANUAL');",
+                      "  pm.expect(parseFloat(sos.latitude)).to.be.closeTo(25.5788, 0.001);",
+                      "  pm.expect(parseFloat(sos.longitude)).to.be.closeTo(91.8933, 0.001);",
+                      "});",
+                      "pm.test('Battery percentage stored', () => { pm.expect(pm.response.json().data.battery_pct).to.equal(45); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 38: Create SOS — Invalid Coordinates (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sos",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 200,\n  \"longitude\": 400,\n  \"category\": \"OTHER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for invalid coordinates', () => pm.response.to.have.status(400));",
+                      "pm.test('Validation error', () => pm.expect(pm.response.json().message).to.equal('Validation failed'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 39: Get SOS History",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sos/mine",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sos",
+                    "mine"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Paginated response', () => pm.expect(pm.response.json()).to.have.property('pagination'));",
+                      "pm.test('Created SOS appears in history', () => {",
+                      "  const rows = pm.response.json().data;",
+                      "  const found = rows.some(s => s.id === pm.environment.get('SOS_ID'));",
+                      "  pm.expect(found).to.be.true;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 40: Mark False Alarm",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sos/{{SOS_ID}}/false-alarm",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sos",
+                    "{{SOS_ID}}",
+                    "false-alarm"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('SOS status is FALSE_ALARM', () => { pm.expect(pm.response.json().data.status).to.equal('FALSE_ALARM'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 41: False Alarm — Already Closed (400)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sos/{{SOS_ID}}/false-alarm",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sos",
+                    "{{SOS_ID}}",
+                    "false-alarm"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for already closed SOS', () => pm.response.to.have.status(400));",
+                      "pm.test('Error message about closed SOS', () => { pm.expect(pm.response.json().message.toLowerCase()).to.include('closed'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 42: False Alarm — Cross-user (403/404)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_2_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sos/{{SOS_ID}}/false-alarm",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sos",
+                    "{{SOS_ID}}",
+                    "false-alarm"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 403 or 404 for cross-user SOS', () => { pm.expect([403, 404]).to.include(pm.response.code); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "07 - Dead Man's Switch (DMS)",
+          "item": [
+            {
+              "name": "Test 43: Create DMS",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/dms",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "dms"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"intervalMinutes\": 60,\n  \"tripId\": \"{{TRIP_ID}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) { pm.environment.set('DMS_ID', pm.response.json().data.id); }",
+                      "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                      "pm.test('DMS has correct fields', () => {",
+                      "  const dms = pm.response.json().data;",
+                      "  pm.expect(dms).to.have.property('id');",
+                      "  pm.expect(dms.status).to.equal('ACTIVE');",
+                      "  pm.expect(dms.interval_minutes).to.equal(60);",
+                      "  pm.expect(dms).to.have.property('next_trigger_at');",
+                      "});",
+                      "pm.test('Next trigger is ~60 min from now', () => {",
+                      "  const dms = pm.response.json().data;",
+                      "  const diffMinutes = (new Date(dms.next_trigger_at).getTime() - Date.now()) / 60000;",
+                      "  pm.expect(diffMinutes).to.be.within(58, 62);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 44: Create DMS — Duplicate Active (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/dms",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "dms"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"intervalMinutes\": 30\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for duplicate DMS', () => pm.response.to.have.status(400));",
+                      "pm.test('Error mentions already active', () => { pm.expect(pm.response.json().message.toLowerCase()).to.include('active'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 45: Create DMS — Interval Below 15 (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/dms",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "dms"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"intervalMinutes\": 5\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for interval below 15', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 46: Create DMS — Interval Over 480 (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/dms",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "dms"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"intervalMinutes\": 999\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for interval above 480', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 47: Get Active DMS",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/dms/active",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "dms",
+                    "active"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns active DMS', () => {",
+                      "  const dms = pm.response.json().data;",
+                      "  pm.expect(dms).to.not.be.null;",
+                      "  pm.expect(dms.id).to.equal(pm.environment.get('DMS_ID'));",
+                      "  pm.expect(dms.status).to.equal('ACTIVE');",
+                      "});",
+                      "pm.test('Seconds remaining calculated', () => { pm.expect(pm.response.json().data.seconds_remaining).to.be.a('number').above(0); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 48: Reset DMS (Check-in)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/dms/{{DMS_ID}}/reset",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "dms",
+                    "{{DMS_ID}}",
+                    "reset"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 25.5788,\n  \"longitude\": 91.8933,\n  \"batteryPct\": 72,\n  \"message\": \"All good — testing DMS reset\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('DMS reset confirmed', () => {",
+                      "  const body = pm.response.json().data;",
+                      "  pm.expect(body).to.have.property('dms');",
+                      "  pm.expect(body).to.have.property('checkin');",
+                      "  pm.expect(body.checkin.type).to.equal('DMS_RESET');",
+                      "});",
+                      "pm.test('Next trigger extended by interval', () => {",
+                      "  const diff = (new Date(pm.response.json().data.dms.next_trigger_at).getTime() - Date.now()) / 60000;",
+                      "  pm.expect(diff).to.be.within(58, 62);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 49: Pause DMS",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/dms/{{DMS_ID}}/status",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "dms",
+                    "{{DMS_ID}}",
+                    "status"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"PAUSED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('DMS is now paused', () => { pm.expect(pm.response.json().data.status).to.equal('PAUSED'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 50: Resolve DMS",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/dms/{{DMS_ID}}/status",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "dms",
+                    "{{DMS_ID}}",
+                    "status"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"RESOLVED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('DMS is resolved', () => { pm.expect(pm.response.json().data.status).to.equal('RESOLVED'); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "08 - Check-ins",
+          "item": [
+            {
+              "name": "Test 51: Create Manual Check-in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/checkins",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "checkins"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 26.5775,\n  \"longitude\": 93.1705,\n  \"batteryPct\": 65,\n  \"message\": \"Just arrived at Kaziranga Gate 1 — stunning!\",\n  \"tripId\": \"{{TRIP_ID}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) { pm.environment.set('CHECKIN_ID', pm.response.json().data.checkin.id); }",
+                      "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                      "pm.test('Check-in has correct type', () => { pm.expect(pm.response.json().data.checkin.type).to.equal('MANUAL'); });",
+                      "pm.test('Location stored', () => { pm.expect(parseFloat(pm.response.json().data.checkin.latitude)).to.be.closeTo(26.5775, 0.001); });",
+                      "pm.test('DMS reset flag is false for manual check-in', () => { pm.expect(pm.response.json().data.dmsReset).to.be.false; });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 52: Create Check-in — Invalid Coordinates (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/checkins",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "checkins"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 999,\n  \"longitude\": 999\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for invalid coordinates', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 53: Get Recent Check-ins",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/checkins/recent",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "checkins",
+                    "recent"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns array of check-ins', () => { pm.expect(pm.response.json().data).to.be.an('array'); });",
+                      "pm.test('Check-ins ordered by newest first', () => {",
+                      "  const checkins = pm.response.json().data;",
+                      "  if (checkins.length > 1) {",
+                      "    const t1 = new Date(checkins[0].created_at).getTime();",
+                      "    const t2 = new Date(checkins[1].created_at).getTime();",
+                      "    pm.expect(t1).to.be.at.least(t2);",
+                      "  }",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "09 - Scam Reports",
+          "item": [
+            {
+              "name": "Test 54: Create Report",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/scam-reports",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "scam-reports"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"destinationId\": \"{{DESTINATION_ID}}\",\n  \"category\": \"OVERCHARGING\",\n  \"description\": \"Test scam report — auto-rickshaw driver charged 5x the metered rate from station to hotel area. Refused to use meter.\",\n  \"incidentDate\": \"2026-08-15\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) { pm.environment.set('SCAM_REPORT_ID', pm.response.json().data.id); }",
+                      "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                      "pm.test('Report stored with correct category', () => { pm.expect(pm.response.json().data.category).to.equal('OVERCHARGING'); });",
+                      "pm.test('Verified flag defaults to false', () => { pm.expect(pm.response.json().data.verified).to.be.false; });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 55: Create Report — Short Description (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/scam-reports",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "scam-reports"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"destinationId\": \"{{DESTINATION_ID}}\",\n  \"category\": \"THEFT\",\n  \"description\": \"Bad\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for short description', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 56: Get By Destination (No Auth)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/scam-reports/{{DESTINATION_ID}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "scam-reports",
+                    "{{DESTINATION_ID}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns reports and aggregate', () => {",
+                      "  const body = pm.response.json().data;",
+                      "  pm.expect(body).to.have.property('reports');",
+                      "  pm.expect(body).to.have.property('aggregate');",
+                      "  pm.expect(body.aggregate).to.have.property('total');",
+                      "  pm.expect(body.aggregate).to.have.property('byCategory');",
+                      "});",
+                      "pm.test('Created report appears in list', () => {",
+                      "  const reports = pm.response.json().data.reports;",
+                      "  const found = reports.some(r => r.id === pm.environment.get('SCAM_REPORT_ID'));",
+                      "  pm.expect(found).to.be.true;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "10 - Packing List",
+          "item": [
+            {
+              "name": "Test 57: Generate Packing List",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/packing/generate",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "packing",
+                    "generate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tripId\": \"{{TRIP_ID}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Items array returned', () => {",
+                      "  const result = pm.response.json().data;",
+                      "  pm.expect(result).to.have.property('items');",
+                      "  pm.expect(result.items).to.be.an('array').with.length.above(0);",
+                      "});",
+                      "pm.test('Source is GEMINI_AI or OFFLINE_FALLBACK', () => {",
+                      "  pm.expect(['GEMINI_AI', 'OFFLINE_FALLBACK']).to.include(pm.response.json().data.source);",
+                      "});",
+                      "pm.test('Each item has required fields', () => {",
+                      "  const items = pm.response.json().data.items;",
+                      "  items.forEach(item => {",
+                      "    pm.expect(item).to.have.property('id');",
+                      "    pm.expect(item).to.have.property('item');",
+                      "    pm.expect(item).to.have.property('category');",
+                      "    pm.expect(item).to.have.property('packed').that.is.a('boolean');",
+                      "  });",
+                      "});",
+                      "pm.test('Response time acceptable (Gemini may take longer)', () => { pm.expect(pm.response.responseTime).to.be.below(15000); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 58: Generate Packing List — Non-existent Trip (404)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/packing/generate",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "packing",
+                    "generate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tripId\": \"00000000-0000-0000-0000-000000000000\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 404 for non-existent trip', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "11 - Journey Passport",
+          "item": [
+            {
+              "name": "Test 59: Generate PDF Passport",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/journey-passport/{{TRIP_ID}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "journey-passport",
+                    "{{TRIP_ID}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Response is PDF', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/pdf'); });",
+                      "pm.test('Content-Disposition header set for download', () => {",
+                      "  const cd = pm.response.headers.get('Content-Disposition');",
+                      "  pm.expect(cd).to.include('attachment');",
+                      "  pm.expect(cd).to.include('.pdf');",
+                      "});",
+                      "pm.test('PDF is non-empty', () => { pm.expect(pm.response.responseSize).to.be.above(1000); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 60: Generate PDF — Another User's Trip (404)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_2_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/journey-passport/{{TRIP_ID}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "journey-passport",
+                    "{{TRIP_ID}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 404 for cross-user passport', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "12 - Guardian View (Public)",
+          "item": [
+            {
+              "name": "Test 61: Get Guardian View",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/tourists/guardian/{{GUARDIAN_TOKEN}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "tourists",
+                    "guardian",
+                    "{{GUARDIAN_TOKEN}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns privacy-safe data only', () => {",
+                      "  const view = pm.response.json().data;",
+                      "  pm.expect(view).to.have.property('firstName');",
+                      "  pm.expect(view).to.have.property('bloodGroup');",
+                      "  pm.expect(view).to.have.property('location');",
+                      "  pm.expect(view).to.not.have.property('phone');",
+                      "  pm.expect(view).to.not.have.property('full_name');",
+                      "  pm.expect(view).to.not.have.property('govt_id_hash');",
+                      "  pm.expect(view).to.not.have.property('password_hash');",
+                      "});",
+                      "pm.test('Location data key present', () => { pm.expect(pm.response.json().data).to.have.property('location'); });",
+                      "pm.test('TSI data key present', () => { pm.expect(pm.response.json().data).to.have.property('tsiScore'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 62: Guardian View — Invalid Token (404)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/tourists/guardian/invalidtoken00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "tourists",
+                    "guardian",
+                    "invalidtoken00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 404 for invalid guardian token', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "13 - Govt Dashboard",
+          "item": [
+            {
+              "name": "Test 63: Get Dashboard Stats",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/dashboard",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "dashboard"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Dashboard has all required metrics', () => {",
+                      "  const data = pm.response.json().data;",
+                      "  ['activeSOS','assignedSOS','resolvedToday','activeTourists','availableTeams','deployedTeams','activeDMS','recentSOS'].forEach(k => pm.expect(data).to.have.property(k));",
+                      "});",
+                      "pm.test('All metrics are numbers', () => {",
+                      "  const data = pm.response.json().data;",
+                      "  pm.expect(data.activeSOS).to.be.a('number');",
+                      "  pm.expect(data.availableTeams).to.be.a('number');",
+                      "});",
+                      "pm.test('recentSOS is array', () => { pm.expect(pm.response.json().data.recentSOS).to.be.an('array'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 64: Dashboard — With Tourist Token (403)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/dashboard",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "dashboard"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 403 for tourist on govt route', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 65: Get Live Tourists",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/tourists/live",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "tourists",
+                    "live"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns array', () => { pm.expect(pm.response.json().data).to.be.an('array'); });",
+                      "pm.test('Each tourist entry has location data', () => {",
+                      "  const tourists = pm.response.json().data;",
+                      "  if (tourists.length > 0) {",
+                      "    const t = tourists[0];",
+                      "    pm.expect(t).to.include.keys(['id', 'full_name', 'phone', 'latitude', 'longitude']);",
+                      "  }",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 66: Get Active SOS List",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/sos/active",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "sos",
+                    "active"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Paginated response', () => pm.expect(pm.response.json()).to.have.property('pagination'));",
+                      "pm.test('SOS entries have tourist info', () => {",
+                      "  const rows = pm.response.json().data;",
+                      "  if (rows.length > 0) {",
+                      "    pm.expect(rows[0]).to.have.property('full_name');",
+                      "    pm.expect(rows[0]).to.have.property('phone');",
+                      "    pm.expect(rows[0]).to.have.property('category');",
+                      "  }",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 67: Get Rescue Teams",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/rescue-teams",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "rescue-teams"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Teams have required fields', () => {",
+                      "  const teams = pm.response.json().data;",
+                      "  pm.expect(teams).to.be.an('array').with.length.above(0);",
+                      "  const team = teams[0];",
+                      "  ['id','name','type','status','contact_phone'].forEach(k => pm.expect(team).to.have.property(k));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 68: Get Risk Overview",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/risk-overview",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "risk-overview"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns risk data array', () => { pm.expect(pm.response.json().data).to.be.an('array'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 69: Get Analytics",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/analytics?period=30",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "analytics?period=30"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Analytics has required structure', () => {",
+                      "  const data = pm.response.json().data;",
+                      "  ['perDay','byCategory','totals','avgResponseMinutes'].forEach(k => pm.expect(data).to.have.property(k));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 70: Update Team Status — Deploy",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/rescue-teams/{{RESCUE_TEAM_ID}}/status",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "rescue-teams",
+                    "{{RESCUE_TEAM_ID}}",
+                    "status"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"DEPLOYED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.sendRequest({",
+                      "  url: pm.environment.get('BASE_URL') + '/govt/rescue-teams',",
+                      "  method: 'GET',",
+                      "  header: [{ key: 'Authorization', value: 'Bearer ' + pm.environment.get('GOVT_TOKEN') }],",
+                      "}, (err, res) => {",
+                      "  if (!err && res.code === 200) {",
+                      "    const avail = res.json().data.find(t => t.status === 'AVAILABLE');",
+                      "    if (avail) pm.environment.set('RESCUE_TEAM_ID', avail.id);",
+                      "  }",
+                      "});"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Team status updated', () => { pm.expect(pm.response.json().data.status).to.equal('DEPLOYED'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 71a: Setup — Create SOS for Assignment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sos",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 26.5775,\n  \"longitude\": 93.1705,\n  \"category\": \"OTHER\",\n  \"message\": \"Setup SOS for govt assignment test\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) { pm.environment.set('NEW_SOS_ID', pm.response.json().data.id); }",
+                      "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 71: Assign Rescue Team to SOS",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/sos/{{NEW_SOS_ID}}/assign",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "sos",
+                    "{{NEW_SOS_ID}}",
+                    "assign"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"teamId\": \"{{RESCUE_TEAM_ID_AVAILABLE}}\",\n  \"notes\": \"Test assignment — Rescue team en route to coordinates.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.sendRequest({",
+                      "  url: pm.environment.get('BASE_URL') + '/govt/rescue-teams',",
+                      "  method: 'GET',",
+                      "  header: [{ key: 'Authorization', value: 'Bearer ' + pm.environment.get('GOVT_TOKEN') }],",
+                      "}, (err, res) => {",
+                      "  if (!err && res.code === 200) {",
+                      "    const avail = res.json().data.find(t => t.status === 'AVAILABLE');",
+                      "    if (avail) pm.environment.set('RESCUE_TEAM_ID_AVAILABLE', avail.id);",
+                      "  }",
+                      "});"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Assignment created', () => { pm.expect(pm.response.json().data).to.have.property('assignment'); });",
+                      "pm.test('SOS status updated to ASSIGNED', () => { pm.expect(pm.response.json().data.sosStatus).to.equal('ASSIGNED'); });",
+                      "pm.test('Team status updated to DEPLOYED', () => { pm.expect(pm.response.json().data.teamStatus).to.equal('DEPLOYED'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 72: Resolve SOS",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/sos/{{NEW_SOS_ID}}/resolve",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "sos",
+                    "{{NEW_SOS_ID}}",
+                    "resolve"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"resolutionNotes\": \"Test resolution — tourist found safe. All clear.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('SOS status is RESOLVED', () => { pm.expect(pm.response.json().data.status).to.equal('RESOLVED'); });",
+                      "pm.test('Resolution notes saved', () => { pm.expect(pm.response.json().data.resolution_notes).to.include('safe'); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "14 - Webhook",
+          "item": [
+            {
+              "name": "Test 73: Valid Offline SOS SMS",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/x-www-form-urlencoded"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/webhooks/twilio-inbound",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "webhooks",
+                    "twilio-inbound"
+                  ]
+                },
+                "body": {
+                  "mode": "urlencoded",
+                  "urlencoded": [
+                    {
+                      "key": "From",
+                      "value": "+919999999999"
+                    },
+                    {
+                      "key": "Body",
+                      "value": "AARAKSHA_SOS|ID:{{TOURIST_ID}}|LAT:25.5788|LNG:91.8933|CAT:MEDICAL|BATT:23|TIME:0"
+                    },
+                    {
+                      "key": "MessageSid",
+                      "value": "SM00000000test00000000000000000001"
+                    },
+                    {
+                      "key": "AccountSid",
+                      "value": "ACtest"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const ts = Math.floor(Date.now() / 1000).toString();",
+                      "pm.environment.set('unixTimestamp', ts);",
+                      "pm.request.body.urlencoded.upsert({",
+                      "  key: 'Body',",
+                      "  value: `AARAKSHA_SOS|ID:${pm.environment.get('TOURIST_ID')}|LAT:25.5788|LNG:91.8933|CAT:MEDICAL|BATT:23|TIME:${ts}`,",
+                      "});"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Response is TwiML XML', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('text/xml'); });",
+                      "pm.test('TwiML has Message element', () => {",
+                      "  const body = pm.response.text();",
+                      "  pm.expect(body).to.include('<Response>');",
+                      "  pm.expect(body).to.include('<Message>');",
+                      "  pm.expect(body).to.include('Aaraksha');",
+                      "});",
+                      "pm.test('Response time under 3 seconds (async processing)', () => { pm.expect(pm.response.responseTime).to.be.below(3000); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 74: Non-SOS SMS (Ignored Gracefully)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/x-www-form-urlencoded"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/webhooks/twilio-inbound",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "webhooks",
+                    "twilio-inbound"
+                  ]
+                },
+                "body": {
+                  "mode": "urlencoded",
+                  "urlencoded": [
+                    {
+                      "key": "From",
+                      "value": "+919999999999"
+                    },
+                    {
+                      "key": "Body",
+                      "value": "Hello, is anyone there?"
+                    },
+                    {
+                      "key": "MessageSid",
+                      "value": "SMtest00002"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 (not 500)', () => pm.response.to.have.status(200));",
+                      "pm.test('Still returns valid TwiML', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('text/xml'); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "15 - Auth Guard Tests (Security)",
+          "item": [
+            {
+              "name": "Test 75: Access Without Token",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                      "pm.test('Standard error format', () => { pm.expect(pm.response.json().success).to.be.false; });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 76: Access With Malformed Token",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer notavalidjwttoken"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 401 for malformed token', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 77: Tourist Token on Govt Route",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/dashboard",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "dashboard"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 403', () => pm.response.to.have.status(403));",
+                      "pm.test('Forbidden error', () => pm.expect(pm.response.json().success).to.be.false);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 78: Govt Token on Tourist-Only Route",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sos",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 25.5788,\n  \"longitude\": 91.8933,\n  \"category\": \"OTHER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "16 - Validation Error Tests",
+          "item": [
+            {
+              "name": "Test 79: Invalid UUID in URL Params",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips/not-a-valid-uuid",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "not-a-valid-uuid"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for invalid UUID', () => { pm.expect([400, 422]).to.include(pm.response.code); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 80: Missing Required Fields — Trip Creation",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"description\": \"No title, no dates\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                      "pm.test('Errors array returned', () => { pm.expect(pm.response.json().errors).to.be.an('array').with.length.above(0); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 81: Invalid Enum Value — SOS Category",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sos",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 25.5,\n  \"longitude\": 91.8,\n  \"category\": \"ALIEN_ABDUCTION\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for invalid enum', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 82: Invalid Blood Group",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/tourists/me",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "tourists",
+                    "me"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"bloodGroup\": \"Z+\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for invalid blood group', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "17 - Edge Cases",
+          "item": [
+            {
+              "name": "Test 83: DMS Reset Without Active DMS",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/dms/00000000-0000-0000-0000-000000000000/reset",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "dms",
+                    "00000000-0000-0000-0000-000000000000",
+                    "reset"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 25.5,\n  \"longitude\": 91.8\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 404 for non-existent DMS', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 84: Delete Non-existent Trip",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips/00000000-0000-0000-0000-000000000000",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "00000000-0000-0000-0000-000000000000"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 85: Trip Status — COMPLETED → ACTIVE (Invalid Transition)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips/{{TRIP_ID}}/status",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{TRIP_ID}}",
+                    "status"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"ACTIVE\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.sendRequest({",
+                      "  url: pm.environment.get('BASE_URL') + '/trips/' + pm.environment.get('TRIP_ID') + '/status',",
+                      "  method: 'PATCH',",
+                      "  header: [{ key: 'Authorization', value: 'Bearer ' + pm.environment.get('TOURIST_TOKEN') }, { key: 'Content-Type', value: 'application/json' }],",
+                      "  body: { mode: 'raw', raw: JSON.stringify({ status: 'COMPLETED' }) },",
+                      "}, () => {});"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 for completed → active', () => pm.response.to.have.status(400));",
+                      "pm.test('Invalid transition error', () => { pm.expect(pm.response.json().message.toLowerCase()).to.include('transition'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 86: Scam Report for Non-existent Destination",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/scam-reports",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "scam-reports"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"destinationId\": \"00000000-0000-0000-0000-000000000000\",\n  \"category\": \"THEFT\",\n  \"description\": \"Test report for non-existent destination\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 87: Rate Limit / Repeated Wrong Login",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/auth/login",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"0000000000\",\n  \"password\": \"WrongPass\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Rejected consistently (401 or rate-limited 429)', () => { pm.expect([401, 429]).to.include(pm.response.code); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "18 - Cleanup",
+          "item": [
+            {
+              "name": "Test 88: Delete Created Trip",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/trips/{{TRIP_ID}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "trips",
+                    "{{TRIP_ID}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));",
+                      "pm.test('No body returned', () => { pm.expect(pm.response.text()).to.equal(''); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
