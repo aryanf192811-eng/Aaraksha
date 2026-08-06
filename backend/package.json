@@ -1,0 +1,51 @@
+{
+  "name": "aaraksha-backend",
+  "version": "1.0.0",
+  "description": "Aaraksha — Smart Tourism Safety Platform | Three-Portal Backend",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "preflight": "node scripts/preflight.js",
+    "migrate": "node-pg-migrate -m src/migrations up",
+    "migrate:down": "node-pg-migrate -m src/migrations down",
+    "migrate:create": "node-pg-migrate -m src/migrations create",
+    "seed": "node scripts/seed.js",
+    "seed:reset": "node scripts/seed.js --reset",
+    "setup": "node scripts/preflight.js && npm run migrate && npm run seed",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.15.0",
+    "axios": "^1.7.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "node-pg-migrate": "^7.4.0",
+    "pdfkit": "^0.15.0",
+    "pg": "^8.12.0",
+    "pino": "^9.3.2",
+    "pino-pretty": "^11.2.1",
+    "socket.io": "^4.7.5",
+    "twilio": "^5.2.3",
+    "uuid": "^10.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.0.3",
+    "nodemon": "^3.1.4",
+    "supertest": "^7.0.0",
+    "vitest": "^2.0.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
