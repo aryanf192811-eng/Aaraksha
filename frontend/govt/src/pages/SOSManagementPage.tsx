@@ -1,0 +1,225 @@
+// src/pages/SOSManagementPage.tsx — real-time SOS feed with assignment modal
+import { useState } from 'react'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Battery, CheckCircle2, Send } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '../components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
+import govtApi from '../api/govt.api'
+import { queryClient } from '../lib/queryClient'
+import { formatTimeAgo, cn } from '../lib/utils'
+import type { SOSWithDetails, RescueTeam } from '../types/api.types'
+import { useSOSSocket } from '../hooks/useSOSSocket'
+
+const STATUS_STYLE: Record<string, string> = {
+  ACTIVE:      'border-l-4 border-l-red-500 bg-surface-container-lowest',
+  ASSIGNED:    'border-l-4 border-l-amber-500 bg-surface-container-lowest',
+  RESOLVED:    'border-l-4 border-l-green-500 bg-surface-container opacity-70',
+  FALSE_ALARM: 'border-l-4 border-l-slate-300 bg-surface-container opacity-70',
+}
+
+export default function SOSManagementPage() {
+  const [selectedSOS, setSelectedSOS] = useState<SOSWithDetails | null>(null)
+  const [assignTeamId, setAssignTeamId] = useState('')
+  const [resolutionNotes, setResolutionNotes] = useState('')
+  useSOSSocket() // subscribes to real-time events; invalidates the queries below
+
+  const { data: sosData, isLoading } = useQuery({
+    queryKey: ['govt', 'sos'],
+    queryFn: () => govtApi.getActiveSOS({ page: 1, limit: 50 }).then(r => r.data),
+    refetchInterval: 15_000,
+  })
+
+  const { data: teamsData } = useQuery({
+    queryKey: ['govt', 'teams'],
+    queryFn: () => govtApi.getRescueTeams().then(r => r.data.data),
+  })
+
+  const { mutate: assignRescue, isPending: assigning } = useMutation({
+    mutationFn: ({ sosId, teamId }: { sosId: string; teamId: string }) =>
+      govtApi.assignRescue(sosId, { teamId }),
+    onSuccess: () => {
+      toast.success('Rescue team assigned')
+      queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
+      setSelectedSOS(null)
+      setAssignTeamId('')
+    },
+  })
+
+  const { mutate: resolveSOS, isPending: resolving } = useMutation({
+    // resolutionNotes is optional server-side (min 3 chars *if present*) —
+    // an empty string isn't "absent", so it must be dropped entirely rather
+    // than sent as '', which would fail the min-length check.
+    mutationFn: (sosId: string) => govtApi.resolveSOS(sosId, resolutionNotes.trim() ? { resolutionNotes: resolutionNotes.trim() } : {}),
+    onSuccess: () => {
+      toast.success('SOS resolved')
+      queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
+      queryClient.invalidateQueries({ queryKey: ['govt', 'dashboard'] })
+      setSelectedSOS(null)
+      setResolutionNotes('')
+    },
+  })
+
+  const sosList = sosData?.data || []
+  const teams = teamsData || []
+  const availableTeams = teams.filter((t: RescueTeam) => t.status === 'AVAILABLE')
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-black text-on-surface">SOS Management</h1>
+          <p className="text-on-surface-variant text-sm">Active incidents · Real-time feed</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-sos animate-pulse" />
+          <span className="text-sm font-semibold text-red-600">
+            {sosList.filter((s: SOSWithDetails) => s.status === 'ACTIVE').length} Active
+          </span>
+        </div>
+      </div>
+
+      {isLoading && (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {sosList.map((sos: SOSWithDetails) => (
+          <div key={sos.id}
+            className={cn('rounded-xl p-5 shadow-sm cursor-pointer hover:shadow-md transition-all', STATUS_STYLE[sos.status] || STATUS_STYLE.RESOLVED)}
+            onClick={() => setSelectedSOS(sos)}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle className={cn('w-4 h-4 flex-shrink-0',
+                    sos.status === 'ACTIVE' ? 'text-red-500' : sos.status === 'ASSIGNED' ? 'text-amber-500' : 'text-green-500'
+                  )} />
+                  <span className="font-bold text-on-surface truncate">{sos.full_name}</span>
+                  <span className="text-xs bg-surface-container-high text-on-surface-variant px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
+                    {sos.category}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
+                  <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{sos.phone}</span>
+                  {sos.blood_group && <span className="flex items-center gap-1"><Droplet className="w-3 h-3 text-red-400" />{sos.blood_group}</span>}
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatTimeAgo(sos.created_at)}</span>
+                  <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />
+                    <a href={`https://maps.google.com/?q=${sos.latitude},${sos.longitude}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                      onClick={e => e.stopPropagation()}>
+                      View on map
+                    </a>
+                  </span>
+                  {sos.last_battery !== null && (
+                    <span className="flex items-center gap-1"><Battery className="w-3 h-3" />{sos.last_battery}%</span>
+                  )}
+                </div>
+                {sos.rescue_team_name && (
+                  <p className="text-xs text-amber-700 mt-1 font-medium flex items-center gap-1">
+                    <UserCheck className="w-3 h-3" />
+                    {sos.rescue_team_name} ({sos.assignment_status})
+                  </p>
+                )}
+              </div>
+              <span className={cn('text-xs font-bold px-3 py-1 rounded-full flex-shrink-0',
+                sos.status === 'ACTIVE'   ? 'bg-red-100 text-red-700' :
+                sos.status === 'ASSIGNED' ? 'bg-amber-100 text-amber-700' :
+                                             'bg-green-100 text-green-700'
+              )}>{sos.status}</span>
+            </div>
+          </div>
+        ))}
+
+        {!isLoading && sosList.length === 0 && (
+          <div className="text-center py-20">
+            <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-4" />
+            <p className="text-lg font-bold text-on-surface">No active incidents</p>
+            <p className="text-on-surface-variant text-sm">All tourists are safe</p>
+          </div>
+        )}
+      </div>
+
+      {/* ── SOS Detail Modal ──────────────────────────────────── */}
+      {selectedSOS && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-outline-variant flex items-center justify-between">
+              <h2 className="text-xl font-black text-on-surface">SOS Details</h2>
+              <button onClick={() => setSelectedSOS(null)}><X className="w-6 h-6 text-on-surface-variant" /></button>
+            </div>
+            <div className="p-6 space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div><p className="text-xs font-bold text-on-surface-variant uppercase">Tourist</p><p className="font-bold">{selectedSOS.full_name}</p></div>
+                <div><p className="text-xs font-bold text-on-surface-variant uppercase">Phone</p><p className="font-bold">{selectedSOS.phone}</p></div>
+                <div><p className="text-xs font-bold text-on-surface-variant uppercase">Category</p><p className="font-bold text-red-600">{selectedSOS.category}</p></div>
+                <div><p className="text-xs font-bold text-on-surface-variant uppercase">Blood Group</p><p className="font-bold">{selectedSOS.blood_group || 'Unknown'}</p></div>
+                <div><p className="text-xs font-bold text-on-surface-variant uppercase">Trigger Type</p><p className="font-bold">{selectedSOS.trigger_type}</p></div>
+                <div><p className="text-xs font-bold text-on-surface-variant uppercase">Battery</p><p className="font-bold">{selectedSOS.last_battery !== null ? `${selectedSOS.last_battery}%` : '—'}</p></div>
+              </div>
+
+              {selectedSOS.message && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <p className="text-xs font-bold text-amber-700 uppercase mb-1">Message</p>
+                  <p className="text-sm text-on-surface">{selectedSOS.message}</p>
+                </div>
+              )}
+
+              <a href={`https://maps.google.com/?q=${selectedSOS.latitude},${selectedSOS.longitude}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-primary font-semibold hover:underline">
+                <MapPin className="w-4 h-4" /> View Location on Google Maps
+              </a>
+
+              {selectedSOS.emergency_contacts?.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-on-surface-variant uppercase mb-2">Emergency Contacts</p>
+                  {selectedSOS.emergency_contacts.map((c, i) => (
+                    <p key={i} className="text-sm text-on-surface">{c.name} ({c.relation}) — {c.phone}</p>
+                  ))}
+                </div>
+              )}
+
+              {selectedSOS.status === 'ACTIVE' && (
+                <div className="space-y-3 pt-4 border-t border-outline-variant">
+                  <p className="font-bold text-on-surface">Assign Rescue Team</p>
+                  <Select onValueChange={setAssignTeamId}>
+                    <SelectTrigger className="h-11 rounded-xl">
+                      <SelectValue placeholder={`${availableTeams.length} teams available`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTeams.map((team: RescueTeam) => (
+                        <SelectItem key={team.id} value={team.id}>
+                          {team.name} · {team.type} · {team.district}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button disabled={!assignTeamId || assigning}
+                    onClick={() => assignRescue({ sosId: selectedSOS.id, teamId: assignTeamId })}
+                    className="w-full h-11 bg-primary-dark hover:bg-primary-dark text-white rounded-full font-bold flex items-center justify-center gap-2">
+                    {assigning ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-4 h-4" /> Assign Rescue Team</>}
+                  </Button>
+                </div>
+              )}
+
+              {selectedSOS.status !== 'RESOLVED' && selectedSOS.status !== 'FALSE_ALARM' && (
+                <div className="space-y-2 pt-3 border-t border-outline-variant">
+                  <textarea placeholder="Resolution notes..." value={resolutionNotes}
+                    onChange={e => setResolutionNotes(e.target.value)} rows={2}
+                    className="w-full border border-outline-variant rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-emerald-500" />
+                  <Button variant="outline" disabled={resolving} onClick={() => resolveSOS(selectedSOS.id)}
+                    className="w-full h-11 rounded-full border-2 border-green-500 text-green-700 font-bold hover:bg-green-50 flex items-center justify-center gap-2">
+                    {resolving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /> Mark as Resolved</>}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
