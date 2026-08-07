@@ -68,4 +68,19 @@ Desktop.ini
 # not published to keep the repo reading as a normal engineering project.
 CLAUDE.md
 BACKEND_PROMPT.md
+FRONTEND_PROMPT*.md
 postman-check.md
+
+# ─── Locally-installed AI coding-assistant skills ───────────────────────
+# Third-party skill packages (e.g. ui-ux-pro-max-cli), not project source.
+.claude/skills/
+
+# ─── Design tool exports ─────────────────────────────────────────────────
+# Raw Stitch export archives used as redesign input — already applied to
+# frontend/*, not part of the buildable source tree.
+stitch_*.zip
+
+# ─── Local testing / MCP tool output ─────────────────────────────────────
+# Playwright MCP session artifacts (screenshots, DOM snapshots, console
+# logs) generated while manually verifying changes — not test fixtures.
+.playwright-mcp/
