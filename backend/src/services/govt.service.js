@@ -92,7 +92,7 @@ async function resolveSOS(sosId, resolutionNotes) {
     return { resolved }
   })
 
-  emitSOSResolved(sosId, resolutionNotes)
+  emitSOSResolved(resolved, resolutionNotes)
   logger.info({ sosId }, 'SOS resolved')
   return resolved
 }

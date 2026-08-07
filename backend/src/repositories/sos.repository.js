@@ -150,10 +150,13 @@ class SOSRepository extends BaseRepository {
   }
 
   // Most recent open SOS for one tourist — used by the guardian view, which
-  // only needs to know "is there an active SOS right now", not history.
+  // needs to know "is there an unresolved SOS right now". ASSIGNED must stay
+  // included: a rescue team being dispatched doesn't mean the tourist is
+  // safe yet, and the guardian should keep seeing the alert until RESOLVED
+  // or FALSE_ALARM.
   async findLatestActiveByTouristId(touristId) {
     return this.queryOne(
-      `SELECT id, category, status, created_at FROM sos_events WHERE tourist_id = $1 AND status = 'ACTIVE' ORDER BY created_at DESC LIMIT 1`,
+      `SELECT id, category, status, created_at FROM sos_events WHERE tourist_id = $1 AND status IN ('ACTIVE', 'ASSIGNED') ORDER BY created_at DESC LIMIT 1`,
       [touristId]
     )
   }

@@ -39,14 +39,23 @@ function emitSOSReceived(sosEvent, tourist) {
   })
 }
 
-// Govt dashboard: SOS resolved
-function emitSOSResolved(sosEventId, resolutionNotes) {
-  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.SOS_RESOLVED, {
-    sosId: sosEventId, status: 'RESOLVED', resolutionNotes, resolvedAt: new Date().toISOString(),
-  })
+// Govt dashboard + the reporting tourist's own room: SOS resolved or marked
+// false alarm. sosEvent is the post-update row (RETURNING *), so its status
+// reflects which of the two actually happened rather than assuming RESOLVED.
+function emitSOSResolved(sosEvent, resolutionNotes) {
+  const payload = {
+    sosId: sosEvent.id, status: sosEvent.status, resolutionNotes,
+    resolvedAt: sosEvent.resolved_at || new Date().toISOString(),
+  }
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.SOS_RESOLVED, payload)
+  if (sosEvent.tourist_id) {
+    safeEmit(SOCKET_ROOMS.tourist(sosEvent.tourist_id), SOCKET_EVENTS.SOS_STATUS_UPDATED, payload)
+  }
 }
 
-// Govt dashboard: rescue assigned to SOS
+// Govt dashboard + the reporting tourist's own room: rescue assigned to SOS.
+// The tourist side needs to know help is on the way — without this they had
+// no way to find out an SOS they sent was actually being acted on.
 function emitRescueAssigned(assignment, sosEvent, team) {
   safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.RESCUE_ASSIGNED, {
     assignmentId: assignment.id,
@@ -58,6 +67,11 @@ function emitRescueAssigned(assignment, sosEvent, team) {
     status:       assignment.status,
     assignedAt:   assignment.assigned_at,
   })
+  if (sosEvent.tourist_id) {
+    safeEmit(SOCKET_ROOMS.tourist(sosEvent.tourist_id), SOCKET_EVENTS.SOS_STATUS_UPDATED, {
+      sosId: sosEvent.id, status: 'ASSIGNED', teamName: team.name, teamType: team.type,
+    })
+  }
 }
 
 // Govt dashboard + Tourist room: DMS triggered
