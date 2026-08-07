@@ -64,10 +64,15 @@ export function downloadPDF(blob: Blob, filename: string) {
   const pdfBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' })
   const url = URL.createObjectURL(pdfBlob)
   const a = document.createElement('a')
+  a.style.display = 'none'
   a.href = url
   a.download = filename
   document.body.appendChild(a)
   a.click()
-  document.body.removeChild(a)
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  
+  // Clean up asynchronously to ensure the browser has time to register the download name
+  setTimeout(() => {
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, 10000)
 }
