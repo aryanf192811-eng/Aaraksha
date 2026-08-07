@@ -1,0 +1,354 @@
+// src/pages/trips/TripDetailPage.tsx
+// Full-bleed destination-photo hero, floating glass TSI/status badges, and
+// photo-thumbnail itinerary stops — the "listing detail" language used
+// across the redesigned tourist PWA.
+import { useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import {
+  ArrowLeft, Share2, Download, Map, List, Package, FileText, AlertTriangle,
+  Rocket, Sparkles, RefreshCw, Loader2, Check, Lightbulb, HeartPulse, Backpack,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
+import { Button } from '../../components/ui/button'
+import { TSIBadge, EmptyState, PageSkeleton } from '../../components/shared'
+import tripApi from '../../api/trip.api'
+import packingApi from '../../api/packing.api'
+import passportApi from '../../api/passport.api'
+import { queryClient } from '../../lib/queryClient'
+import { formatDate, formatINR, downloadPDF, cn } from '../../lib/utils'
+import { TRIP_STATUSES } from '../../constants/enums'
+import { getDestinationImage } from '../../lib/destinationImages'
+import type { Stop, PackingItem } from '../../types/api.types'
+
+const ACTIVITY_TYPE_COLORS: Record<string, string> = {
+  TRANSPORT: '#3b82f6', STAY: '#8b5cf6', ACTIVITY: '#10b981', MEAL: '#f59e0b', OTHER: '#94a3b8',
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  PLANNED:   'bg-slate-900/60 text-white',
+  ACTIVE:    'bg-green-500/90 text-white',
+  COMPLETED: 'bg-blue-500/90 text-white',
+  CANCELLED: 'bg-red-500/90 text-white',
+}
+
+type TabType = 'itinerary' | 'budget' | 'packing' | 'map'
+
+export default function TripDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const [tab, setTab] = useState<TabType>('itinerary')
+
+  const { data: trip, isLoading } = useQuery({
+    queryKey: ['trips', id],
+    queryFn: () => tripApi.getTripById(id!).then(r => r.data.data),
+    enabled: !!id,
+  })
+
+  const { mutate: generatePacking, isPending: generatingPacking } = useMutation({
+    mutationFn: () => packingApi.generate(id!),
+    onSuccess: () => { toast.success('AI packing list generated!'); queryClient.invalidateQueries({ queryKey: ['trips', id] }) },
+  })
+
+  const { mutate: activateTrip, isPending: activating } = useMutation({
+    mutationFn: () => tripApi.updateTripStatus(id!, { status: 'ACTIVE' }),
+    onSuccess: () => { toast.success('Trip activated!'); queryClient.invalidateQueries({ queryKey: ['trips'] }) },
+  })
+
+  const { mutate: generatePassport, isPending: generatingPassport } = useMutation({
+    mutationFn: () => passportApi.generate(id!),
+    onSuccess: (res) => {
+      downloadPDF(res.data, `journey-passport-${id!.slice(0, 8)}.pdf`)
+      toast.success('Journey Passport downloaded!')
+    },
+  })
+
+  const { mutate: togglePackedItem } = useMutation({
+    mutationFn: (items: PackingItem[]) => tripApi.updateChecklist(id!, items),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trips', id] }),
+  })
+
+  const handleShare = async () => {
+    if (!trip?.is_public || !trip.public_token) {
+      toast.info('Enable public sharing in settings to share this trip')
+      return
+    }
+    const url = `${window.location.origin}/community/${trip.public_token}`
+    await navigator.clipboard.writeText(url)
+    toast.success('Trip link copied!')
+  }
+
+  if (isLoading) return <div className="min-h-screen bg-surface"><PageSkeleton /></div>
+  if (!trip) {
+    return (
+      <EmptyState icon={Map} title="Trip not found" description="This trip may have been deleted or the link is invalid."
+        action={<Button onClick={() => navigate('/trips')} className="rounded-full">Back to trips</Button>} />
+    )
+  }
+
+  const stops: Stop[] = Array.isArray(trip.stops) ? trip.stops : []
+  const checklist: PackingItem[] = Array.isArray(trip.packing_checklist) ? trip.packing_checklist : []
+  const mapCoords = stops.filter(s => s.lat != null && s.lng != null).map(s => [s.lat!, s.lng!] as [number, number])
+  const heroCity = stops[0]?.city
+
+  // Budget breakdown from activities
+  const budgetByType: Record<string, number> = {}
+  stops.forEach(stop => {
+    stop.activities.forEach(a => {
+      budgetByType[a.type || 'OTHER'] = (budgetByType[a.type || 'OTHER'] || 0) + (a.cost || 0)
+    })
+  })
+  const budgetData = Object.entries(budgetByType).map(([name, value]) => ({ name, value }))
+  const totalCost = Object.values(budgetByType).reduce((s, v) => s + v, 0)
+
+  return (
+    <div className="min-h-screen bg-surface pb-24">
+      {/* Hero — full-bleed destination photo */}
+      <div className="relative h-64 sm:h-72">
+        <img src={getDestinationImage(heroCity, { w: 1000 })} alt={heroCity || trip.title}
+          className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-slate-950/40" />
+
+        <div className="relative flex items-center justify-between px-5 pt-12">
+          <button onClick={() => navigate(-1)}
+            className="w-10 h-10 rounded-full bg-surface-container-lowest/15 backdrop-blur-xl border border-white/25 flex items-center justify-center shadow-glass">
+            <ArrowLeft className="w-5 h-5 text-white" />
+          </button>
+          <button onClick={handleShare}
+            className="w-10 h-10 rounded-full bg-surface-container-lowest/15 backdrop-blur-xl border border-white/25 flex items-center justify-center shadow-glass">
+            <Share2 className="w-4 h-4 text-white" />
+          </button>
+        </div>
+
+        <div className="relative px-5 pt-6">
+          <span className={cn('inline-block text-[11px] font-bold px-2.5 py-1 rounded-full backdrop-blur-xl mb-2', STATUS_STYLES[trip.status] || STATUS_STYLES.PLANNED)}>
+            {trip.status}
+          </span>
+          <h1 className="font-display text-2xl font-bold text-white leading-tight truncate">{trip.title}</h1>
+          <p className="text-sm text-white/75 mt-1">{formatDate(trip.start_date)} → {formatDate(trip.end_date)}</p>
+        </div>
+      </div>
+
+      {/* Overlapping glass meta card */}
+      <div className="relative px-5 -mt-8">
+        <div className="bg-surface-container-lowest rounded-3xl shadow-glass-lg p-4 flex items-center gap-4">
+          <TSIBadge score={trip.tsi_score} label={trip.tsi_label} size="md" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-on-surface-variant">{stops.length} stops · {trip.travel_type}</p>
+            {trip.budget_inr && <p className="text-sm font-bold text-on-surface mt-0.5">{formatINR(trip.budget_inr)} budget</p>}
+          </div>
+          {trip.status === TRIP_STATUSES.PLANNED && (
+            <Button size="sm" onClick={() => activateTrip()} disabled={activating}
+              className="bg-primary hover:brightness-95 text-on-surface rounded-full text-xs px-3 py-1 font-bold flex items-center gap-1 flex-shrink-0">
+              {activating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />} Activate
+            </Button>
+          )}
+        </div>
+
+        {trip.tsi_recommendations.length > 0 && trip.tsi_score !== null && trip.tsi_score < 70 && (
+          <div className="mt-3 bg-orange-50 border border-orange-200 rounded-2xl p-3">
+            <p className="text-xs font-bold text-orange-700 mb-1 flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5" /> Safety Recommendations
+            </p>
+            {trip.tsi_recommendations.slice(0, 2).map((r, i) => (
+              <p key={i} className="text-xs text-orange-600">• {r}</p>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Tab Navigation — glass pill row */}
+      <div className="sticky top-0 z-10 bg-surface-container/80 backdrop-blur-xl px-5 mt-5 pb-1 flex gap-1.5 overflow-x-auto">
+        {([
+          { key: 'itinerary' as TabType, icon: List, label: 'Itinerary' },
+          { key: 'budget' as TabType, icon: FileText, label: 'Budget' },
+          { key: 'packing' as TabType, icon: Package, label: 'Packing' },
+          { key: 'map' as TabType, icon: Map, label: 'Map' },
+        ]).map(({ key, icon: Icon, label }) => (
+          <button key={key} onClick={() => setTab(key)}
+            className={cn('flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-full whitespace-nowrap transition-all',
+              tab === key ? 'bg-on-surface text-surface shadow-md' : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface shadow-sm'
+            )}>
+            <Icon className="w-4 h-4" /> {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="px-5 mt-4">
+        {/* ── Itinerary Tab ────────────────────────────────────── */}
+        {tab === 'itinerary' && (
+          <div className="space-y-4">
+            {stops.length === 0 && <p className="text-center text-on-surface-variant py-8">No stops added yet</p>}
+            {stops.map((stop, idx) => (
+              <div key={idx} className="bg-surface-container-lowest rounded-3xl shadow-sm overflow-hidden flex">
+                <img src={getDestinationImage(stop.city, { w: 200 })} alt={stop.city}
+                  className="w-24 sm:w-28 flex-shrink-0 object-cover" />
+                <div className="p-4 flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <h3 className="font-display font-bold text-on-surface">{stop.city}</h3>
+                      <p className="text-xs text-on-surface-variant">{stop.state} · {stop.days} days</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <span className="text-xs font-bold text-on-surface-variant">{stop.zone_type?.replace('_', ' ')}</span>
+                      {stop.altitude_m > 2000 && (
+                        <p className="text-xs text-orange-500">{stop.altitude_m}m altitude</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {stop.activities.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      {stop.activities.map((act, aIdx) => (
+                        <div key={aIdx} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ACTIVITY_TYPE_COLORS[act.type || 'OTHER'] }} />
+                            <span className="text-on-surface truncate">{act.name}</span>
+                          </div>
+                          {act.cost > 0 && <span className="text-on-surface-variant font-medium flex-shrink-0">{formatINR(act.cost)}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {stop.hospital_km > 0 && (
+                    <p className="text-xs text-on-surface-variant mt-2 flex items-center gap-1">
+                      <HeartPulse className="w-3 h-3" /> Nearest hospital: {stop.hospital_km}km
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Budget Tab ────────────────────────────────────── */}
+        {tab === 'budget' && (
+          <div className="space-y-4">
+            {budgetData.length === 0 ? (
+              <p className="text-center text-on-surface-variant py-8">No activities with cost added yet</p>
+            ) : (
+              <>
+                <div className="bg-surface-container-lowest rounded-3xl shadow-sm p-5">
+                  <h3 className="font-display font-bold text-on-surface mb-1">Cost Breakdown</h3>
+                  <p className="text-2xl font-bold text-primary">{formatINR(totalCost)}</p>
+                  {trip.budget_inr && <p className="text-xs text-on-surface-variant">Budget: {formatINR(trip.budget_inr)}</p>}
+                  {trip.budget_inr && totalCost > trip.budget_inr && (
+                    <p className="text-xs text-red-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Over budget by {formatINR(totalCost - trip.budget_inr)}
+                    </p>
+                  )}
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie data={budgetData} cx="50%" cy="50%" outerRadius={80} dataKey="value" isAnimationActive={false}>
+                        {budgetData.map((entry) => (
+                          <Cell key={entry.name} fill={ACTIVITY_TYPE_COLORS[entry.name] || '#94a3b8'} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => formatINR(Number(value))} />
+                      <Legend formatter={(v) => v.charAt(0) + v.slice(1).toLowerCase()} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="bg-primary/10 border border-primary/20 rounded-3xl p-4">
+                  <p className="text-xs font-bold text-primary uppercase mb-2 flex items-center gap-1">
+                    <Lightbulb className="w-3.5 h-3.5" /> Emergency Reserve Recommended
+                  </p>
+                  <p className="text-sm text-primary">Keep ₹5,000–₹10,000 as emergency reserve for medical or rescue costs.</p>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Packing Tab ────────────────────────────────────── */}
+        {tab === 'packing' && (
+          <div className="space-y-4">
+            {checklist.length === 0 ? (
+              <EmptyState icon={Backpack} title="No packing list yet" description="Generate a context-aware list using AI"
+                action={
+                  <Button onClick={() => generatePacking()} disabled={generatingPacking}
+                    className="bg-primary hover:brightness-95 text-on-surface rounded-full px-6 font-bold flex items-center gap-2">
+                    {generatingPacking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    {generatingPacking ? 'Generating...' : 'Generate AI Packing List'}
+                  </Button>
+                } />
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-on-surface-variant">
+                    {checklist.filter(i => i.packed).length}/{checklist.length} packed
+                  </p>
+                  <Button size="sm" variant="outline" onClick={() => generatePacking()} disabled={generatingPacking}
+                    className="rounded-full text-xs flex items-center gap-1.5">
+                    <RefreshCw className={cn('w-3.5 h-3.5', generatingPacking && 'animate-spin')} />
+                    {generatingPacking ? 'Regenerating...' : 'Regenerate'}
+                  </Button>
+                </div>
+                <div className="bg-surface-container-lowest rounded-3xl shadow-sm overflow-hidden">
+                  {checklist.map(item => (
+                    <button key={item.id} type="button"
+                      onClick={() => togglePackedItem(checklist.map(i => i.id === item.id ? { ...i, packed: !i.packed } : i))}
+                      className={cn('w-full flex items-center gap-3 px-5 py-3.5 border-b border-outline-variant last:border-0 text-left transition-colors',
+                        item.packed ? 'bg-green-50' : 'hover:bg-surface-container'
+                      )}>
+                      <div className={cn('w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0',
+                        item.packed ? 'bg-green-500 border-green-500' : 'border-slate-300'
+                      )}>
+                        {item.packed && <Check className="w-3 h-3 text-white" />}
+                      </div>
+                      <span className={cn('text-sm', item.packed ? 'line-through text-on-surface-variant' : 'text-on-surface')}>
+                        {item.item}
+                      </span>
+                      <span className="ml-auto text-xs text-on-surface-variant">{item.category}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Map Tab ────────────────────────────────────────── */}
+        {tab === 'map' && (
+          <div className="rounded-3xl overflow-hidden shadow-sm h-[60vh]">
+            {mapCoords.length > 0 ? (
+              <MapContainer center={mapCoords[0]} zoom={7} style={{ height: '100%', width: '100%' }}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap contributors" />
+                <Polyline positions={mapCoords} color="#f59e0b" weight={3} dashArray="6,8" />
+                {stops.filter(s => s.lat != null && s.lng != null).map((stop, i) => (
+                  <Marker key={i} position={[stop.lat!, stop.lng!]}>
+                    <Popup>
+                      <div className="text-center p-1">
+                        <p className="font-bold">{stop.city}</p>
+                        <p className="text-xs text-on-surface-variant">{stop.state} · {stop.days} days</p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+            ) : (
+              <div className="h-full bg-surface-container-high flex items-center justify-center">
+                <p className="text-on-surface-variant">Add stops with coordinates to view map</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Journey Passport button */}
+        {trip.status === TRIP_STATUSES.COMPLETED && (
+          <div className="mt-5">
+            <Button onClick={() => generatePassport()} disabled={generatingPassport}
+              className="w-full h-12 bg-on-surface hover:bg-on-surface/90 text-surface rounded-full font-bold flex items-center justify-center gap-2">
+              <Download className="w-4 h-4" />
+              {generatingPassport ? 'Generating...' : 'Download Digital Journey Passport'}
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

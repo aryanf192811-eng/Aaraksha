@@ -1,0 +1,180 @@
+// src/pages/safety/SOSPage.tsx
+// Design: Stitch "Safety Center" — status row, big pulsing SOS button,
+// icon-circle category grid, DMS card. Logic unchanged from the previous
+// version: same category/DMS state, same hooks, same mutations.
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useMutation } from '@tanstack/react-query'
+import {
+  ArrowLeft, MapPin, Battery, Loader2, Timer, CheckCircle2, Wifi, WifiOff,
+  HeartPulse, Compass, Mountain, Waves, ShieldAlert, HelpCircle,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { SOSButton } from '../../components/shared/SOSButton'
+import { useSOS } from '../../hooks/useSOS'
+import { useBattery } from '../../hooks/useBattery'
+import { useDMS } from '../../hooks/useDMS'
+import dmsApi from '../../api/dms.api'
+import { queryClient } from '../../lib/queryClient'
+import type { SOSCategory } from '../../constants/enums'
+import { cn } from '../../lib/utils'
+
+const CATEGORY_CONFIG = [
+  { value: 'MEDICAL',  Icon: HeartPulse,  label: 'Medical',  color: 'bg-sos-light text-sos-dark' },
+  { value: 'LOST',     Icon: Compass,     label: 'Lost',     color: 'bg-amber-100 text-amber-700' },
+  { value: 'TRAPPED',  Icon: Mountain,    label: 'Trapped',  color: 'bg-orange-100 text-orange-700' },
+  { value: 'DISASTER', Icon: Waves,       label: 'Disaster', color: 'bg-blue-100 text-blue-700' },
+  { value: 'CRIME',    Icon: ShieldAlert, label: 'Crime',    color: 'bg-purple-100 text-purple-700' },
+  { value: 'OTHER',    Icon: HelpCircle,  label: 'Other',    color: 'bg-surface-container-high text-on-surface-variant' },
+] as const
+
+const DMS_INTERVALS = [
+  { label: '30 min', value: 30 }, { label: '1 hour', value: 60 },
+  { label: '2 hours', value: 120 }, { label: '3 hours', value: 180 },
+]
+
+export default function SOSPage() {
+  const navigate = useNavigate()
+  const [category, setCategory] = useState<SOSCategory>('OTHER')
+  const [message, setMessage] = useState('')
+  const [showDMSSetup, setShowDMSSetup] = useState(false)
+  const [dmsInterval, setDmsInterval] = useState(60)
+  const { sendSOS, sending } = useSOS()
+  const { batteryPct } = useBattery()
+  const { dms } = useDMS()
+
+  const { mutate: createDMS, isPending: creatingDMS } = useMutation({
+    mutationFn: () => dmsApi.createDMS({ intervalMinutes: dmsInterval }),
+    onSuccess: () => {
+      toast.success(`Dead Man's Switch activated — check in every ${dmsInterval} min`)
+      queryClient.invalidateQueries({ queryKey: ['dms', 'active'] })
+      setShowDMSSetup(false)
+    },
+  })
+
+  const handleSOS = async () => {
+    await sendSOS(category, message || undefined)
+  }
+
+  return (
+    <div className="min-h-screen bg-surface pb-10 font-sans">
+      {/* TopAppBar */}
+      <header className="sticky top-0 z-30 bg-surface/85 backdrop-blur-md px-5 pt-12 pb-3 flex items-center justify-between border-b border-outline-variant/50">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-6 h-6 text-on-surface" />
+          </button>
+          <div>
+            <h1 className="font-display text-xl font-black text-on-surface">Safety Center</h1>
+            <p className="text-xs text-on-surface-variant">SOS · Dead Man's Switch</p>
+          </div>
+        </div>
+        {navigator.onLine ? <Wifi className="w-5 h-5 text-tsi-low" /> : <WifiOff className="w-5 h-5 text-sos" />}
+      </header>
+
+      <div className="px-5 mt-5 space-y-5">
+        {/* Status row */}
+        <div className="flex gap-2">
+          <div className="flex-1 bg-surface-container-lowest shadow-sm border border-outline-variant rounded-lg px-3 py-2 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-tsi-low flex-shrink-0" />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant">GPS Sync</span>
+              <span className="font-mono text-xs font-bold text-on-surface">Active</span>
+            </div>
+          </div>
+          <div className="flex-1 bg-surface-container-lowest shadow-sm border border-outline-variant rounded-lg px-3 py-2 flex items-center gap-2">
+            <Battery className="w-4 h-4 text-tsi-low flex-shrink-0" />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant">Power</span>
+              <span className="font-mono text-xs font-bold text-on-surface">{batteryPct ?? '—'}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Big SOS Section */}
+        <div className="flex flex-col items-center gap-5 py-4">
+          <SOSButton onTrigger={handleSOS} loading={sending} size="default" />
+          <p className="text-center text-xs text-on-surface-variant max-w-[260px]">
+            Activating SOS shares your live location with emergency services and emergency contacts.
+          </p>
+        </div>
+
+        {/* Category selector */}
+        <div>
+          <p className="text-xs font-extrabold text-on-surface-variant uppercase tracking-wide mb-3 px-0.5">Specific Emergency</p>
+          <div className="grid grid-cols-3 gap-2">
+            {CATEGORY_CONFIG.map(({ value, Icon, label, color }) => (
+              <button key={value} type="button"
+                onClick={() => setCategory(value)}
+                className={cn(
+                  'bg-surface-container-lowest shadow-sm border rounded-xl p-3 flex flex-col items-center gap-2 transition-all',
+                  category === value ? 'border-primary ring-2 ring-primary/30 -translate-y-0.5 shadow-md' : 'border-outline-variant'
+                )}>
+                <div className={cn('w-9 h-9 rounded-full flex items-center justify-center', color)}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-on-surface">{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Optional message */}
+        <textarea
+          placeholder="Additional details (optional)..."
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          rows={2}
+          className="w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-on-surface"
+        />
+
+        {/* DMS Section */}
+        <div className="bg-surface-container-lowest shadow-sm border border-outline-variant rounded-2xl p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <Timer className="w-6 h-6 text-primary" />
+            <div>
+              <h2 className="font-display font-black text-on-surface">Dead Man's Switch</h2>
+              <p className="text-xs text-on-surface-variant">Auto-SOS if you stop checking in</p>
+            </div>
+          </div>
+
+          {dms && dms.status === 'ACTIVE' ? (
+            <div className="bg-tsi-low/10 border border-tsi-low/30 rounded-xl p-4 text-center">
+              <p className="flex items-center justify-center gap-1.5 font-bold text-tsi-low">
+                <CheckCircle2 className="w-4 h-4" /> Active — Check-in every {dms.interval_minutes} min
+              </p>
+              <p className="text-xs text-tsi-low/80 mt-1">Tap "Check In" from the bottom nav to reset</p>
+            </div>
+          ) : (
+            <>
+              {!showDMSSetup ? (
+                <button onClick={() => setShowDMSSetup(true)}
+                  className="w-full bg-primary hover:brightness-95 text-primary-foreground font-bold rounded-full h-12 transition-all active:scale-95">
+                  Activate Dead Man's Switch
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-on-surface-variant">Check-in interval:</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {DMS_INTERVALS.map(({ label, value }) => (
+                      <button key={value} type="button" onClick={() => setDmsInterval(value)}
+                        className={cn('rounded-xl border-2 py-2 text-center text-xs font-bold transition-all',
+                          dmsInterval === value ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant'
+                        )}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => createDMS()} disabled={creatingDMS}
+                    className="w-full bg-on-surface text-surface font-bold rounded-full h-12 flex items-center justify-center active:scale-95 transition-all">
+                    {creatingDMS ? <Loader2 className="w-5 h-5 animate-spin" /> : `Activate — ${dmsInterval} min intervals`}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
