@@ -9,6 +9,7 @@ import type {
 } from '../types/api.types'
 
 export interface RiskOverviewEntry {
+  destinationId: string | null
   city: string
   state: string
   zoneType: string
@@ -17,11 +18,17 @@ export interface RiskOverviewEntry {
   solo: number
   highRisk: number
   weather: {
-    id: string
     weather_condition?: string
     weather_risk?: string
     temp_celsius?: number
   } | null
+  altitudeM: number | null
+  difficulty: string | null
+  nearestHospitalName: string | null
+  nearestHospitalKm: string | null
+  govtAdvisory: string | null
+  description: string | null
+  ilpRequired: boolean
 }
 
 export interface AnalyticsResponse {
@@ -60,6 +67,9 @@ const govtApi = {
 
   getAnalytics: (period?: string) =>
     api.get<APIResponse<AnalyticsResponse>>('/govt/analytics', { params: { period } }),
+
+  exportAnalyticsReport: (period?: string) =>
+    api.get('/govt/analytics/export', { params: { period }, responseType: 'blob' }),
 }
 
 export default govtApi

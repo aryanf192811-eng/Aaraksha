@@ -7,11 +7,28 @@ const { SOSRepository }      = require('../repositories/sos.repository')
 const { TripRepository }     = require('../repositories/trip.repository')
 const { ERRORS } = require('../constants/errors')
 
+// tourists.rescue_readiness_score is a DB column that nothing ever wrote —
+// TouristRepository.create() doesn't set it, so it always sat at its
+// schema default (0) regardless of how complete the profile actually was.
+// Compute it fresh on every read instead of trusting the stored value, so
+// it can never go stale as the profile changes.
+function computeProfileReadiness(tourist) {
+  const contacts = Array.isArray(tourist.emergency_contacts) ? tourist.emergency_contacts : []
+  const items = {
+    bloodGroup:           !!tourist.blood_group,
+    medicalInfo:          !!tourist.medical_info,
+    emergencyContact:     contacts.length >= 1,
+    twoEmergencyContacts: contacts.length >= 2,
+  }
+  const trueCount = Object.values(items).filter(Boolean).length
+  return Math.round((trueCount / Object.keys(items).length) * 100)
+}
+
 async function getProfile(touristId) {
   const repo    = new TouristRepository()
   const tourist = await repo.findById(touristId)
   if (!tourist) throw Object.assign(new Error(ERRORS.NOT_FOUND), { statusCode: 404 })
-  return tourist
+  return { ...tourist, rescue_readiness_score: computeProfileReadiness(tourist) }
 }
 
 async function updateProfile(touristId, data) {
@@ -23,7 +40,8 @@ async function updateProfile(touristId, data) {
   if (data.medicalInfo)       dbFields.medical_info       = data.medicalInfo
   if (data.profilePhotoUrl !== undefined) dbFields.profile_photo_url = data.profilePhotoUrl
   if (data.emergencyContacts) dbFields.emergency_contacts = data.emergencyContacts
-  return repo.update(touristId, dbFields)
+  const updated = await repo.update(touristId, dbFields)
+  return { ...updated, rescue_readiness_score: computeProfileReadiness(updated) }
 }
 
 async function getGuardianView(token) {
@@ -60,4 +78,4 @@ async function getGuardianView(token) {
   }
 }
 
-module.exports = { getProfile, updateProfile, getGuardianView }
+module.exports = { getProfile, updateProfile, getGuardianView, computeProfileReadiness }

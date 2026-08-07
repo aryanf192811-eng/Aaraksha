@@ -1,10 +1,10 @@
 // src/pages/LiveMapPage.tsx — real-time ops map with tourist status markers
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { AlertTriangle, Battery } from 'lucide-react'
+import { AlertTriangle, Battery, LocateFixed } from 'lucide-react'
 import govtApi from '../api/govt.api'
 import { cn, formatTimeAgo } from '../lib/utils'
 import type { LiveTourist } from '../types/api.types'
@@ -22,6 +22,18 @@ const createMarkerIcon = (color: string, glyph: string) =>
 const SAFE_ICON    = createMarkerIcon('#10b981', '&#9679;')
 const SOS_ICON     = createMarkerIcon('#ef4444', '!')
 const WARNING_ICON = createMarkerIcon('#f59e0b', '&#9650;')
+
+// Recenter control — after panning around the ops map to inspect an
+// incident, one click returns to the full Northeast India overview.
+function RecenterControl({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap()
+  return (
+    <button onClick={() => map.flyTo(center, zoom)} title="Recenter map" aria-label="Recenter map"
+      className="absolute bottom-4 right-4 z-[1000] w-10 h-10 rounded-full bg-white shadow-lg border border-outline-variant flex items-center justify-center hover:bg-surface-container active:scale-95 transition-all">
+      <LocateFixed className="w-5 h-5 text-on-surface" />
+    </button>
+  )
+}
 
 export default function LiveMapPage() {
   const [selectedTourist, setSelectedTourist] = useState<LiveTourist | null>(null)
@@ -103,6 +115,7 @@ export default function LiveMapPage() {
                 )}
               </div>
             ))}
+            <RecenterControl center={mapCenter} zoom={7} />
           </MapContainer>
 
           {isLoading && (

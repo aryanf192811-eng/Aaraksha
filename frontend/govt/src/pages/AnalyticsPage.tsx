@@ -1,12 +1,13 @@
 // src/pages/AnalyticsPage.tsx — full analytics view with period selector
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Download } from 'lucide-react'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { Download, Loader2 } from 'lucide-react'
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip,
          ResponsiveContainer, CartesianGrid } from 'recharts'
+import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
 import govtApi, { type AnalyticsResponse } from '../api/govt.api'
-import { cn } from '../lib/utils'
+import { cn, downloadPDF } from '../lib/utils'
 
 const PERIOD_OPTIONS = [
   { label: '7 days', value: '7d' },
@@ -38,6 +39,15 @@ export default function AnalyticsPage() {
   const totals       = a?.totals ?? { total: 0, resolved: 0, active: 0 }
   const avgResponse  = a?.avgResponseMinutes ?? 0
 
+  const { mutate: exportReport, isPending: exporting } = useMutation({
+    mutationFn: () => govtApi.exportAnalyticsReport(period),
+    onSuccess: (res) => {
+      downloadPDF(res.data, `aaraksha-report-${period}-${Date.now()}.pdf`)
+      toast.success('Report downloaded')
+    },
+    onError: () => toast.error('Failed to generate report'),
+  })
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -56,8 +66,9 @@ export default function AnalyticsPage() {
               </button>
             ))}
           </div>
-          <Button className="bg-primary-dark hover:brightness-90 text-white rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2">
-            <Download className="w-4 h-4" /> Export PDF
+          <Button onClick={() => exportReport()} disabled={exporting}
+            className="bg-primary-dark hover:brightness-90 text-white rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2">
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Export PDF
           </Button>
         </div>
       </div>

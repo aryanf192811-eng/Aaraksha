@@ -9,6 +9,7 @@ const { TouristRepository } = require('../repositories/tourist.repository')
 const { GovtRepository } = require('../repositories/govt.repository')
 const { hashPassword, verifyPassword, hashGovtId, generateGuardianToken,
         normalizePhone, extractSuffix } = require('../utils/crypto')
+const { computeProfileReadiness } = require('./tourist.service')
 const { ERRORS } = require('../constants/errors')
 
 function generateJWT(id, role) {
@@ -50,7 +51,7 @@ async function registerTourist(data) {
 
   const token = generateJWT(tourist.id, 'tourist')
   logger.info({ touristId: tourist.id }, 'Tourist registered')
-  return { tourist, token }
+  return { tourist: { ...tourist, rescue_readiness_score: computeProfileReadiness(tourist) }, token }
 }
 
 async function loginTourist(data) {
@@ -67,7 +68,7 @@ async function loginTourist(data) {
   const { password_hash, ...safeTourist } = tourist
   const token = generateJWT(tourist.id, 'tourist')
   logger.info({ touristId: tourist.id }, 'Tourist logged in')
-  return { tourist: safeTourist, token }
+  return { tourist: { ...safeTourist, rescue_readiness_score: computeProfileReadiness(safeTourist) }, token }
 }
 
 async function registerGovt(data) {

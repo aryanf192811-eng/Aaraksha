@@ -14,12 +14,12 @@ const { ERRORS } = require('../constants/errors')
 const logger = require('../utils/logger')
 
 async function getDashboard() {
-  const [sosRepo, rescueRepo, dmsRepo, locationRepo] = [
-    new SOSRepository(), new RescueRepository(), new DMSRepository(), new LocationRepository()
+  const [sosRepo, rescueRepo, dmsRepo, locationRepo, tripRepo] = [
+    new SOSRepository(), new RescueRepository(), new DMSRepository(), new LocationRepository(), new TripRepository()
   ]
 
   const [activeSOS, assignedSOS, resolvedToday, activeTourists,
-         availableTeams, deployedTeams, activeDMS, recentSOS] = await Promise.all([
+         availableTeams, deployedTeams, activeDMS, recentSOS, safetyIndex] = await Promise.all([
     sosRepo.countByPeriod(new Date(0)).then(r => parseInt(r[0]?.active || 0)),
     sosRepo.countAssigned(),
     sosRepo.countResolvedToday(),
@@ -28,9 +28,13 @@ async function getDashboard() {
     rescueRepo.countDeployed(),
     dmsRepo.countActive(),
     sosRepo.findRecent(5),
+    tripRepo.getAverageActiveTSI(),
   ])
 
-  return { activeSOS, assignedSOS, resolvedToday, activeTourists, availableTeams, deployedTeams, activeDMS, recentSOS }
+  return {
+    activeSOS, assignedSOS, resolvedToday, activeTourists, availableTeams, deployedTeams, activeDMS, recentSOS,
+    safetyIndex: safetyIndex.avgTsi, safetyIndexTripCount: safetyIndex.tripCount,
+  }
 }
 
 async function getActiveSOS(filters) {
@@ -114,6 +118,7 @@ async function getRiskOverview() {
       const key = stop.destinationId || stop.city
       if (!destStats[key]) {
         destStats[key] = {
+          destinationId: stop.destinationId || null,
           city:        stop.city,
           state:       stop.state,
           zoneType:    stop.zone_type,
@@ -129,16 +134,37 @@ async function getRiskOverview() {
     }
   }
 
+  // Bug fix: this used to key the lookup map by destination id but never
+  // stored that id on the stat object itself, so the later lookup always
+  // missed and weather (and every other destination detail) silently never
+  // attached to any risk zone. Keyed by both id and city name now, since
+  // manually-typed trip stops don't always carry a destinationId.
   const destinations = await destRepo.findAll()
-  const weatherMap = {}
+  const byId = {}
+  const byCity = {}
   destinations.forEach(d => {
-    if (d.weather_condition) weatherMap[d.id] = d
+    byId[d.id] = d
+    byCity[d.name.toUpperCase()] = d
   })
 
-  return Object.values(destStats).map(stat => ({
-    ...stat,
-    weather: weatherMap[stat.destinationId] || null,
-  }))
+  return Object.values(destStats).map(stat => {
+    const dest = (stat.destinationId && byId[stat.destinationId]) || byCity[stat.city.toUpperCase()] || null
+    return {
+      ...stat,
+      weather: dest?.weather_condition ? {
+        weather_condition: dest.weather_condition,
+        weather_risk:      dest.weather_risk,
+        temp_celsius:      dest.temp_celsius,
+      } : null,
+      altitudeM:          dest?.altitude_m ?? null,
+      difficulty:         dest?.difficulty ?? null,
+      nearestHospitalName:dest?.nearest_hospital_name ?? null,
+      nearestHospitalKm:  dest?.nearest_hospital_km ?? null,
+      govtAdvisory:       dest?.govt_advisory ?? null,
+      description:        dest?.description ?? null,
+      ilpRequired:        dest?.ilp_required ?? false,
+    }
+  })
 }
 
 async function getRescueTeams() {

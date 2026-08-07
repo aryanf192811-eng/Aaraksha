@@ -2,8 +2,8 @@
 // Shows: status banner (safe/warning/SOS) -> map -> last checkin time -> TSI -> medical info
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off } from 'lucide-react'
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet'
+import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off, LocateFixed } from 'lucide-react'
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import touristApi from '../api/tourist.api'
@@ -53,6 +53,19 @@ const STATUS_CONFIG: Record<StatusType, {
     sub:      'Last location shown below',
     dotColor: 'bg-outline',
   },
+}
+
+// Recenter control — the map has no default zoom controls (zoomControl is
+// off for this single-purpose view), so this is the only way to return to
+// the tourist's location after panning around to look at the area.
+function RecenterControl({ center }: { center: [number, number] }) {
+  const map = useMap()
+  return (
+    <button onClick={() => map.flyTo(center, 14)} title="Recenter on traveler" aria-label="Recenter on traveler"
+      className="absolute bottom-14 right-3 z-[1000] w-10 h-10 rounded-full bg-surface-container-lowest shadow-md flex items-center justify-center hover:bg-surface-container active:scale-95 transition-all">
+      <LocateFixed className="w-5 h-5 text-on-surface" />
+    </button>
+  )
 }
 
 function getStatus(view: GuardianView | null): StatusType {
@@ -204,6 +217,7 @@ export default function TrackingPage() {
                 </div>
               </Popup>
             </Marker>
+            <RecenterControl center={[view.location.latitude, view.location.longitude]} />
           </MapContainer>
           {/* Map overlay: Google Maps link */}
           <a

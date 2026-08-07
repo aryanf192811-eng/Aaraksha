@@ -1,13 +1,26 @@
 'use strict'
 const govtService = require('../services/govt.service')
+const govtReportService = require('../services/govtReport.service')
 const { sendSuccess, sendPaginated } = require('../utils/response')
 const { parsePaginationParams } = require('../utils/pagination')
+const logger = require('../utils/logger')
 
 const getDashboard    = async (req, res, next) => { try { sendSuccess(res, await govtService.getDashboard()) } catch (err) { next(err) } }
 const getLiveTourists = async (req, res, next) => { try { sendSuccess(res, await govtService.getLiveTourists()) } catch (err) { next(err) } }
 const getRiskOverview = async (req, res, next) => { try { sendSuccess(res, await govtService.getRiskOverview()) } catch (err) { next(err) } }
 const getRescueTeams  = async (req, res, next) => { try { sendSuccess(res, await govtService.getRescueTeams()) } catch (err) { next(err) } }
 const getAnalytics    = async (req, res, next) => { try { sendSuccess(res, await govtService.getAnalytics(req.query.period)) } catch (err) { next(err) } }
+
+const exportAnalyticsReport = async (req, res, next) => {
+  try {
+    const period = req.query.period || '30d'
+    const pdfStream = await govtReportService.generateAnalyticsReport(period)
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="aaraksha-report-${period}-${Date.now()}.pdf"`)
+    pdfStream.pipe(res)
+    pdfStream.on('error', err => { logger.error({ err: err.message }, 'Analytics report PDF stream error'); next(err) })
+  } catch (err) { next(err) }
+}
 
 const getActiveSOS = async (req, res, next) => {
   try {
@@ -39,4 +52,4 @@ const updateTeamStatus = async (req, res, next) => {
 }
 
 module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRescueTeams,
-  getAnalytics, getActiveSOS, assignRescue, resolveSOS, updateTeamStatus }
+  getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, resolveSOS, updateTeamStatus }

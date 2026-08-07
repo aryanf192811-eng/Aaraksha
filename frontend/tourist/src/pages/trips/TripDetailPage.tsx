@@ -7,11 +7,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   ArrowLeft, Share2, Download, Map, List, Package, FileText, AlertTriangle,
-  Rocket, Sparkles, RefreshCw, Loader2, Check, Lightbulb, HeartPulse, Backpack,
+  Rocket, Sparkles, RefreshCw, Loader2, Check, Lightbulb, HeartPulse, Backpack, LocateFixed,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Button } from '../../components/ui/button'
 import { TSIBadge, EmptyState, PageSkeleton } from '../../components/shared'
@@ -36,6 +36,22 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 type TabType = 'itinerary' | 'budget' | 'packing' | 'map'
+
+// Recenter control — resets a panned/zoomed map back to fit every stop,
+// the way a navigation app's "recenter" button returns to your route.
+function RecenterControl({ coords }: { coords: [number, number][] }) {
+  const map = useMap()
+  const recenter = () => {
+    if (coords.length === 1) map.flyTo(coords[0], 12)
+    else map.flyToBounds(coords, { padding: [40, 40] })
+  }
+  return (
+    <button onClick={recenter} title="Recenter map" aria-label="Recenter map"
+      className="absolute bottom-4 right-4 z-[1000] w-10 h-10 rounded-full bg-white shadow-lg border border-outline-variant flex items-center justify-center hover:bg-surface-container active:scale-95 transition-all">
+      <LocateFixed className="w-5 h-5 text-on-surface" />
+    </button>
+  )
+}
 
 export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -104,41 +120,52 @@ export default function TripDetailPage() {
   const budgetData = Object.entries(budgetByType).map(([name, value]) => ({ name, value }))
   const totalCost = Object.values(budgetByType).reduce((s, v) => s + v, 0)
 
+  const budgetPct = trip.budget_inr ? Math.min(100, Math.round((totalCost / trip.budget_inr) * 100)) : null
+
   return (
     <div className="min-h-screen bg-surface pb-24">
-      {/* Hero — full-bleed destination photo */}
-      <div className="relative h-64 sm:h-72">
-        <img src={getDestinationImage(heroCity, { w: 1000 })} alt={heroCity || trip.title}
+      {/* Hero — full-bleed destination photo, rounded into a "card" at the
+          bottom edge, with a floating liquid-glass toolbar capsule over it. */}
+      <div className="relative h-80 sm:h-96 rounded-b-[32px] overflow-hidden shadow-[0_20px_40px_rgba(0,0,0,0.12)]">
+        <img src={getDestinationImage(heroCity, { w: 1200 })} alt={heroCity || trip.title}
           className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-slate-950/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-slate-950/35" />
 
         <div className="relative flex items-center justify-between px-5 pt-12">
           <button onClick={() => navigate(-1)}
-            className="w-10 h-10 rounded-full bg-surface-container-lowest/15 backdrop-blur-xl border border-white/25 flex items-center justify-center shadow-glass">
+            className="w-10 h-10 rounded-full bg-white/15 backdrop-blur-xl border border-white/25 flex items-center justify-center shadow-glass hover:bg-white/25 transition-colors">
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
-          <button onClick={handleShare}
-            className="w-10 h-10 rounded-full bg-surface-container-lowest/15 backdrop-blur-xl border border-white/25 flex items-center justify-center shadow-glass">
-            <Share2 className="w-4 h-4 text-white" />
-          </button>
+          <div className="flex items-center gap-1 bg-white/15 backdrop-blur-xl border border-white/25 rounded-full p-1.5 shadow-glass">
+            <button onClick={handleShare} title="Share trip"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+              <Share2 className="w-4 h-4" />
+            </button>
+            {trip.status === TRIP_STATUSES.COMPLETED && (
+              <button onClick={() => generatePassport()} disabled={generatingPassport} title="Download Journey Passport"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors disabled:opacity-50">
+                {generatingPassport ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="relative px-5 pt-6">
-          <span className={cn('inline-block text-[11px] font-bold px-2.5 py-1 rounded-full backdrop-blur-xl mb-2', STATUS_STYLES[trip.status] || STATUS_STYLES.PLANNED)}>
+        <div className="relative px-5 pt-10 pb-8">
+          <span className={cn('inline-block text-[11px] font-bold px-2.5 py-1 rounded-full backdrop-blur-xl mb-3', STATUS_STYLES[trip.status] || STATUS_STYLES.PLANNED)}>
             {trip.status}
           </span>
-          <h1 className="font-display text-2xl font-bold text-white leading-tight truncate">{trip.title}</h1>
-          <p className="text-sm text-white/75 mt-1">{formatDate(trip.start_date)} → {formatDate(trip.end_date)}</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold text-white leading-[1.05] drop-shadow-md">{trip.title}</h1>
+          <p className="text-sm text-white/80 mt-2">{formatDate(trip.start_date)} → {formatDate(trip.end_date)}</p>
         </div>
       </div>
 
-      {/* Overlapping glass meta card */}
-      <div className="relative px-5 -mt-8">
-        <div className="bg-surface-container-lowest rounded-3xl shadow-glass-lg p-4 flex items-center gap-4">
+      {/* Bento stat grid, overlapping the hero's rounded bottom edge */}
+      <div className="relative px-5 -mt-10 space-y-3">
+        <div className="bg-surface-container-lowest rounded-3xl shadow-glass-lg p-4 flex items-center gap-4 transition-shadow">
           <TSIBadge score={trip.tsi_score} label={trip.tsi_label} size="md" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-on-surface-variant">{stops.length} stops · {trip.travel_type}</p>
-            {trip.budget_inr && <p className="text-sm font-bold text-on-surface mt-0.5">{formatINR(trip.budget_inr)} budget</p>}
+            <p className="text-xs text-on-surface-variant">Travel Safety Index</p>
+            <p className="text-sm font-bold text-on-surface mt-0.5">{trip.tsi_label || 'Not calculated yet'}</p>
           </div>
           {trip.status === TRIP_STATUSES.PLANNED && (
             <Button size="sm" onClick={() => activateTrip()} disabled={activating}
@@ -148,8 +175,43 @@ export default function TripDetailPage() {
           )}
         </div>
 
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-surface-container-lowest rounded-3xl shadow-sm p-4 hover:shadow-md transition-shadow flex flex-col justify-between">
+            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
+              <Map className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xl font-black text-on-surface leading-none">{stops.length}</p>
+              <p className="text-[11px] text-on-surface-variant mt-1">{stops.length === 1 ? 'Stop' : 'Stops'} · {trip.travel_type}</p>
+            </div>
+          </div>
+          <div className="col-span-2 bg-surface-container-lowest rounded-3xl shadow-sm p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wide">Budget</p>
+              {budgetPct != null && (
+                <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full',
+                  budgetPct >= 100 ? 'bg-red-100 text-red-600' : budgetPct >= 85 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'
+                )}>
+                  {budgetPct >= 100 ? 'Over budget' : budgetPct >= 85 ? 'Nearing limit' : 'On track'}
+                </span>
+              )}
+            </div>
+            <p className="text-lg font-black text-on-surface leading-none">
+              {formatINR(totalCost)}
+              {trip.budget_inr && <span className="text-xs font-medium text-on-surface-variant"> / {formatINR(trip.budget_inr)}</span>}
+            </p>
+            {budgetPct != null && (
+              <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden mt-2.5">
+                <div className={cn('h-full rounded-full transition-all duration-700',
+                  budgetPct >= 100 ? 'bg-red-500' : budgetPct >= 85 ? 'bg-amber-500' : 'bg-primary'
+                )} style={{ width: `${budgetPct}%` }} />
+              </div>
+            )}
+          </div>
+        </div>
+
         {trip.tsi_recommendations.length > 0 && trip.tsi_score !== null && trip.tsi_score < 70 && (
-          <div className="mt-3 bg-orange-50 border border-orange-200 rounded-2xl p-3">
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3">
             <p className="text-xs font-bold text-orange-700 mb-1 flex items-center gap-1">
               <AlertTriangle className="w-3.5 h-3.5" /> Safety Recommendations
             </p>
@@ -329,6 +391,7 @@ export default function TripDetailPage() {
                     </Popup>
                   </Marker>
                 ))}
+                <RecenterControl coords={mapCoords} />
               </MapContainer>
             ) : (
               <div className="h-full bg-surface-container-high flex items-center justify-center">

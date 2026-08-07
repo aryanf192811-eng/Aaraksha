@@ -287,6 +287,8 @@ export interface GovtDashboard {
   availableTeams: number
   deployedTeams: number
   activeDMS: number
+  safetyIndex: number | null
+  safetyIndexTripCount: number
   recentSOS: Array<{
     id: string
     category: string

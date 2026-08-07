@@ -88,6 +88,16 @@ class TripRepository extends BaseRepository {
     return this.query(`SELECT * FROM trips WHERE status = 'ACTIVE'`)
   }
 
+  // Fleet-wide safety index for the govt dashboard: mean TSI across trips
+  // currently in progress. NULL (no active trips with a score yet) rather
+  // than 0, so the dashboard can distinguish "no data" from "genuinely 0".
+  async getAverageActiveTSI() {
+    const [row] = await this.query(`
+      SELECT ROUND(AVG(tsi_score))::int AS avg_tsi, COUNT(*)::int AS trip_count
+      FROM trips WHERE status = 'ACTIVE' AND tsi_score IS NOT NULL`)
+    return { avgTsi: row?.avg_tsi ?? null, tripCount: row?.trip_count ?? 0 }
+  }
+
   async update(id, touristId, data) {
     return this.queryOne(`
       UPDATE trips SET
