@@ -183,25 +183,39 @@ async function seed() {
       { name: 'Assam Police Emergency Response', type: 'POLICE', district: 'Kamrup Metropolitan', state: 'Assam', contact_phone: '100', latitude: 26.1445, longitude: 91.7362 },
       { name: 'Sikkim Mountain Rescue', type: 'MOUNTAIN', district: 'East Sikkim', state: 'Sikkim', contact_phone: '+9103592202033', latitude: 27.3389, longitude: 88.6065 },
       { name: 'NE Emergency Medical Services', type: 'MEDICAL', district: 'Kamrup Metropolitan', state: 'Assam', contact_phone: '108', latitude: 26.1445, longitude: 91.7362 },
+      { name: 'Nagaland SDRF Kohima Unit', type: 'SDRF', district: 'Kohima', state: 'Nagaland', contact_phone: '+9103862232526', latitude: 25.6751, longitude: 94.1086 },
     ]
+    const teamIds = {}
     for (const t of teams) {
-      await client.query(`
+      const { rows } = await client.query(`
         INSERT INTO rescue_teams (name, type, district, state, contact_phone, status, latitude, longitude, capacity)
-        VALUES ($1,$2,$3,$4,$5,'AVAILABLE',$6,$7,15)`,
+        VALUES ($1,$2,$3,$4,$5,'AVAILABLE',$6,$7,15)
+        RETURNING id`,
         [t.name, t.type, t.district, t.state, t.contact_phone, t.latitude, t.longitude]
       )
+      teamIds[t.name] = rows[0].id
     }
     console.log(`  ✅ ${teams.length} rescue teams seeded`)
 
-    // ── GOVT ADMIN ────────────────────────────────────────────────────
+    // ── GOVT USERS ────────────────────────────────────────────────────
     const govtPasswordHash = await hashPassword('Admin@123')
-    await client.query(`
+    const { rows: [govtAdmin] } = await client.query(`
       INSERT INTO govt_users (name, email, password_hash, role, district, state)
-      VALUES ($1,$2,$3,$4,$5,$6)`,
+      VALUES ($1,$2,$3,$4,$5,$6)
+      RETURNING id`,
       ['Aaraksha Administrator', 'admin@aaraksha.gov.in', govtPasswordHash,
        'SUPER_ADMIN', 'Kamrup Metropolitan', 'Assam']
     )
     console.log('  ✅ Govt admin seeded: admin@aaraksha.gov.in / Admin@123')
+
+    const districtOfficerHash = await hashPassword('District@123')
+    await client.query(`
+      INSERT INTO govt_users (name, email, password_hash, role, district, state)
+      VALUES ($1,$2,$3,$4,$5,$6)`,
+      ['Kito Sema', 'district.officer@aaraksha.gov.in', districtOfficerHash,
+       'DISTRICT_ADMIN', 'Kohima', 'Nagaland']
+    )
+    console.log('  ✅ Govt district admin seeded: district.officer@aaraksha.gov.in / District@123')
 
     // ── DEMO TOURIST ──────────────────────────────────────────────────
     const demoPhone    = '9999999999'
@@ -313,6 +327,225 @@ async function seed() {
     )
     console.log('  ✅ Demo resolved SOS seeded (for analytics demo)')
 
+    // ── DEMO TOURIST 2 — COMPLETED trip, rich Journey Passport ────────
+    // Dedicated account for demoing "Download Journey Passport": a
+    // finished trip with multiple check-ins, priced activities, and a
+    // packing list already ticked off, so the generated PDF isn't sparse.
+    const priyaPasswordHash = await hashPassword('Demo@123')
+    const priyaGovtIdHash   = hashGovtId('234567890123')
+    const priyaGuardianToken = generateGuardianToken()
+    const { rows: [priya] } = await client.query(`
+      INSERT INTO tourists (full_name, phone, email, blood_group, medical_info, emergency_contacts,
+        govt_id_type, govt_id_hash, govt_id_suffix, guardian_token, guardian_token_expires, password_hash)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      RETURNING id`,
+      ['Priya Sharma', '9876500001', 'priya.demo@aaraksha.in', 'B+', 'Mild asthma — carries inhaler',
+       JSON.stringify([
+         { id: uuid(), name: 'Anil Sharma', phone: '9876500011', relation: 'Father', tier: 1, notifyOnSOS: true },
+         { id: uuid(), name: 'Kavita Sharma', phone: '9876500012', relation: 'Mother', tier: 2, notifyOnSOS: true },
+       ]),
+       'AADHAAR', priyaGovtIdHash, '0123', priyaGuardianToken, guardianExpires, priyaPasswordHash]
+    )
+
+    const priyaStops = [{
+      city: 'Pelling', state: 'Sikkim', destinationId: destIds['Pelling'],
+      lat: 27.2952, lng: 88.1190, days: 5,
+      connectivity: 'MODERATE', difficulty: 'MODERATE', altitude_m: 2150, zone_type: 'SAFE', hospital_km: 14,
+      activities: [
+        { name: 'Pemayangtse Monastery', type: 'ACTIVITY', cost: 100 },
+        { name: 'Kanchenjunga Sunrise View', type: 'ACTIVITY', cost: 0 },
+        { name: 'Khecheopalri Lake Trek', type: 'ACTIVITY', cost: 300 },
+        { name: 'Homestay dinner', type: 'MEAL', cost: 1200 },
+      ],
+    }]
+    const priyaStart = new Date(Date.now() - 12 * 24 * 60 * 60 * 1000)
+    const priyaEnd   = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const priyaTsi = calculateTSI({
+      travel_type: 'SOLO',
+      start_date: priyaStart.toISOString().split('T')[0],
+      end_date: priyaEnd.toISOString().split('T')[0],
+      stops: priyaStops,
+    }, {})
+    const priyaPacking = [
+      { id: uuid(), item: 'Trekking shoes', category: 'CLOTHING', packed: true },
+      { id: uuid(), item: 'Inhaler + spare', category: 'MEDICINE', packed: true },
+      { id: uuid(), item: 'Power bank', category: 'ELECTRONICS', packed: true },
+      { id: uuid(), item: 'Rain poncho', category: 'SAFETY', packed: true },
+      { id: uuid(), item: 'ILP photocopies', category: 'DOCUMENTS', packed: true },
+    ]
+    const { rows: [priyaTrip] } = await client.query(`
+      INSERT INTO trips (tourist_id, title, description, travel_type, start_date, end_date, status,
+        stops, budget_inr, is_public, public_token, tsi_score, tsi_label, tsi_factors,
+        tsi_recommendations, tsi_updated_at, rescue_readiness, rescue_readiness_score, packing_checklist)
+      VALUES ($1,$2,$3,$4,$5,$6,'COMPLETED',$7,$8,true,$9,$10,$11,$12,$13,NOW(),$14,$15,$16)
+      RETURNING id`,
+      [
+        priya.id, 'Sikkim Monastery & Peaks',
+        'A solo week in Pelling — monasteries, sunrise views over Kanchenjunga, and a lakeside trek.',
+        'SOLO', priyaStart.toISOString().split('T')[0], priyaEnd.toISOString().split('T')[0],
+        JSON.stringify(priyaStops), 15000,
+        require('../src/utils/crypto').generatePublicToken(),
+        priyaTsi.score, priyaTsi.label, JSON.stringify(priyaTsi.factors), JSON.stringify(priyaTsi.recommendations),
+        JSON.stringify({ emergencyContacts: true, medicalInfo: true, govtIdComplete: true, dmsEnabled: true, tsiReviewed: true, offlineMaps: true }),
+        100, JSON.stringify(priyaPacking),
+      ]
+    )
+    // Three check-ins spanning the trip
+    for (const [offsetDays, message] of [
+      [11, 'Landed in Pelling, checked into homestay.'],
+      [9, 'Watched sunrise over Kanchenjunga — incredible.'],
+      [7, 'Heading back, trip complete!'],
+    ]) {
+      await client.query(`
+        INSERT INTO checkins (tourist_id, trip_id, latitude, longitude, battery_pct, message, type, created_at)
+        VALUES ($1,$2,$3,$4,$5,$6,'MANUAL',$7)`,
+        [priya.id, priyaTrip.id, 27.2952, 88.1190, 60 + offsetDays, message,
+         new Date(Date.now() - offsetDays * 24 * 60 * 60 * 1000)]
+      )
+    }
+    // One resolved SOS during the trip, for the passport's Safety Events section
+    await client.query(`
+      INSERT INTO sos_events (tourist_id, trip_id, latitude, longitude, category, trigger_type, status,
+        battery_pct, message, resolved_at, resolution_notes, created_at)
+      VALUES ($1,$2,$3,$4,'MEDICAL','MANUAL','RESOLVED',$5,$6,$7,$8,$9)`,
+      [priya.id, priyaTrip.id, 27.2952, 88.1190, 44,
+       'Mild altitude sickness — needed to rest.',
+       new Date(Date.now() - 9 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000),
+       'Rested at homestay, recovered within the hour. No rescue team dispatch needed.',
+       new Date(Date.now() - 9 * 24 * 60 * 60 * 1000)]
+    )
+    console.log(`  ✅ Demo tourist 2 (completed trip + passport-ready): priya.demo@aaraksha.in (phone: 9876500001) / Demo@123`)
+
+    // ── DEMO TOURIST 3 — ACTIVE trip with a LIVE unresolved SOS ────────
+    // Gives the Govt Command Center a live incident + assigned rescue team
+    // to show on the ops map without the presenter having to trigger one.
+    const rahulPasswordHash = await hashPassword('Demo@123')
+    const rahulGovtIdHash   = hashGovtId('345678901234')
+    const { rows: [rahul] } = await client.query(`
+      INSERT INTO tourists (full_name, phone, email, blood_group, medical_info, emergency_contacts,
+        govt_id_type, govt_id_hash, govt_id_suffix, guardian_token, guardian_token_expires, password_hash)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      RETURNING id`,
+      ['Rahul Verma', '9876500002', 'rahul.demo@aaraksha.in', 'A+', 'No known conditions',
+       JSON.stringify([
+         { id: uuid(), name: 'Sunita Verma', phone: '9876500021', relation: 'Mother', tier: 1, notifyOnSOS: true },
+       ]),
+       'AADHAAR', rahulGovtIdHash, '1234', generateGuardianToken(), guardianExpires, rahulPasswordHash]
+    )
+    const rahulStops = [{
+      city: 'Dzukou Valley', state: 'Nagaland', destinationId: destIds['Dzukou Valley'],
+      lat: 25.5000, lng: 94.1167, days: 4,
+      connectivity: 'NONE', difficulty: 'EXTREME', altitude_m: 2452, zone_type: 'HIGH_RISK', hospital_km: 28,
+      activities: [{ name: 'Guided valley trek', type: 'ACTIVITY', cost: 2500 }],
+    }]
+    const rahulStart = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+    const rahulEnd   = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+    const rahulTsi = calculateTSI({
+      travel_type: 'ADVENTURE',
+      start_date: rahulStart.toISOString().split('T')[0],
+      end_date: rahulEnd.toISOString().split('T')[0],
+      stops: rahulStops,
+    }, {})
+    const { rows: [rahulTrip] } = await client.query(`
+      INSERT INTO trips (tourist_id, title, description, travel_type, start_date, end_date, status,
+        stops, budget_inr, is_public, public_token, tsi_score, tsi_label, tsi_factors,
+        tsi_recommendations, tsi_updated_at, rescue_readiness, rescue_readiness_score)
+      VALUES ($1,$2,$3,$4,$5,$6,'ACTIVE',$7,$8,false,$9,$10,$11,$12,$13,NOW(),$14,$15)
+      RETURNING id`,
+      [
+        rahul.id, 'Dzukou Valley Trek', 'Solo trek into the Valley of Flowers — zero connectivity zone.',
+        'ADVENTURE', rahulStart.toISOString().split('T')[0], rahulEnd.toISOString().split('T')[0],
+        JSON.stringify(rahulStops), 8000,
+        require('../src/utils/crypto').generatePublicToken(),
+        rahulTsi.score, rahulTsi.label, JSON.stringify(rahulTsi.factors), JSON.stringify(rahulTsi.recommendations),
+        JSON.stringify({ emergencyContacts: true, medicalInfo: true, govtIdComplete: true, dmsEnabled: true, tsiReviewed: true, offlineMaps: false }),
+        83,
+      ]
+    )
+    const rahulSosTime = new Date(Date.now() - 25 * 60 * 1000)  // 25 minutes ago
+    await client.query(`
+      INSERT INTO tourist_locations (tourist_id, latitude, longitude, battery_pct, updated_at)
+      VALUES ($1,$2,$3,$4,$5)
+      ON CONFLICT (tourist_id) DO UPDATE SET latitude=$2, longitude=$3, battery_pct=$4, updated_at=$5`,
+      [rahul.id, 25.5021, 94.1190, 22, rahulSosTime]
+    )
+    const { rows: [rahulSos] } = await client.query(`
+      INSERT INTO sos_events (tourist_id, trip_id, latitude, longitude, category, trigger_type, status,
+        battery_pct, message, created_at)
+      VALUES ($1,$2,$3,$4,'TRAPPED','MANUAL','ASSIGNED',$5,$6,$7)
+      RETURNING id`,
+      [rahul.id, rahulTrip.id, 25.5021, 94.1190, 22,
+       'Lost the trail marker in fog, can\'t find the way back to camp. Phone battery low.',
+       rahulSosTime]
+    )
+    await client.query(`
+      INSERT INTO rescue_assignments (sos_event_id, team_id, assigned_by, status, notes, assigned_at)
+      VALUES ($1,$2,$3,'EN_ROUTE',$4,$5)`,
+      [rahulSos.id, teamIds['Nagaland SDRF Kohima Unit'], govtAdmin.id,
+       'Dispatched nearest patrol, ETA 40 minutes given terrain.',
+       new Date(rahulSosTime.getTime() + 8 * 60 * 1000)]
+    )
+    console.log(`  ✅ Demo tourist 3 (live ACTIVE SOS + rescue en route): rahul.demo@aaraksha.in (phone: 9876500002) / Demo@123`)
+
+    // ── DEMO TOURIST 4 — ACTIVE trip with a running Dead Man's Switch ──
+    const snehaPasswordHash = await hashPassword('Demo@123')
+    const snehaGovtIdHash   = hashGovtId('456789012345')
+    const { rows: [sneha] } = await client.query(`
+      INSERT INTO tourists (full_name, phone, email, blood_group, medical_info, emergency_contacts,
+        govt_id_type, govt_id_hash, govt_id_suffix, guardian_token, guardian_token_expires, password_hash)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      RETURNING id`,
+      ['Sneha Das', '9876500003', 'sneha.demo@aaraksha.in', 'AB+', 'None',
+       JSON.stringify([
+         { id: uuid(), name: 'Ronit Das', phone: '9876500031', relation: 'Spouse', tier: 1, notifyOnSOS: true },
+         { id: uuid(), name: 'Mou Das', phone: '9876500032', relation: 'Sister', tier: 2, notifyOnSOS: true },
+       ]),
+       'AADHAAR', snehaGovtIdHash, '2345', generateGuardianToken(), guardianExpires, snehaPasswordHash]
+    )
+    const snehaStops = [{
+      city: 'Loktak Lake', state: 'Manipur', destinationId: destIds['Loktak Lake'],
+      lat: 24.4700, lng: 93.7800, days: 3,
+      connectivity: 'MODERATE', difficulty: 'EASY', altitude_m: 768, zone_type: 'ILP_REQUIRED', hospital_km: 15,
+      activities: [{ name: 'Phumdi boat tour', type: 'ACTIVITY', cost: 600 }, { name: 'Keibul Lamjao safari', type: 'ACTIVITY', cost: 900 }],
+    }]
+    const snehaStart = new Date()
+    const snehaEnd   = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)
+    const snehaTsi = calculateTSI({
+      travel_type: 'FAMILY',
+      start_date: snehaStart.toISOString().split('T')[0],
+      end_date: snehaEnd.toISOString().split('T')[0],
+      stops: snehaStops,
+    }, {})
+    const { rows: [snehaTrip] } = await client.query(`
+      INSERT INTO trips (tourist_id, title, description, travel_type, start_date, end_date, status,
+        stops, budget_inr, is_public, public_token, tsi_score, tsi_label, tsi_factors,
+        tsi_recommendations, tsi_updated_at, rescue_readiness, rescue_readiness_score)
+      VALUES ($1,$2,$3,$4,$5,$6,'ACTIVE',$7,$8,false,$9,$10,$11,$12,$13,NOW(),$14,$15)
+      RETURNING id`,
+      [
+        sneha.id, 'Loktak Lake Getaway', 'A calm few days on the floating islands with family.',
+        'FAMILY', snehaStart.toISOString().split('T')[0], snehaEnd.toISOString().split('T')[0],
+        JSON.stringify(snehaStops), 12000,
+        require('../src/utils/crypto').generatePublicToken(),
+        snehaTsi.score, snehaTsi.label, JSON.stringify(snehaTsi.factors), JSON.stringify(snehaTsi.recommendations),
+        JSON.stringify({ emergencyContacts: true, medicalInfo: true, govtIdComplete: true, dmsEnabled: true, tsiReviewed: true, offlineMaps: true }),
+        100,
+      ]
+    )
+    const dmsIntervalMinutes = 120
+    await client.query(`
+      INSERT INTO dead_mans_switches (tourist_id, trip_id, interval_minutes, last_reset_at, next_trigger_at, status)
+      VALUES ($1,$2,$3,NOW(),$4,'ACTIVE')`,
+      [sneha.id, snehaTrip.id, dmsIntervalMinutes, new Date(Date.now() + dmsIntervalMinutes * 60 * 1000)]
+    )
+    await client.query(`
+      INSERT INTO tourist_locations (tourist_id, latitude, longitude, battery_pct, updated_at)
+      VALUES ($1,$2,$3,$4,NOW())
+      ON CONFLICT (tourist_id) DO UPDATE SET latitude=$2, longitude=$3, battery_pct=$4, updated_at=NOW()`,
+      [sneha.id, 24.4700, 93.7800, 91]
+    )
+    console.log(`  ✅ Demo tourist 4 (running Dead Man's Switch): sneha.demo@aaraksha.in (phone: 9876500003) / Demo@123`)
+
     await client.query('COMMIT')
 
     console.log('\n' + '═'.repeat(50))
@@ -320,10 +553,14 @@ async function seed() {
     console.log('═'.repeat(50))
     console.log(`  Destinations:    ${destinations.length}`)
     console.log(`  Rescue teams:    ${teams.length}`)
-    console.log(`  Govt admin:      admin@aaraksha.gov.in / Admin@123`)
-    console.log(`  Demo tourist:    demo@aaraksha.in (phone: 9999999999) / Demo@123`)
-    console.log(`  Demo trip TSI:   ${tsiResult.score}/100 — ${tsiResult.label}`)
-    console.log(`  Guardian link:   /track/${guardianToken.slice(0, 16)}...`)
+    console.log(`  Govt super admin:    admin@aaraksha.gov.in / Admin@123`)
+    console.log(`  Govt district admin: district.officer@aaraksha.gov.in / District@123`)
+    console.log('  ── Demo tourists ──')
+    console.log(`  1. Aryan Demo   — demo@aaraksha.in       (9999999999) / Demo@123  — ACTIVE trip, 1 check-in, 1 resolved SOS`)
+    console.log(`  2. Priya Sharma — priya.demo@aaraksha.in (9876500001) / Demo@123  — COMPLETED trip, passport-ready (3 check-ins, activities, packing list)`)
+    console.log(`  3. Rahul Verma  — rahul.demo@aaraksha.in (9876500002) / Demo@123  — ACTIVE trip with a LIVE unresolved SOS + rescue team en route`)
+    console.log(`  4. Sneha Das    — sneha.demo@aaraksha.in (9876500003) / Demo@123  — ACTIVE trip with a running Dead Man's Switch`)
+    console.log(`  Guardian link (tourist 1): /track/${guardianToken.slice(0, 16)}...`)
     console.log('═'.repeat(50) + '\n')
 
   } catch (err) {
