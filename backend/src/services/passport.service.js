@@ -40,13 +40,16 @@ async function generate(tripId, touristId) {
   doc.moveDown(2).fillColor('#000')
 
   // ── Section 1: Trip Summary ────────────────────────────────────────
+  // PDFKit's standard Helvetica font is WinAnsi-encoded and has no glyph
+  // for the ₹ (U+20B9) sign — it silently prints the wrong character
+  // instead of throwing, so PDF-only money strings use "Rs." not ₹.
   section(doc, '1. Trip Summary')
   field(doc, 'Trip Name', trip.title)
   field(doc, 'Travel Type', trip.travel_type)
-  field(doc, 'Dates', `${trip.start_date} to ${trip.end_date}`)
+  field(doc, 'Dates', `${formatPDFDate(trip.start_date)} to ${formatPDFDate(trip.end_date)}`)
   field(doc, 'Status', trip.status)
   field(doc, 'Total Destinations', stops.length.toString())
-  if (trip.budget_inr) field(doc, 'Budget', `₹${trip.budget_inr.toLocaleString('en-IN')}`)
+  if (trip.budget_inr) field(doc, 'Budget', `Rs. ${Number(trip.budget_inr).toLocaleString('en-IN')}`)
   doc.moveDown()
 
   // ── Section 2: Travel Safety Index ────────────────────────────────
@@ -68,7 +71,7 @@ async function generate(tripId, touristId) {
     doc.fontSize(10).font('Helvetica-Bold').text(`  Stop ${i+1}: ${stop.city}, ${stop.state} (${stop.days} days)`)
     if (stop.activities && stop.activities.length > 0) {
       stop.activities.forEach(a => {
-        doc.fontSize(9).font('Helvetica').text(`    • ${a.name}${a.cost ? ` — ₹${a.cost}` : ''}`)
+        doc.fontSize(9).font('Helvetica').text(`    • ${a.name}${a.cost ? ` — Rs. ${a.cost}` : ''}`)
       })
     }
   })
@@ -78,8 +81,8 @@ async function generate(tripId, touristId) {
   section(doc, '4. Budget Summary')
   const totalCost = stops.reduce((s, stop) =>
     s + (stop.activities || []).reduce((as, a) => as + (a.cost || 0), 0), 0)
-  field(doc, 'Planned Budget', trip.budget_inr ? `₹${trip.budget_inr.toLocaleString('en-IN')}` : 'Not set')
-  field(doc, 'Estimated from Activities', `₹${totalCost.toLocaleString('en-IN')}`)
+  field(doc, 'Planned Budget', trip.budget_inr ? `Rs. ${Number(trip.budget_inr).toLocaleString('en-IN')}` : 'Not set')
+  field(doc, 'Estimated from Activities', `Rs. ${totalCost.toLocaleString('en-IN')}`)
   doc.moveDown()
 
   // ── Section 5: Check-in Timeline ─────────────────────────────────
@@ -139,6 +142,10 @@ function field(doc, label, value) {
   doc.fontSize(9)
      .font('Helvetica-Bold').text(`${label}: `, { continued: true })
      .font('Helvetica').text(value || '—')
+}
+
+function formatPDFDate(d) {
+  return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 module.exports = { generate }
