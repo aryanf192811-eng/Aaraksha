@@ -1,13 +1,21 @@
 // tests/integration/auth.test.js
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, afterAll } from 'vitest'
 import supertest from 'supertest'
 import app from '../../src/app.js'
+import { getPool } from '../../src/database/pool.js'
 
 const request = supertest(app)
 
 describe('Auth API — Tourist Registration and Login', () => {
   const testPhone = '8000000001'
   let authToken
+
+  // This suite registers real rows against DATABASE_TEST_URL. Without cleanup,
+  // a second run collides with the first (duplicate phone -> 409 instead of
+  // 201) and every test after it cascades into unrelated failures.
+  afterAll(async () => {
+    await getPool().query('DELETE FROM tourists WHERE phone = ANY($1)', [[testPhone, '8000000002']])
+  })
 
   it('POST /api/auth/register — succeeds with valid data', async () => {
     const res = await request.post('/api/auth/register').send({

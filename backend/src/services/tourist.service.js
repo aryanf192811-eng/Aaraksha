@@ -40,10 +40,7 @@ async function getGuardianView(token) {
     tripRepo.findActiveByTouristId(tourist.id),
   ])
 
-  const activeSOS = location ? await sosRepo.queryOne?.(
-    `SELECT id, category, status, created_at FROM sos_events WHERE tourist_id=$1 AND status='ACTIVE' ORDER BY created_at DESC LIMIT 1`,
-    [tourist.id]
-  ) : null
+  const activeSOS = location ? await sosRepo.findLatestActiveByTouristId(tourist.id) : null
 
   // Return privacy-safe subset — first name only
   return {

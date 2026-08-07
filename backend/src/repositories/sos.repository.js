@@ -126,6 +126,38 @@ class SOSRepository extends BaseRepository {
     )
   }
 
+  // Currently-assigned count, independent of when the SOS was created —
+  // distinct from countByPeriod, which buckets by created_at.
+  async countAssigned() {
+    const row = await this.queryOne(`SELECT COUNT(*)::int as c FROM sos_events WHERE status = 'ASSIGNED'`)
+    return row?.c || 0
+  }
+
+  async countResolvedToday() {
+    const row = await this.queryOne(
+      `SELECT COUNT(*)::int as c FROM sos_events WHERE status = 'RESOLVED' AND resolved_at::date = CURRENT_DATE`
+    )
+    return row?.c || 0
+  }
+
+  async findRecent(limit = 5) {
+    return this.query(`
+      SELECT se.id, se.category, se.status, se.created_at, t.full_name, t.phone
+      FROM sos_events se LEFT JOIN tourists t ON t.id = se.tourist_id
+      ORDER BY se.created_at DESC LIMIT $1`,
+      [limit]
+    )
+  }
+
+  // Most recent open SOS for one tourist — used by the guardian view, which
+  // only needs to know "is there an active SOS right now", not history.
+  async findLatestActiveByTouristId(touristId) {
+    return this.queryOne(
+      `SELECT id, category, status, created_at FROM sos_events WHERE tourist_id = $1 AND status = 'ACTIVE' ORDER BY created_at DESC LIMIT 1`,
+      [touristId]
+    )
+  }
+
   async countByCategory(startDate) {
     return this.query(
       `SELECT category, COUNT(*)::int as count FROM sos_events

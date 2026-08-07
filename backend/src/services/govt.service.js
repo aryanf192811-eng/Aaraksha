@@ -21,16 +21,13 @@ async function getDashboard() {
   const [activeSOS, assignedSOS, resolvedToday, activeTourists,
          availableTeams, deployedTeams, activeDMS, recentSOS] = await Promise.all([
     sosRepo.countByPeriod(new Date(0)).then(r => parseInt(r[0]?.active || 0)),
-    sosRepo.query(`SELECT COUNT(*)::int as c FROM sos_events WHERE status='ASSIGNED'`).then(r => r[0]?.c || 0),
-    sosRepo.query(`SELECT COUNT(*)::int as c FROM sos_events WHERE status='RESOLVED' AND resolved_at::date=CURRENT_DATE`).then(r => r[0]?.c || 0),
+    sosRepo.countAssigned(),
+    sosRepo.countResolvedToday(),
     locationRepo.countActive(),
     rescueRepo.countAvailable(),
     rescueRepo.countDeployed(),
     dmsRepo.countActive(),
-    sosRepo.query(`
-      SELECT se.id, se.category, se.status, se.created_at, t.full_name, t.phone
-      FROM sos_events se LEFT JOIN tourists t ON t.id=se.tourist_id
-      ORDER BY se.created_at DESC LIMIT 5`),
+    sosRepo.findRecent(5),
   ])
 
   return { activeSOS, assignedSOS, resolvedToday, activeTourists, availableTeams, deployedTeams, activeDMS, recentSOS }
