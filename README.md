@@ -9,9 +9,9 @@ how much risk they're carrying. The platform is three cooperating surfaces — a
 planning and safety app, a government operations dashboard, and a no-login family tracking
 link — backed by one Express/PostgreSQL API.
 
-> **Status:** the backend (all 15 build phases) is complete, tested, and hardened against
-> adversarial input — see [Current State](#current-state) below. The three frontends are
-> specified but not yet implemented.
+> **Status:** all four surfaces are built and working end-to-end — backend (15 build phases,
+> tested and hardened against adversarial input), Tourist PWA, Government Command Center, and
+> Guardian Portal. See [Current State](#current-state) below.
 
 ---
 
@@ -39,10 +39,14 @@ link — backed by one Express/PostgreSQL API.
 | Backend API (45 endpoints, 14 tables) | ✅ Complete | `backend/src/` — 15 build phases, see commit history |
 | Automated tests | ✅ Passing | `vitest` unit + integration suite in `backend/tests/` |
 | API contract tests | ✅ 209/209 passing | Postman collection in `backend/postman/`, run via Newman |
-| Adversarial / robustness testing | ✅ Done, 5 bugs fixed | [`PRODUCTION_READINESS_REPORT.html`](./PRODUCTION_READINESS_REPORT.html) |
-| Tourist PWA (`frontend/tourist`) | ⬜ Not started | Spec: [`UI_GUIDE.md`](./UI_GUIDE.md) |
-| Government Command Center (`frontend/govt`) | ⬜ Not started | Spec: [`UI_GUIDE.md`](./UI_GUIDE.md) |
-| Guardian Portal (`frontend/guardian`) | ⬜ Not started | Spec: [`UI_GUIDE.md`](./UI_GUIDE.md) |
+| Adversarial / robustness testing | ✅ Done, bugs fixed | [`PRODUCTION_READINESS_REPORT.html`](./PRODUCTION_READINESS_REPORT.html) |
+| Tourist PWA (`frontend/tourist`) | ✅ Built | 13 screens — planning, safety (SOS/DMS/check-ins), offline-first with IndexedDB sync |
+| Government Command Center (`frontend/govt`) | ✅ Built | Live ops dashboard, SOS management, Leaflet map, risk overview, analytics |
+| Guardian Portal (`frontend/guardian`) | ✅ Built | Token-in-URL tracking page, no login required |
+| Demo data | ✅ Seeded | `backend/scripts/seed.js` — destinations, rescue teams, and varied tourist scenarios (active SOS, running DMS, completed trip) |
+
+Spec docs for each frontend ([`UI_GUIDE.md`](./UI_GUIDE.md), [`Architecture.md`](./Architecture.md)) reflect the
+design intent the implementation follows; they're kept as living references, not a pre-build checklist.
 
 The backend was not just built to spec — it was adversarially tested afterward: rate-limit
 bypass attempts, SQL injection payloads, concurrent double-resolve races on live SOS events, a
@@ -91,7 +95,7 @@ webhook parses it and creates a full SOS event exactly as if it came through the
         ▼                                              ▼
 ┌───────────────┐   ┌──────────────────┐   ┌──────────────────┐
 │ Tourist PWA    │   │ Govt Command      │   │ Guardian Portal   │
-│ (planned)      │   │ Center (planned)  │   │ (planned)         │
+│ :5173          │   │ Center — :5174    │   │ :5175             │
 │ offline-first  │   │ dark ops theme    │   │ token in URL,     │
 │ IndexedDB sync │   │ Leaflet live map  │   │ no login required │
 └───────────────┘   └──────────────────┘   └──────────────────┘
@@ -101,9 +105,10 @@ webhook parses it and creates a full SOS event exactly as if it came through the
 Socket.IO · node-cron · Twilio (outbound SMS + inbound webhook) · Google Gemini · PDFKit ·
 Zod validation · pino structured logging.
 
-**Planned frontend stack** (locked in [`Architecture.md`](./Architecture.md), not yet built):
-Vite ≥5 · React ≥18 · TypeScript ≥5 · Tailwind 3.x · shadcn/ui · Zustand · TanStack Query v5 ·
-Dexie.js (IndexedDB, tourist offline sync) · react-leaflet (govt live map).
+**Frontend stack** (all three apps, locked in [`Architecture.md`](./Architecture.md)):
+Vite 8 · React 19 · TypeScript 6 · Tailwind CSS 3.4 · shadcn/ui (Radix primitives) · Zustand ·
+TanStack Query v5 · Dexie.js (IndexedDB, tourist offline sync) · react-leaflet (govt live map) ·
+react-hook-form + Zod · Socket.IO client.
 
 Every layer is intentionally narrow: controllers hold no SQL or business logic, all queries live
 in repositories, and every multi-table write that must be atomic goes through a single
@@ -124,30 +129,44 @@ Aaraksha/
 ├── UI_GUIDE.md                      design tokens, components, offline strategy
 ├── PRODUCTION_READINESS_REPORT.html architecture dossier + adversarial-testing findings
 │
-└── backend/
-    ├── src/
-    │   ├── app.js                   Express app: middleware chain, routes, error handler
-    │   ├── server.js                HTTP server, Socket.IO init, graceful shutdown
-    │   ├── config/                  env validation, CORS, Gemini/Twilio clients
-    │   ├── constants/                enums, error messages, socket event names
-    │   ├── routes/                  11 route modules → controllers
-    │   ├── controllers/             thin HTTP handlers
-    │   ├── services/                business logic, transaction boundaries
-    │   ├── repositories/            all SQL, parameterized, one per table cluster
-    │   ├── middleware/               auth (JWT), validate (Zod), rate limiting, errors
-    │   ├── validators/               Zod schemas per domain
-    │   ├── socket/                  Socket.IO init + typed emitters
-    │   ├── cron/                    DMS warning/trigger (1 min), weather+TSI (hourly)
-    │   ├── database/                connection pool, transaction helper
-    │   └── migrations/               node-pg-migrate schema (14 tables)
-    ├── scripts/
-    │   ├── preflight.js              env/DB connectivity check before setup
-    │   └── seed.js                   idempotent demo data (--reset flag available)
-    ├── tests/                       vitest unit + integration suite
-    ├── postman/                     Postman collection + environment (93 requests)
-    ├── .env.example                  every required env var, documented
-    └── package.json
+├── backend/
+│   ├── src/
+│   │   ├── app.js                   Express app: middleware chain, routes, error handler
+│   │   ├── server.js                HTTP server, Socket.IO init, graceful shutdown
+│   │   ├── config/                  env validation, CORS, Gemini/Twilio clients
+│   │   ├── constants/               enums, error messages, socket event names
+│   │   ├── routes/                  11 route modules → controllers
+│   │   ├── controllers/             thin HTTP handlers
+│   │   ├── services/                business logic, transaction boundaries
+│   │   ├── repositories/            all SQL, parameterized, one per table cluster
+│   │   ├── middleware/              auth (JWT), validate (Zod), rate limiting, errors
+│   │   ├── validators/              Zod schemas per domain
+│   │   ├── socket/                  Socket.IO init + typed emitters
+│   │   ├── cron/                    DMS warning/trigger (1 min), weather+TSI (hourly)
+│   │   ├── database/                connection pool, transaction helper
+│   │   └── migrations/              node-pg-migrate schema (14 tables)
+│   ├── scripts/
+│   │   ├── preflight.js             env/DB connectivity check before setup
+│   │   └── seed.js                  idempotent demo data (--reset flag available)
+│   ├── tests/                       vitest unit + integration suite
+│   ├── postman/                     Postman collection + environment (93 requests)
+│   ├── .env.example                 every required env var, documented
+│   └── package.json
+│
+└── frontend/
+    ├── tourist/                     Tourist PWA — :5173
+    │   └── src/pages/               13 screens: landing, auth, dashboard, trips, safety
+    │                                 (SOS/DMS/check-ins), profile, community
+    ├── govt/                        Government Command Center — :5174
+    │   └── src/pages/               login, dashboard, SOS management, live map,
+    │                                 risk overview, analytics
+    └── guardian/                    Guardian Portal — :5175
+        └── src/pages/               tracking page (token in URL, no auth)
 ```
+
+Each frontend app is an independent Vite project (own `package.json`, `.env.example`,
+`node_modules`) sharing the same component/design conventions — see
+[`UI_GUIDE.md`](./UI_GUIDE.md).
 
 ---
 
@@ -198,6 +217,22 @@ npm start               # plain node
 
 The server starts on `PORT` (default `5000`) and logs `GET /health → {"status":"ok"}` once ready.
 Socket.IO and the cron jobs (DMS warning/trigger, hourly weather+TSI) start automatically.
+
+### 5. Run the frontends
+
+Each app is a separate Vite project on a fixed port. In three more terminals (backend from step 4
+must already be running):
+
+```bash
+cd frontend/tourist  && cp .env.example .env && npm install && npm run dev   # → :5173
+cd frontend/govt      && cp .env.example .env && npm install && npm run dev   # → :5174
+cd frontend/guardian  && cp .env.example .env && npm install && npm run dev   # → :5175
+```
+
+The `.env.example` defaults (`VITE_API_URL=http://localhost:5000/api`) work out of the box
+against the backend from step 4 — no editing needed for local development. Log in with the
+accounts `npm run seed` created (see its console output for exact credentials), or register a
+new tourist from the Tourist PWA directly.
 
 ---
 
@@ -338,12 +373,13 @@ in a browser.
 
 ## Roadmap
 
-The backend is done. Remaining:
+All three frontends and the backend are built and working end-to-end. Remaining polish:
 
-- [ ] Tourist PWA — 12 screens, offline-first with IndexedDB sync
-- [ ] Government Command Center — dark ops dashboard, Leaflet live map
-- [ ] Guardian Portal + Digital Journey Passport PDF (9 sections)
-- [ ] Service worker + final seed-data pass for demo
+- [ ] Automated frontend tests (current coverage is backend-only — vitest + Postman/Newman;
+      the frontends have been manually verified, not test-suited)
+- [ ] PWA service worker for the Tourist app (offline page shell, not just IndexedDB data sync)
+- [ ] Real Twilio/Gemini/OWM credentials wired in for the actual demo environment (all three
+      degrade gracefully without them, which is what today's local dev runs on)
 
 ---
 
