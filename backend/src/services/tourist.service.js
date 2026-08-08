@@ -60,6 +60,14 @@ async function getGuardianView(token) {
 
   const activeSOS = location ? await sosRepo.findLatestActiveByTouristId(tourist.id) : null
 
+  // node-postgres auto-parses JSONB columns into real JS values, so `stops`
+  // arrives as an already-parsed array, not a string — JSON.parse on it
+  // throws ("[object Object]" is not valid JSON). Every other place in this
+  // codebase that reads trip.stops guards against that; this one didn't.
+  const activeStops = activeTrip
+    ? (Array.isArray(activeTrip.stops) ? activeTrip.stops : JSON.parse(activeTrip.stops || '[]'))
+    : []
+
   // Return privacy-safe subset — first name only
   return {
     firstName:    tourist.full_name.split(' ')[0],
@@ -72,9 +80,9 @@ async function getGuardianView(token) {
       updatedAt:  location.updated_at,
     } : null,
     activeSOS:    activeSOS ? { id: activeSOS.id, category: activeSOS.category, createdAt: activeSOS.created_at } : null,
-    activeTripCity: activeTrip ? JSON.parse(activeTrip.stops || '[]')[0]?.city : null,
-    tsiScore:     activeTrip?.tsi_score || null,
-    tsiLabel:     activeTrip?.tsi_label || null,
+    activeTripCity: activeStops[0]?.city ?? null,
+    tsiScore:     activeTrip?.tsi_score ?? null,
+    tsiLabel:     activeTrip?.tsi_label ?? null,
   }
 }
 

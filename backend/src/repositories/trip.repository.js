@@ -78,8 +78,12 @@ class TripRepository extends BaseRepository {
   }
 
   async findActiveByTouristId(touristId) {
+    // Guardian view needs stops/tsi_score/tsi_label to show the tourist's
+    // destination and safety index — this used to select only `id`, so
+    // those fields were always undefined and silently omitted from the
+    // guardian response no matter what the trip actually contained.
     return this.queryOne(
-      `SELECT id FROM trips WHERE tourist_id = $1 AND status = 'ACTIVE' LIMIT 1`,
+      `SELECT id, stops, tsi_score, tsi_label FROM trips WHERE tourist_id = $1 AND status = 'ACTIVE' LIMIT 1`,
       [touristId]
     )
   }
