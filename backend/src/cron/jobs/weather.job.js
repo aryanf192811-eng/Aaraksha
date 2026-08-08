@@ -4,7 +4,7 @@
 const cron   = require('node-cron')
 const logger = require('../../utils/logger')
 const { updateWeatherForActiveTrips } = require('../../services/weather.service')
-const { emitTSIUpdated } = require('../../socket/emitters')
+const { emitTSIUpdated, emitWeatherRiskIncreased } = require('../../socket/emitters')
 
 function startWeatherJobs() {
   // ── Weather + TSI update: every hour ──────────────────────────────
@@ -13,7 +13,7 @@ function startWeatherJobs() {
   cron.schedule('0 * * * *', async () => {
     logger.info('Weather + TSI cron starting')
     try {
-      const result = await updateWeatherForActiveTrips(emitTSIUpdated)
+      const result = await updateWeatherForActiveTrips(emitTSIUpdated, emitWeatherRiskIncreased)
       logger.info(result, 'Weather + TSI cron complete')
     } catch (err) {
       logger.error({ err: { message: err.message } }, 'Weather cron crashed')

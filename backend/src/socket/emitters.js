@@ -110,6 +110,17 @@ function emitTSIUpdated(touristId, tripId, tsiScore, tsiLabel, tsiFactors) {
   })
 }
 
+// Tourist room: weather risk got WORSE for a destination on their active
+// trip since the last hourly poll — distinct from TSI_UPDATED, which fires
+// every hour regardless of whether anything actually changed, so a
+// tourist would have to go check their trip to notice. This only fires on
+// an actual increase.
+function emitWeatherRiskIncreased(touristId, tripId, cityName, fromRisk, toRisk, reason) {
+  safeEmit(SOCKET_ROOMS.tourist(touristId), SOCKET_EVENTS.WEATHER_RISK_INCREASED, {
+    tripId, city: cityName, fromRisk, toRisk, reason, updatedAt: new Date().toISOString(),
+  })
+}
+
 // Guardian room + Govt dashboard: tourist checked in
 function emitCheckinUpdate(touristId, guardianToken, location, batteryPct, eta) {
   const payload = {
@@ -141,5 +152,5 @@ function emitGuardianSOSAlert(guardianToken, sosEvent, tourist) {
 
 module.exports = {
   emitSOSReceived, emitSOSResolved, emitRescueAssigned, emitDMSTriggered,
-  emitTSIUpdated, emitCheckinUpdate, emitGuardianSOSAlert,
+  emitTSIUpdated, emitCheckinUpdate, emitGuardianSOSAlert, emitWeatherRiskIncreased,
 }

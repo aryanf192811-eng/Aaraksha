@@ -9,6 +9,8 @@ const { TripRepository } = require('../repositories/trip.repository')
 const { calculateTSI } = require('./tsi.service')
 const { WEATHER_CONDITIONS, WEATHER_RISK } = require('../constants/enums')
 
+const RISK_RANK = { [WEATHER_RISK.LOW]: 0, [WEATHER_RISK.MODERATE]: 1, [WEATHER_RISK.HIGH]: 2, [WEATHER_RISK.EXTREME]: 3 }
+
 function mapOWMCondition(main, description = '') {
   const d = description.toLowerCase()
   if (main === 'Thunderstorm') return WEATHER_CONDITIONS.STORM
@@ -66,7 +68,7 @@ async function fetchWeatherForDestination(destination) {
 }
 
 // Called by weather cron job every 60 minutes.
-async function updateWeatherForActiveTrips(emitTSIUpdated) {
+async function updateWeatherForActiveTrips(emitTSIUpdated, emitWeatherRiskIncreased) {
   const tripRepo = new TripRepository()
   const destRepo = new DestinationRepository()
 
@@ -84,11 +86,25 @@ async function updateWeatherForActiveTrips(emitTSIUpdated) {
 
   if (destinationIds.size === 0) { return { tripsUpdated: 0, destinationsUpdated: 0 } }
 
+  // Snapshot risk levels BEFORE this poll's fetch so a genuine worsening
+  // can be told apart from "recomputed the same thing again" — TSI_UPDATED
+  // already fires every hour regardless, which meant a tourist had to go
+  // check their trip themselves to notice anything had actually changed.
+  const previousWeatherMap = await destRepo.getWeatherCacheMap([...destinationIds])
+
   const destinations = await destRepo.findByIds([...destinationIds])
   let destUpdated = 0
+  const worsenedDestinations = new Map() // destinationId -> { from, to, reason, city }
   for (const dest of destinations) {
     const weather = await fetchWeatherForDestination(dest)
-    if (weather) { await destRepo.upsertWeather(dest.id, weather); destUpdated++ }
+    if (!weather) continue
+    await destRepo.upsertWeather(dest.id, weather)
+    destUpdated++
+
+    const prevRisk = previousWeatherMap[dest.id]?.risk_level
+    if (prevRisk && RISK_RANK[weather.riskLevel] > RISK_RANK[prevRisk]) {
+      worsenedDestinations.set(dest.id, { from: prevRisk, to: weather.riskLevel, reason: weather.riskReason, city: dest.name })
+    }
   }
 
   const weatherCacheMap = await destRepo.getWeatherCacheMap([...destinationIds])
@@ -99,12 +115,23 @@ async function updateWeatherForActiveTrips(emitTSIUpdated) {
       await tripRepo.updateTSI(trip.id, tsiResult.score, tsiResult.label, tsiResult.factors, tsiResult.recommendations)
       if (emitTSIUpdated) emitTSIUpdated(trip.tourist_id, trip.id, tsiResult.score, tsiResult.label, tsiResult.factors)
       tripsUpdated++
+
+      if (emitWeatherRiskIncreased && worsenedDestinations.size > 0) {
+        const stops = Array.isArray(trip.stops) ? trip.stops : JSON.parse(trip.stops || '[]')
+        for (const stop of stops) {
+          const destId = stop.destinationId || stop.destination_id
+          const worsened = destId && worsenedDestinations.get(destId)
+          if (worsened) {
+            emitWeatherRiskIncreased(trip.tourist_id, trip.id, worsened.city, worsened.from, worsened.to, worsened.reason)
+          }
+        }
+      }
     } catch (err) {
       logger.error({ err: { message: err.message }, tripId: trip.id }, 'TSI update failed for trip')
     }
   }
 
-  logger.info({ tripsUpdated, destinationsUpdated: destUpdated }, 'Weather + TSI cron complete')
+  logger.info({ tripsUpdated, destinationsUpdated: destUpdated, weatherWorsened: worsenedDestinations.size }, 'Weather + TSI cron complete')
   return { tripsUpdated, destinationsUpdated: destUpdated }
 }
 
