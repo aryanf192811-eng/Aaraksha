@@ -6,6 +6,7 @@
 const { getIO } = require('./index')
 const { SOCKET_EVENTS, SOCKET_ROOMS } = require('../constants/events')
 const { estimateRescueEtaMinutes } = require('../utils/geo')
+const { sendPushToTourist } = require('../services/notification/push.service')
 const logger = require('../utils/logger')
 
 function safeEmit(room, event, payload) {
@@ -51,6 +52,11 @@ function emitSOSResolved(sosEvent, resolutionNotes) {
   safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.SOS_RESOLVED, payload)
   if (sosEvent.tourist_id) {
     safeEmit(SOCKET_ROOMS.tourist(sosEvent.tourist_id), SOCKET_EVENTS.SOS_STATUS_UPDATED, payload)
+    sendPushToTourist(sosEvent.tourist_id, {
+      title: 'Aaraksha — SOS Update',
+      body: sosEvent.status === 'FALSE_ALARM' ? 'Your SOS was marked as a false alarm.' : 'Your SOS has been marked resolved.',
+      url: '/sos',
+    })
   }
 }
 
@@ -75,6 +81,11 @@ function emitRescueAssigned(assignment, sosEvent, team) {
       teamPhone: team.contact_phone, teamLat: team.latitude, teamLng: team.longitude,
       distanceKm: eta?.distanceKm ?? null, etaMinutes: eta?.etaMinutes ?? null,
     })
+    sendPushToTourist(sosEvent.tourist_id, {
+      title: 'Aaraksha — Rescue Dispatched',
+      body: `${team.name} is on the way${eta?.etaMinutes ? ` — ETA ${eta.etaMinutes} min` : ''}.`,
+      url: '/sos',
+    })
   }
 }
 
@@ -96,6 +107,11 @@ function emitDMSTriggered(sosEvent, tourist) {
     safeEmit(SOCKET_ROOMS.tourist(tourist.id), SOCKET_EVENTS.DMS_TRIGGERED_OWN, {
       message: 'Your Dead Man\'s Switch triggered — SOS has been sent automatically.',
       sosId:   sosEvent.id,
+    })
+    sendPushToTourist(tourist.id, {
+      title: 'Aaraksha — Dead Man\'s Switch Triggered',
+      body: 'You missed a check-in, so an SOS was sent automatically to your contacts and authorities.',
+      url: '/sos',
     })
   }
 }
@@ -119,6 +135,11 @@ function emitWeatherRiskIncreased(touristId, tripId, cityName, fromRisk, toRisk,
   safeEmit(SOCKET_ROOMS.tourist(touristId), SOCKET_EVENTS.WEATHER_RISK_INCREASED, {
     tripId, city: cityName, fromRisk, toRisk, reason, updatedAt: new Date().toISOString(),
   })
+  sendPushToTourist(touristId, {
+    title: 'Aaraksha — Weather Risk Rising',
+    body: `${cityName}: ${fromRisk} → ${toRisk}${reason ? ` — ${reason}` : ''}`,
+    url: '/trips',
+  })
 }
 
 // Tourist room (one per co-traveler): another member of the same group trip
@@ -132,6 +153,11 @@ function emitGroupSOSAlert(touristIds, sosEvent, tourist) {
       touristName: tourist?.full_name, category: sosEvent.category,
       latitude: sosEvent.latitude, longitude: sosEvent.longitude,
       createdAt: sosEvent.created_at,
+    })
+    sendPushToTourist(touristId, {
+      title: 'Aaraksha — Group SOS Alert',
+      body: `${tourist?.full_name ?? 'A group member'} sent an SOS (${sosEvent.category}).`,
+      url: `/trips/${sosEvent.trip_id}`,
     })
   }
 }

@@ -89,6 +89,14 @@ const config = {
   log: {
     level: optionalEnv('LOG_LEVEL', 'info'),
   },
+
+  // Web Push (optional — push notifications silently no-op if missing)
+  vapid: {
+    publicKey:  optionalEnv('VAPID_PUBLIC_KEY'),
+    privateKey: optionalEnv('VAPID_PRIVATE_KEY'),
+    subject:    optionalEnv('VAPID_SUBJECT', 'mailto:aaraksha@example.com'),
+    enabled:    !!(optionalEnv('VAPID_PUBLIC_KEY') && optionalEnv('VAPID_PRIVATE_KEY')),
+  },
 }
 
 module.exports = config

@@ -16,5 +16,6 @@ router.use('/packing',         require('./packing.routes'))
 router.use('/journey-passport',require('./passport.routes'))
 router.use('/govt',            require('./govt.routes'))
 router.use('/webhooks',        require('./webhook.routes'))
+router.use('/push',            require('./push.routes'))
 
 module.exports = router

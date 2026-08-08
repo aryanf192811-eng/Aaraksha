@@ -2,12 +2,12 @@
 // Design: Stitch "Safety Center" — status row, big pulsing SOS button,
 // icon-circle category grid, DMS card. Logic unchanged from the previous
 // version: same category/DMS state, same hooks, same mutations.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import {
   ArrowLeft, MapPin, Battery, Loader2, Timer, CheckCircle2, Wifi, WifiOff,
-  HeartPulse, Compass, Mountain, Waves, ShieldAlert, HelpCircle, PowerOff, Smartphone,
+  HeartPulse, Compass, Mountain, Waves, ShieldAlert, HelpCircle, PowerOff, Smartphone, Bell,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { SOSButton } from '../../components/shared/SOSButton'
@@ -16,6 +16,7 @@ import { useSOS } from '../../hooks/useSOS'
 import { useBattery } from '../../hooks/useBattery'
 import { useDMS } from '../../hooks/useDMS'
 import { requestPanicGesturePermission } from '../../hooks/usePanicGesture'
+import { usePushNotifications, isPushSupported } from '../../hooks/usePushNotifications'
 import dmsApi from '../../api/dms.api'
 import { queryClient } from '../../lib/queryClient'
 import { useSafetyStore } from '../../store/safety.store'
@@ -49,6 +50,16 @@ export default function SOSPage() {
   const panicGestureEnabled = useSafetyStore((s) => s.panicGestureEnabled)
   const setPanicGestureEnabled = useSafetyStore((s) => s.setPanicGestureEnabled)
   const [requestingPermission, setRequestingPermission] = useState(false)
+  const { subscribe: subscribePush, unsubscribe: unsubscribePush, subscribing: subscribingPush } = usePushNotifications()
+  const [pushEnabled, setPushEnabled] = useState(false)
+
+  useEffect(() => {
+    if (!isPushSupported()) return
+    navigator.serviceWorker.getRegistration('/push/')
+      .then((reg) => reg?.pushManager.getSubscription())
+      .then((sub) => setPushEnabled(!!sub))
+      .catch(() => {})
+  }, [])
 
   const { mutate: createDMS, isPending: creatingDMS } = useMutation({
     mutationFn: () => dmsApi.createDMS({ intervalMinutes: dmsInterval }),
@@ -78,6 +89,19 @@ export default function SOSPage() {
     } else {
       toast.error('Motion access denied — enable it in your browser/device settings to use this')
     }
+  }
+
+  const handleTogglePush = async () => {
+    if (pushEnabled) {
+      await unsubscribePush()
+      setPushEnabled(false)
+      toast('Push notifications disabled')
+      return
+    }
+    const ok = await subscribePush()
+    setPushEnabled(ok)
+    if (ok) toast.success('Push notifications enabled — you\'ll get alerts even when the app is closed')
+    else toast.error('Could not enable push notifications — check browser notification permissions')
   }
 
   // pb-40, not the usual pb-24 — this page's last section (DMS setup)
@@ -260,6 +284,37 @@ export default function SOSPage() {
             </button>
           </div>
         </div>
+
+        {/* Push notifications Section */}
+        {isPushSupported() && (
+          <div className="bg-surface-container-lowest shadow-sm border border-outline-variant rounded-2xl p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Bell className="w-6 h-6 text-primary flex-shrink-0" />
+                <div className="min-w-0">
+                  <h2 className="font-display font-black text-on-surface">Push Notifications</h2>
+                  <p className="text-xs text-on-surface-variant">Get SOS, weather, and group alerts even when the app is closed</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={pushEnabled}
+                onClick={handleTogglePush}
+                disabled={subscribingPush}
+                className={cn(
+                  'relative flex-shrink-0 w-12 h-7 rounded-full transition-colors disabled:opacity-60',
+                  pushEnabled ? 'bg-primary' : 'bg-outline-variant'
+                )}
+              >
+                <span className={cn(
+                  'absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform',
+                  pushEnabled && 'translate-x-5'
+                )} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
