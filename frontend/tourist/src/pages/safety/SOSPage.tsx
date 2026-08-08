@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import {
   ArrowLeft, MapPin, Battery, Loader2, Timer, CheckCircle2, Wifi, WifiOff,
-  HeartPulse, Compass, Mountain, Waves, ShieldAlert, HelpCircle, PowerOff,
+  HeartPulse, Compass, Mountain, Waves, ShieldAlert, HelpCircle, PowerOff, Smartphone,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { SOSButton } from '../../components/shared/SOSButton'
@@ -15,8 +15,10 @@ import { RescueTrackingCard } from '../../components/shared/RescueTrackingCard'
 import { useSOS } from '../../hooks/useSOS'
 import { useBattery } from '../../hooks/useBattery'
 import { useDMS } from '../../hooks/useDMS'
+import { requestPanicGesturePermission } from '../../hooks/usePanicGesture'
 import dmsApi from '../../api/dms.api'
 import { queryClient } from '../../lib/queryClient'
+import { useSafetyStore } from '../../store/safety.store'
 import type { SOSCategory } from '../../constants/enums'
 import { cn } from '../../lib/utils'
 
@@ -44,6 +46,9 @@ export default function SOSPage() {
   const { sendSOS, sending } = useSOS()
   const { batteryPct } = useBattery()
   const { dms, disableDMS, disabling } = useDMS()
+  const panicGestureEnabled = useSafetyStore((s) => s.panicGestureEnabled)
+  const setPanicGestureEnabled = useSafetyStore((s) => s.setPanicGestureEnabled)
+  const [requestingPermission, setRequestingPermission] = useState(false)
 
   const { mutate: createDMS, isPending: creatingDMS } = useMutation({
     mutationFn: () => dmsApi.createDMS({ intervalMinutes: dmsInterval }),
@@ -56,6 +61,23 @@ export default function SOSPage() {
 
   const handleSOS = async () => {
     await sendSOS(category, message || undefined)
+  }
+
+  const handleTogglePanicGesture = async () => {
+    if (panicGestureEnabled) {
+      setPanicGestureEnabled(false)
+      toast('Panic shake gesture disabled')
+      return
+    }
+    setRequestingPermission(true)
+    const granted = await requestPanicGesturePermission()
+    setRequestingPermission(false)
+    if (granted) {
+      setPanicGestureEnabled(true)
+      toast.success('Panic shake gesture enabled — shake your phone hard 3x to trigger SOS')
+    } else {
+      toast.error('Motion access denied — enable it in your browser/device settings to use this')
+    }
   }
 
   // pb-40, not the usual pb-24 — this page's last section (DMS setup)
@@ -208,6 +230,35 @@ export default function SOSPage() {
               )}
             </>
           )}
+        </div>
+
+        {/* Panic gesture Section */}
+        <div className="bg-surface-container-lowest shadow-sm border border-outline-variant rounded-2xl p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Smartphone className="w-6 h-6 text-primary flex-shrink-0" />
+              <div className="min-w-0">
+                <h2 className="font-display font-black text-on-surface">Panic Shake Gesture</h2>
+                <p className="text-xs text-on-surface-variant">Shake your phone hard 3x to trigger SOS — for when it's in your pocket</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={panicGestureEnabled}
+              onClick={handleTogglePanicGesture}
+              disabled={requestingPermission}
+              className={cn(
+                'relative flex-shrink-0 w-12 h-7 rounded-full transition-colors disabled:opacity-60',
+                panicGestureEnabled ? 'bg-primary' : 'bg-outline-variant'
+              )}
+            >
+              <span className={cn(
+                'absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform',
+                panicGestureEnabled && 'translate-x-5'
+              )} />
+            </button>
+          </div>
         </div>
       </div>
     </div>
