@@ -4,7 +4,7 @@
 // Zod schema verified against backend src/validators/trip.validator.js
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -17,15 +17,25 @@ import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import tripApi, { type CreateTripPayload } from '../../api/trip.api'
+import destinationApi from '../../api/destination.api'
 import { queryClient } from '../../lib/queryClient'
 import type { TravelType } from '../../constants/enums'
+import type { Destination } from '../../types/api.types'
 
 const CreateTripSchema = z.object({
   title:      z.string().min(1, 'Trip name required').max(255),
   travelType: z.enum(['SOLO', 'FAMILY', 'FRIENDS', 'ADVENTURE', 'PILGRIMAGE', 'BUSINESS']),
   startDate:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Select a valid date'),
   endDate:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Select a valid date'),
-  budgetInr:  z.coerce.number().positive().optional(),
+  // An untouched number input holds '' (not undefined) in react-hook-form,
+  // and z.coerce.number() turns '' into 0 before .optional() ever sees it —
+  // silently failing .positive() and blocking submit with no visible error
+  // (step 3 renders no error UI). Preprocess '' to undefined first so an
+  // empty budget is actually treated as "not provided".
+  budgetInr: z.preprocess(
+    (v) => (v === '' || v === undefined || v === null ? undefined : v),
+    z.coerce.number().positive().optional()
+  ),
   isPublic:   z.boolean().optional().default(false),
   stops: z.array(z.object({
     city:          z.string().min(1, 'City required'),
@@ -59,20 +69,19 @@ const TRAVEL_TYPE_CONFIG = [
   { value: 'BUSINESS',   Icon: Briefcase,label: 'Business' },
 ] as const
 
-const NE_DESTINATIONS = [
-  { name: 'Tawang', state: 'Arunachal Pradesh' },
-  { name: 'Shillong', state: 'Meghalaya' },
-  { name: 'Kaziranga', state: 'Assam' },
-  { name: 'Cherrapunji', state: 'Meghalaya' },
-  { name: 'Dzukou Valley', state: 'Nagaland' },
-  { name: 'Pelling', state: 'Sikkim' },
-  { name: 'Ziro Valley', state: 'Arunachal Pradesh' },
-  { name: 'Majuli Island', state: 'Assam' },
-]
-
 export default function CreateTripPage() {
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
+
+  // Real destination rows (id, connectivity, difficulty, altitude_m,
+  // zone_type, hospital_km) — quick-add stops must carry this, not
+  // placeholder defaults, since the TSI engine and destination-linked
+  // features (news, hospital lookups) key off it.
+  const { data: destinations = [] } = useQuery({
+    queryKey: ['destinations'],
+    queryFn: () => destinationApi.getAll().then(r => r.data.data),
+    staleTime: 5 * 60 * 1000,
+  })
 
   const { register, handleSubmit, watch, setValue, control, formState: { errors } } = useForm<FormInput, unknown, FormOutput>({
     resolver: zodResolver(CreateTripSchema),
@@ -102,8 +111,13 @@ export default function CreateTripPage() {
     })
   }
 
-  const addQuickStop = (dest: typeof NE_DESTINATIONS[0]) => {
-    append({ city: dest.name, state: dest.state, destinationId: null, days: 2, connectivity: 'MODERATE', difficulty: 'EASY', altitude_m: 0, zone_type: 'SAFE', hospital_km: 0 })
+  const addQuickStop = (dest: Destination) => {
+    append({
+      city: dest.name, state: dest.state, destinationId: dest.id, days: 2,
+      connectivity: dest.connectivity, difficulty: dest.difficulty,
+      altitude_m: dest.altitude_m, zone_type: dest.zone_type,
+      hospital_km: dest.nearest_hospital_km ?? 0,
+    })
   }
 
   return (
@@ -185,8 +199,8 @@ export default function CreateTripPage() {
 
             {/* Quick add popular destinations */}
             <div className="flex flex-wrap gap-2">
-              {NE_DESTINATIONS.map(dest => (
-                <button key={dest.name} type="button"
+              {destinations.map(dest => (
+                <button key={dest.id} type="button"
                   onClick={() => addQuickStop(dest)}
                   className="flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant rounded-full px-3 py-1.5 text-sm font-medium text-on-surface hover:border-amber-400 hover:bg-primary/10 transition-colors">
                   <MapPin className="w-3 h-3 text-primary" /> {dest.name}
