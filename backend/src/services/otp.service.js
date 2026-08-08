@@ -15,6 +15,7 @@ const { OTPRepository } = require('../repositories/otp.repository')
 const { TouristRepository } = require('../repositories/tourist.repository')
 const { sendSMS } = require('./notification/sms.service')
 const { hashPassword, normalizePhone } = require('../utils/crypto')
+const { markEmergencyContactVerified } = require('./tourist.service')
 const config = require('../config/env')
 const logger = require('../utils/logger')
 
@@ -209,10 +210,95 @@ async function requestPhoneVerification(touristId, rawPhone, ipAddress) {
   return { message: 'Verification code sent to your phone.' }
 }
 
+// ── Emergency Contact Verification ─────────────────────────────────────────
+// Confirms an emergency contact's phone number is real and reachable BEFORE
+// it's relied on during an actual SOS — a typo'd or dead number would only
+// otherwise surface at the worst possible moment.
+
+async function requestEmergencyContactVerification(touristId, rawPhone, ipAddress) {
+  const phone   = normalizePhone(rawPhone)
+  const otpRepo = new OTPRepository()
+
+  const recentCount = await otpRepo.countRecentRequests(phone, 'EMERGENCY_CONTACT_VERIFY', 60)
+  if (recentCount >= 3) {
+    throw Object.assign(
+      new Error('Too many verification requests for this contact. Wait 1 hour before trying again.'),
+      { statusCode: 429 }
+    )
+  }
+
+  const otp       = generateOTP()
+  const otpHash   = hashOTP(otp)
+  const expiresAt = new Date(Date.now() + OTP_EXPIRE_MINUTES * 60 * 1000)
+  await otpRepo.create(phone, otpHash, 'EMERGENCY_CONTACT_VERIFY', expiresAt, ipAddress)
+
+  const message = [
+    `📱 Aaraksha Emergency Contact Verification`,
+    `Someone added you as an emergency contact on Aaraksha — a tourist safety app.`,
+    `Your verification code is: ${otp}`,
+    `Valid for ${OTP_EXPIRE_MINUTES} minutes. If this wasn't you, ignore this message.`,
+  ].join('\n')
+
+  const smsResult = await sendSMS(phone, message)
+  logger.info({ touristId, phone, smsSent: smsResult.sent }, 'Emergency contact verification OTP sent')
+
+  return {
+    message: 'Verification code sent to the contact\'s phone.',
+    // Twilio trial accounts restrict outbound SMS to predefined templates
+    // (confirmed via a direct test — arbitrary body text like this OTP
+    // message is rejected with error 572006), so free-form OTP delivery is
+    // externally blocked until the account is upgraded. Surfacing the code
+    // directly in dev keeps the flow demoable without a paid Twilio plan —
+    // this branch can NEVER fire outside development.
+    ...(config.isDev && !smsResult.sent ? { debugOtp: otp, debugReason: smsResult.reason } : {}),
+  }
+}
+
+async function verifyEmergencyContactOTP(touristId, rawPhone, otp) {
+  const phone   = normalizePhone(rawPhone)
+  const otpRepo = new OTPRepository()
+
+  const record = await otpRepo.findValid(phone, 'EMERGENCY_CONTACT_VERIFY')
+  if (!record) {
+    throw Object.assign(
+      new Error('Code not found, already used, or expired. Please request a new one.'),
+      { statusCode: 400 }
+    )
+  }
+  if (record.attempts >= MAX_ATTEMPTS) {
+    throw Object.assign(
+      new Error(`Code locked after ${MAX_ATTEMPTS} failed attempts. Request a new one.`),
+      { statusCode: 429 }
+    )
+  }
+
+  const providedHash = hashOTP(otp.trim())
+  const expectedBuf = Buffer.from(record.otp_hash, 'hex')
+  const providedBuf = Buffer.from(providedHash, 'hex')
+  const isValid = expectedBuf.length === providedBuf.length &&
+    crypto.timingSafeEqual(expectedBuf, providedBuf)
+
+  if (!isValid) {
+    const newAttempts = await otpRepo.incrementAttempts(record.id)
+    const remaining   = Math.max(0, MAX_ATTEMPTS - newAttempts)
+    throw Object.assign(
+      new Error(`Incorrect code. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`),
+      { statusCode: 400 }
+    )
+  }
+
+  await otpRepo.markUsed(record.id)
+  const tourist = await markEmergencyContactVerified(touristId, phone)
+  logger.info({ touristId, phone }, 'Emergency contact verified')
+  return tourist
+}
+
 module.exports = {
   requestPasswordReset,
   verifyOTP,
   resetPassword,
   resendOTP,
   requestPhoneVerification,
+  requestEmergencyContactVerification,
+  verifyEmergencyContactOTP,
 }

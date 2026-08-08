@@ -24,8 +24,13 @@ const UpdateProfileSchema = z.object({
   profilePhotoUrl: z.string().url().optional().nullable(),
 })
 
+const SendEmergencyContactOTPSchema = z.object({ phone: PhoneSchema })
+const VerifyEmergencyContactOTPSchema = z.object({ phone: PhoneSchema, otp: z.string().length(6) })
+
 router.get('/me',                    authenticateTourist, ctrl.getMe)
 router.patch('/me',                  authenticateTourist, validate(UpdateProfileSchema), ctrl.updateMe)
+router.post('/emergency-contacts/send-otp',   authenticateTourist, validate(SendEmergencyContactOTPSchema),   ctrl.sendEmergencyContactOTP)
+router.post('/emergency-contacts/verify-otp', authenticateTourist, validate(VerifyEmergencyContactOTPSchema), ctrl.verifyEmergencyContactOTP)
 router.get('/guardian/:token',       ctrl.getGuardianView)  // Public — no auth
 
 module.exports = router

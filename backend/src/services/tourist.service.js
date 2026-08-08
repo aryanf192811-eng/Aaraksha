@@ -5,6 +5,7 @@ const { TouristRepository } = require('../repositories/tourist.repository')
 const { LocationRepository } = require('../repositories/location.repository')
 const { SOSRepository }      = require('../repositories/sos.repository')
 const { TripRepository }     = require('../repositories/trip.repository')
+const { normalizePhone } = require('../utils/crypto')
 const { ERRORS } = require('../constants/errors')
 
 // tourists.rescue_readiness_score is a DB column that nothing ever wrote —
@@ -39,8 +40,48 @@ async function updateProfile(touristId, data) {
   if (data.bloodGroup)        dbFields.blood_group        = data.bloodGroup
   if (data.medicalInfo)       dbFields.medical_info       = data.medicalInfo
   if (data.profilePhotoUrl !== undefined) dbFields.profile_photo_url = data.profilePhotoUrl
-  if (data.emergencyContacts) dbFields.emergency_contacts = data.emergencyContacts
+
+  if (data.emergencyContacts) {
+    // Preserve verified status for contacts whose phone number didn't
+    // change — the client never sends verified/verifiedAt (server-set
+    // only), so without this, every profile save would silently un-verify
+    // every contact, even ones the tourist never touched.
+    const existing = await repo.findById(touristId)
+    const existingByPhone = new Map(
+      (Array.isArray(existing?.emergency_contacts) ? existing.emergency_contacts : [])
+        .map(c => [normalizePhone(c.phone), c])
+    )
+    dbFields.emergency_contacts = data.emergencyContacts.map(c => {
+      const prior = existingByPhone.get(normalizePhone(c.phone))
+      return prior?.verified
+        ? { ...c, verified: true, verifiedAt: prior.verifiedAt }
+        : { ...c, verified: false, verifiedAt: null }
+    })
+  }
+
   const updated = await repo.update(touristId, dbFields)
+  return { ...updated, rescue_readiness_score: computeProfileReadiness(updated) }
+}
+
+// Called by otp.service.js after a successful emergency-contact OTP check.
+async function markEmergencyContactVerified(touristId, rawPhone) {
+  const repo = new TouristRepository()
+  const tourist = await repo.findById(touristId)
+  if (!tourist) throw Object.assign(new Error(ERRORS.NOT_FOUND), { statusCode: 404 })
+
+  const targetPhone = normalizePhone(rawPhone)
+  const contacts = Array.isArray(tourist.emergency_contacts) ? tourist.emergency_contacts : []
+  let found = false
+  const updatedContacts = contacts.map(c => {
+    if (normalizePhone(c.phone) === targetPhone) {
+      found = true
+      return { ...c, verified: true, verifiedAt: new Date().toISOString() }
+    }
+    return c
+  })
+  if (!found) throw Object.assign(new Error('Emergency contact not found on this profile'), { statusCode: 404 })
+
+  const updated = await repo.update(touristId, { emergency_contacts: updatedContacts })
   return { ...updated, rescue_readiness_score: computeProfileReadiness(updated) }
 }
 
@@ -86,4 +127,4 @@ async function getGuardianView(token) {
   }
 }
 
-module.exports = { getProfile, updateProfile, getGuardianView, computeProfileReadiness }
+module.exports = { getProfile, updateProfile, getGuardianView, computeProfileReadiness, markEmergencyContactVerified }

@@ -23,6 +23,14 @@ const touristApi = {
   // Public — no auth required, used by the Guardian Portal.
   getGuardianView: (token: string) =>
     api.get<APIResponse<GuardianView>>(`/tourists/guardian/${token}`),
+
+  sendEmergencyContactOTP: (phone: string) =>
+    api.post<APIResponse<{ message: string; debugOtp?: string; debugReason?: string }>>(
+      '/tourists/emergency-contacts/send-otp', { phone }
+    ),
+
+  verifyEmergencyContactOTP: (phone: string, otp: string) =>
+    api.post<APIResponse<Tourist>>('/tourists/emergency-contacts/verify-otp', { phone, otp }),
 }
 
 export default touristApi

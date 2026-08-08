@@ -48,6 +48,16 @@ class OTPRepository extends BaseRepository {
     )
   }
 
+  // Mark used with no continuation token — for flows like emergency-contact
+  // verification that confirm-and-stop, rather than issuing a follow-up
+  // credential the way password reset does.
+  async markUsed(id) {
+    return this.queryOne(
+      `UPDATE otp_verifications SET used=TRUE WHERE id=$1 RETURNING id`,
+      [id]
+    )
+  }
+
   // Find a valid reset_token (used in step 3: actual password reset)
   async findByResetToken(resetToken) {
     return this.queryOne(`

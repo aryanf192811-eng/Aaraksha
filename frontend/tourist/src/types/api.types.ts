@@ -41,6 +41,8 @@ export interface EmergencyContact {
   relation: string
   tier: 1 | 2
   notifyOnSOS: boolean
+  verified?: boolean
+  verifiedAt?: string | null
 }
 
 export interface Tourist {

@@ -2,6 +2,7 @@
 'use strict'
 
 const touristService = require('../services/tourist.service')
+const otpService = require('../services/otp.service')
 const { sendSuccess } = require('../utils/response')
 
 const getMe = async (req, res, next) => {
@@ -25,4 +26,20 @@ const getGuardianView = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
-module.exports = { getMe, updateMe, getGuardianView }
+const sendEmergencyContactOTP = async (req, res, next) => {
+  try {
+    const ipAddress = req.ip
+    const result = await otpService.requestEmergencyContactVerification(req.tourist.id, req.validatedBody.phone, ipAddress)
+    sendSuccess(res, result, result.message)
+  } catch (err) { next(err) }
+}
+
+const verifyEmergencyContactOTP = async (req, res, next) => {
+  try {
+    const { phone, otp } = req.validatedBody
+    const tourist = await otpService.verifyEmergencyContactOTP(req.tourist.id, phone, otp)
+    sendSuccess(res, tourist, 'Emergency contact verified')
+  } catch (err) { next(err) }
+}
+
+module.exports = { getMe, updateMe, getGuardianView, sendEmergencyContactOTP, verifyEmergencyContactOTP }
