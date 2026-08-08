@@ -50,29 +50,3 @@ export function formatCountdown(seconds: number): string {
   if (h > 0) return `${h}h ${m}m`
   return `${m}:${String(s).padStart(2, '0')}`
 }
-
-// Download blob as PDF.
-// Two bugs fixed here: (1) revokeObjectURL was called synchronously right
-// after click() — a.click() schedules the download asynchronously, so
-// revoking the blob: URL in the same tick can race the browser's actual
-// read of it, corrupting the download (Chrome then shows it with a random
-// UUID name and a "file type unrecognized" lock icon instead of the real
-// filename/PDF icon). (2) the blob wasn't re-tagged with an explicit
-// application/pdf MIME type, so if the axios response's Content-Type ever
-// came through empty/wrong, the browser had nothing to identify it by.
-export function downloadPDF(blob: Blob, filename: string) {
-  const pdfBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' })
-  const url = URL.createObjectURL(pdfBlob)
-  const a = document.createElement('a')
-  a.style.display = 'none'
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  
-  // Clean up asynchronously to ensure the browser has time to register the download name
-  setTimeout(() => {
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }, 10000)
-}

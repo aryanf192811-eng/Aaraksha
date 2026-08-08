@@ -1,13 +1,12 @@
 // src/pages/DashboardPage.tsx
 import type { ComponentType } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
-import { Bell, Users, Shield, MapPin, Activity, Download, Loader2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Bell, Users, Shield, MapPin, Activity, Download } from 'lucide-react'
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
 import { useSOSSocket } from '../hooks/useSOSSocket'
 import govtApi from '../api/govt.api'
-import { formatTimeAgo, downloadPDF } from '../lib/utils'
+import { formatTimeAgo } from '../lib/utils'
 import type { GovtDashboard } from '../types/api.types'
 import type { AnalyticsResponse } from '../api/govt.api'
 
@@ -71,15 +70,6 @@ export default function DashboardPage() {
   const d: GovtDashboard | undefined = dashboard
   const a: AnalyticsResponse | undefined = analytics
 
-  const { mutate: exportReport, isPending: exporting } = useMutation({
-    mutationFn: () => govtApi.exportAnalyticsReport('30d'),
-    onSuccess: (res) => {
-      downloadPDF(res.data, `aaraksha-report-30d-${Date.now()}.pdf`)
-      toast.success('Report downloaded')
-    },
-    onError: () => toast.error('Failed to generate report'),
-  })
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -91,9 +81,9 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2 bg-surface-container-lowest rounded-full px-4 py-2 shadow-sm border border-outline-variant text-sm font-medium text-on-surface-variant">
             <span>Last 30 days</span>
           </div>
-          <Button onClick={() => exportReport()} disabled={exporting}
+          <Button onClick={() => window.location.href = govtApi.getExportUrl('30d')}
             className="bg-primary-dark hover:brightness-90 text-white rounded-lg px-4 py-2 text-sm font-semibold shadow-sm flex items-center gap-2">
-            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Export PDF
+            <Download className="w-4 h-4" /> Export PDF
           </Button>
         </div>
       </div>

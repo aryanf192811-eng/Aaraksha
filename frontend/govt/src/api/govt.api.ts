@@ -4,9 +4,12 @@
 // are typed from the real return shapes (the original spec left these as
 // `unknown` — traced the actual repository methods instead).
 import api from './client'
+import { useAuthStore } from '../store/auth.store'
 import type {
   APIResponse, PaginatedResponse, GovtDashboard, SOSWithDetails, RescueTeam, LiveTourist,
 } from '../types/api.types'
+
+const API_URL = import.meta.env.VITE_API_URL
 
 export interface RiskOverviewEntry {
   destinationId: string | null
@@ -68,8 +71,17 @@ const govtApi = {
   getAnalytics: (period?: string) =>
     api.get<APIResponse<AnalyticsResponse>>('/govt/analytics', { params: { period } }),
 
-  exportAnalyticsReport: (period?: string) =>
-    api.get('/govt/analytics/export', { params: { period }, responseType: 'blob' }),
+  // Direct navigation, not an axios blob fetch + synthetic anchor click —
+  // blob: URLs have a real Chromium quirk where the `download` attribute's
+  // filename is sometimes ignored and the file lands in history under the
+  // blob's internal UUID instead. Navigating straight to the API URL lets
+  // the browser use the server's real Content-Disposition header. The
+  // ?token= query param exists because a plain navigation can't carry an
+  // Authorization header — see backend/src/middleware/auth.js.
+  getExportUrl: (period?: string) => {
+    const token = useAuthStore.getState().token
+    return `${API_URL}/govt/analytics/export?period=${period || '30d'}&token=${encodeURIComponent(token || '')}`
+  },
 }
 
 export default govtApi

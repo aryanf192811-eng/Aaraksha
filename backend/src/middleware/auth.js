@@ -11,8 +11,14 @@ const logger        = require('../utils/logger')
 
 function extractToken(req) {
   const auth = req.headers.authorization
-  if (!auth || !auth.startsWith('Bearer ')) return null
-  return auth.slice(7).trim()
+  if (auth && auth.startsWith('Bearer ')) return auth.slice(7).trim()
+  // Fallback for direct browser-navigation downloads (PDF exports): a plain
+  // `<a href>`/window.location navigation can't attach an Authorization
+  // header, so those specific routes accept ?token= instead. This is the
+  // only way those endpoints are ever called without a header — normal API
+  // calls always go through axios with the header set.
+  if (typeof req.query.token === 'string' && req.query.token) return req.query.token
+  return null
 }
 
 function verifyJWT(token) {

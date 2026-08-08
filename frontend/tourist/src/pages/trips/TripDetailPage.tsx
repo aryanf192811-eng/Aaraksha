@@ -19,7 +19,7 @@ import tripApi from '../../api/trip.api'
 import packingApi from '../../api/packing.api'
 import passportApi from '../../api/passport.api'
 import { queryClient } from '../../lib/queryClient'
-import { formatDate, formatINR, downloadPDF, cn } from '../../lib/utils'
+import { formatDate, formatINR, cn } from '../../lib/utils'
 import { TRIP_STATUSES } from '../../constants/enums'
 import { getDestinationImage } from '../../lib/destinationImages'
 import type { Stop, PackingItem } from '../../types/api.types'
@@ -74,13 +74,11 @@ export default function TripDetailPage() {
     onSuccess: () => { toast.success('Trip activated!'); queryClient.invalidateQueries({ queryKey: ['trips'] }) },
   })
 
-  const { mutate: generatePassport, isPending: generatingPassport } = useMutation({
-    mutationFn: () => passportApi.generate(id!),
-    onSuccess: (res) => {
-      downloadPDF(res.data, `journey-passport-${id!.slice(0, 8)}.pdf`)
-      toast.success('Journey Passport downloaded!')
-    },
-  })
+  // Direct navigation, not an axios blob fetch — see passport.api.ts for why.
+  const handleDownloadPassport = () => {
+    window.location.href = passportApi.getDownloadUrl(id!)
+    toast.success('Preparing your Journey Passport...')
+  }
 
   const { mutate: togglePackedItem } = useMutation({
     mutationFn: (items: PackingItem[]) => tripApi.updateChecklist(id!, items),
@@ -142,9 +140,9 @@ export default function TripDetailPage() {
               <Share2 className="w-4 h-4" />
             </button>
             {trip.status === TRIP_STATUSES.COMPLETED && (
-              <button onClick={() => generatePassport()} disabled={generatingPassport} title="Download Journey Passport"
-                className="w-9 h-9 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors disabled:opacity-50">
-                {generatingPassport ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              <button onClick={handleDownloadPassport} title="Download Journey Passport"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+                <Download className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -404,10 +402,10 @@ export default function TripDetailPage() {
         {/* Journey Passport button */}
         {trip.status === TRIP_STATUSES.COMPLETED && (
           <div className="mt-5">
-            <Button onClick={() => generatePassport()} disabled={generatingPassport}
+            <Button onClick={handleDownloadPassport}
               className="w-full h-12 bg-on-surface hover:bg-on-surface/90 text-surface rounded-full font-bold flex items-center justify-center gap-2">
               <Download className="w-4 h-4" />
-              {generatingPassport ? 'Generating...' : 'Download Digital Journey Passport'}
+              Download Digital Journey Passport
             </Button>
           </div>
         )}
