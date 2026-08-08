@@ -2,6 +2,7 @@
 'use strict'
 
 const tripService = require('../services/trip.service')
+const newsService = require('../services/news.service')
 const { sendSuccess, sendPaginated } = require('../utils/response')
 const { parsePaginationParams } = require('../utils/pagination')
 
@@ -90,7 +91,14 @@ const leaveTrip = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+const getTripNews = async (req, res, next) => {
+  try {
+    const news = await newsService.getNewsForTrip(req.params.id, req.tourist.id)
+    sendSuccess(res, news)
+  } catch (err) { next(err) }
+}
+
 module.exports = {
   createTrip, getMyTrips, getTripById, updateTrip, updateTripStatus, updateChecklist, deleteTrip, getPublicTrip,
-  getInviteCode, joinTrip, getTripMembers, leaveTrip,
+  getInviteCode, joinTrip, getTripMembers, leaveTrip, getTripNews,
 }

@@ -162,6 +162,17 @@ function emitGroupSOSAlert(touristIds, sosEvent, tourist) {
   }
 }
 
+// Tourist room: a govt-authored CRITICAL news item was posted for a
+// destination on this tourist's active trip. INFO/WARNING items don't push
+// — only CRITICAL is urgent enough to interrupt, everything else is
+// pull-based (visible on the trip's News tab whenever they check).
+function emitDestinationNewsCritical(touristId, tripId, destinationName, news) {
+  safeEmit(SOCKET_ROOMS.tourist(touristId), SOCKET_EVENTS.DESTINATION_NEWS_CRITICAL, {
+    tripId, destinationName,
+    newsId: news.id, headline: news.headline, category: news.category, source: news.source,
+  })
+}
+
 // Guardian room + Govt dashboard: tourist checked in
 function emitCheckinUpdate(touristId, guardianToken, location, batteryPct, eta) {
   const payload = {
@@ -194,5 +205,5 @@ function emitGuardianSOSAlert(guardianToken, sosEvent, tourist) {
 module.exports = {
   emitSOSReceived, emitSOSResolved, emitRescueAssigned, emitDMSTriggered,
   emitTSIUpdated, emitCheckinUpdate, emitGuardianSOSAlert, emitWeatherRiskIncreased,
-  emitGroupSOSAlert,
+  emitGroupSOSAlert, emitDestinationNewsCritical,
 }

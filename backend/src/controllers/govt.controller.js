@@ -2,6 +2,7 @@
 const govtService = require('../services/govt.service')
 const govtReportService = require('../services/govtReport.service')
 const checkpointService = require('../services/checkpoint.service')
+const newsService = require('../services/news.service')
 const { sendSuccess, sendPaginated } = require('../utils/response')
 const { parsePaginationParams } = require('../utils/pagination')
 const logger = require('../utils/logger')
@@ -67,6 +68,13 @@ const getRecentCheckpointScans = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+const postDestinationNews = async (req, res, next) => {
+  try {
+    const news = await newsService.postNews(req.params.id, req.validatedBody, req.govtUser.id)
+    sendSuccess(res, news, 'News posted', 201)
+  } catch (err) { next(err) }
+}
+
 module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRescueTeams,
   getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, resolveSOS, updateTeamStatus,
-  scanCheckpoint, getRecentCheckpointScans }
+  scanCheckpoint, getRecentCheckpointScans, postDestinationNews }

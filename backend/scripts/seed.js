@@ -558,6 +558,47 @@ async function seed() {
     )
     console.log(`  ✅ Demo tourist 4 (running Dead Man's Switch): sneha.demo@aaraksha.in (phone: 9876500003) / Demo@123`)
 
+    // ── DESTINATION NEWS & ALERTS ────────────────────────────────────
+    // Curated per spec (mock/curated feed is explicitly the demo-appropriate
+    // source, not a live external news API) — realistic NE India travel
+    // advisories: weather, road closures, festivals, safety notices.
+    const newsByDestination = {
+      'Dzukou Valley': [
+        { category: 'WEATHER', severity: 'WARNING', headline: 'Heavy fog expected above 2000m through the weekend',
+          body: 'Trekkers should delay summit attempts until visibility improves. Guides report near-zero visibility past the second rest hut since Thursday.', source: 'IMD Regional' },
+        { category: 'ADVISORY', severity: 'INFO', headline: 'No mobile network beyond base camp',
+          body: 'Carry a satellite communicator or inform your guide of your return time before departing base camp.', source: 'Aaraksha Curated' },
+      ],
+      'Kaziranga': [
+        { category: 'EVENT', severity: 'INFO', headline: 'Kaziranga Elephant Festival — Feb 25 to 27',
+          body: 'Expect heavier tourist traffic and elevated safari booking prices during the festival window.', source: 'Assam Tourism Dept' },
+        { category: 'ROAD_CLOSURE', severity: 'WARNING', headline: 'NH-715 partial closure near Kohora range',
+          body: 'Ongoing repair work is restricting one lane between 10am–4pm daily. Expect delays reaching the park entrance.', source: 'Aaraksha Curated' },
+      ],
+      'Shillong': [
+        { category: 'FESTIVAL', severity: 'INFO', headline: 'Shillong Cherry Blossom Festival this week',
+          body: 'Ward\'s Lake and Police Bazar areas will see road diversions in the evenings. Book accommodation early.', source: 'Meghalaya Tourism' },
+      ],
+      'Tawang': [
+        { category: 'WEATHER', severity: 'CRITICAL', headline: 'Sela Pass closed due to fresh snowfall',
+          body: 'The Sela Pass route is temporarily closed for clearance. Do not attempt the crossing until BRO issues an all-clear — check with your homestay before departing Dirang.', source: 'Border Roads Organisation' },
+      ],
+    }
+    let newsCount = 0
+    for (const [destName, items] of Object.entries(newsByDestination)) {
+      const { rows: [dest] } = await client.query('SELECT id FROM destinations WHERE name = $1', [destName])
+      if (!dest) continue
+      for (const item of items) {
+        await client.query(`
+          INSERT INTO destination_news (destination_id, category, severity, headline, body, source)
+          VALUES ($1, $2, $3, $4, $5, $6)`,
+          [dest.id, item.category, item.severity, item.headline, item.body, item.source]
+        )
+        newsCount++
+      }
+    }
+    console.log(`  ✅ ${newsCount} destination news/alert items seeded`)
+
     await client.query('COMMIT')
 
     console.log('\n' + '═'.repeat(50))

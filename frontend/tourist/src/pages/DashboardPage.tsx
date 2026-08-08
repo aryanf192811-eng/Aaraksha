@@ -2,13 +2,14 @@
 // Layout: sticky header -> hero status -> quick actions -> active trip -> DMS card -> recent trips
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Map, Shield, ChevronRight, MapPin, AlertTriangle, Plane } from 'lucide-react'
+import { Plus, Map, Shield, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState } from '../components/shared'
+import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed } from '../components/shared'
 import { useAuthStore } from '../store/auth.store'
 import { useSafetyStore } from '../store/safety.store'
 import { useDMS } from '../hooks/useDMS'
 import tripApi from '../api/trip.api'
+import newsApi from '../api/news.api'
 import type { Trip } from '../types/api.types'
 import { formatDate, cn } from '../lib/utils'
 import { TRIP_STATUSES } from '../constants/enums'
@@ -40,6 +41,13 @@ export default function DashboardPage() {
 
   const trips = tripsData?.data || []
   const activeTrip = trips.find(t => t.status === TRIP_STATUSES.ACTIVE)
+
+  const { data: latestNews } = useQuery({
+    queryKey: ['trips', activeTrip?.id, 'news'],
+    queryFn: () => newsApi.getForTrip(activeTrip!.id).then(r => r.data.data),
+    enabled: !!activeTrip,
+    staleTime: 2 * 60_000,
+  })
 
   return (
     <div className="min-h-screen bg-surface pb-28 font-sans">
@@ -102,6 +110,21 @@ export default function DashboardPage() {
         {/* DMS Card */}
         <DMSCard dms={dms || null} />
       </div>
+
+      {/* ── Latest Alerts ─────────────────────────────────────────── */}
+      {activeTrip && latestNews && latestNews.length > 0 && (
+        <div className="px-5 mt-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-display text-lg font-black text-on-surface flex items-center gap-1.5">
+              <Newspaper className="w-4.5 h-4.5" /> Latest Alerts
+            </h2>
+            <Button variant="ghost" size="sm" onClick={() => navigate(`/trips/${activeTrip.id}`)} className="text-primary font-semibold">
+              View all
+            </Button>
+          </div>
+          <NewsFeed items={latestNews.slice(0, 2)} showDestinationName />
+        </div>
+      )}
 
       {/* ── Quick Actions ─────────────────────────────────────────── */}
       <div className="px-5 mt-5">

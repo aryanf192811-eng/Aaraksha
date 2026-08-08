@@ -23,6 +23,7 @@ router.patch('/:id/checklist', validate(UpdateChecklistSchema),  ctrl.updateChec
 router.post('/:id/invite', ctrl.getInviteCode)
 router.get('/:id/members', ctrl.getTripMembers)
 router.delete('/:id/leave',ctrl.leaveTrip)
+router.get('/:id/news',    ctrl.getTripNews)
 router.delete('/:id',      ctrl.deleteTrip)
 
 module.exports = router

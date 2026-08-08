@@ -5,6 +5,7 @@ const router = require('express').Router()
 const ctrl   = require('../controllers/govt.controller')
 const { authenticateGovt, requireGovtRole } = require('../middleware/auth')
 const { GOVT_ROLES } = require('../constants/enums')
+const { PostNewsSchema } = require('../validators/news.validator')
 const { validate } = require('../middleware/validate')
 const { z } = require('zod')
 const { TEAM_STATUSES } = require('../constants/enums')
@@ -45,5 +46,6 @@ router.post('/checkpoint/scan',
   requireGovtRole(GOVT_ROLES.SUPER_ADMIN, GOVT_ROLES.POLICE, GOVT_ROLES.TOURISM_OFFICER),
   validate(ScanCheckpointSchema), ctrl.scanCheckpoint)
 router.get('/checkpoint/recent',   ctrl.getRecentCheckpointScans)
+router.post('/destinations/:id/news', validate(PostNewsSchema), ctrl.postDestinationNews)
 
 module.exports = router

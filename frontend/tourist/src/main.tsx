@@ -11,6 +11,7 @@ import { useZoneWarnings } from './hooks/useZoneWarnings'
 import { useWeatherAlerts } from './hooks/useWeatherAlerts'
 import { usePanicGesture } from './hooks/usePanicGesture'
 import { useGroupSOSListener } from './hooks/useGroupSOSListener'
+import { useDestinationNewsListener } from './hooks/useDestinationNewsListener'
 import { AppLayout } from './components/AppLayout'
 import './index.css'
 // Pages
@@ -41,6 +42,7 @@ function AppWithSync() {
   useWeatherAlerts()      // Warn when weather risk worsens for an active trip destination
   usePanicGesture()       // Shake-to-SOS backup, opt-in via Safety Center
   useGroupSOSListener()   // Alert when a co-traveler on a group trip sends SOS
+  useDestinationNewsListener() // Alert on critical destination news for an active trip
   return null
 }
 

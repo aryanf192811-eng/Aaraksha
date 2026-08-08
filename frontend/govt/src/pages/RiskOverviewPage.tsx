@@ -4,12 +4,21 @@
 // advisory) pulled from the destinations catalog — all data the backend
 // already had but never surfaced (see govt.service.js getRiskOverview fix).
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Shield, ChevronDown, MapPin, HeartPulse, Mountain, Users, AlertTriangle, FileText } from 'lucide-react'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { Shield, ChevronDown, MapPin, HeartPulse, Mountain, Users, AlertTriangle, FileText, Megaphone, Loader2 } from 'lucide-react'
 import { Sun, Cloud, CloudRain, CloudSnow, CloudFog, CloudLightning } from 'lucide-react'
-import govtApi, { type RiskOverviewEntry } from '../api/govt.api'
+import { toast } from 'sonner'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Textarea } from '../components/ui/textarea'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
+import govtApi, { type RiskOverviewEntry, type PostNewsPayload } from '../api/govt.api'
 import { getDestinationImage } from '../lib/destinationImages'
 import { cn } from '../lib/utils'
+
+const NEWS_CATEGORIES: PostNewsPayload['category'][] = ['WEATHER', 'ROAD_CLOSURE', 'EVENT', 'ADVISORY', 'FESTIVAL', 'OTHER']
+const NEWS_SEVERITIES: PostNewsPayload['severity'][] = ['INFO', 'WARNING', 'CRITICAL']
 
 const ZONE_META: Record<string, { label: string; badge: string; ring: string }> = {
   SAFE:         { label: 'Safe',          badge: 'bg-emerald-100 text-emerald-700', ring: '#10b981' },
@@ -63,11 +72,35 @@ function RiskGauge({ score, color }: { score: number; color: string }) {
 export default function RiskOverviewPage() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('ALL')
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [alertTarget, setAlertTarget] = useState<RiskOverviewEntry | null>(null)
+  const [category, setCategory] = useState<PostNewsPayload['category']>('ADVISORY')
+  const [severity, setSeverity] = useState<PostNewsPayload['severity']>('INFO')
+  const [headline, setHeadline] = useState('')
+  const [body, setBody] = useState('')
 
   const { data: riskData, isLoading } = useQuery({
     queryKey: ['govt', 'risk-overview'],
     queryFn: () => govtApi.getRiskOverview().then(r => r.data.data),
     refetchInterval: 60_000,
+  })
+
+  const resetAlertForm = () => {
+    setAlertTarget(null)
+    setCategory('ADVISORY')
+    setSeverity('INFO')
+    setHeadline('')
+    setBody('')
+  }
+
+  const { mutate: postAlert, isPending: postingAlert } = useMutation({
+    mutationFn: () => govtApi.postDestinationNews(alertTarget!.destinationId!, {
+      category, severity, headline: headline.trim(), body: body.trim() || undefined, source: 'Aaraksha Command Center',
+    }),
+    onSuccess: () => {
+      toast.success(severity === 'CRITICAL' ? 'Alert posted — affected tourists notified immediately' : 'Advisory posted')
+      resetAlertForm()
+    },
+    onError: () => toast.error('Could not post — try again'),
   })
 
   const risks = useMemo(() => {
@@ -203,12 +236,66 @@ export default function RiskOverviewPage() {
                       <FileText className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" /> No standing advisory for this destination.
                     </div>
                   )}
+                  {zone.destinationId && (
+                    <Button size="sm" variant="outline" onClick={() => setAlertTarget(zone)}
+                      className="w-full mt-1 rounded-lg text-xs flex items-center gap-1.5">
+                      <Megaphone className="w-3.5 h-3.5" /> Post News / Alert
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
           )
         })}
       </div>
+
+      <Dialog open={!!alertTarget} onOpenChange={(open) => !open && resetAlertForm()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Post News / Alert — {alertTarget?.city}</DialogTitle>
+            <DialogDescription>
+              Visible to every tourist with this destination on their itinerary. CRITICAL severity pushes an immediate notification to anyone with an active trip here.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Category</label>
+                <Select value={category} onValueChange={(v) => setCategory(v as PostNewsPayload['category'])}>
+                  <SelectTrigger className="h-10 rounded-lg"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {NEWS_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c.replace('_', ' ')}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Severity</label>
+                <Select value={severity} onValueChange={(v) => setSeverity(v as PostNewsPayload['severity'])}>
+                  <SelectTrigger className="h-10 rounded-lg"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {NEWS_SEVERITIES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Headline *</label>
+              <Input value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="e.g. Sela Pass closed due to fresh snowfall" className="h-10 rounded-lg" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Details</label>
+              <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Additional context for travelers..." rows={3} className="rounded-lg" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => postAlert()} disabled={postingAlert || headline.trim().length < 3}
+              className="bg-primary hover:brightness-95 text-primary-foreground font-bold rounded-lg">
+              {postingAlert ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {postingAlert ? 'Posting...' : 'Post'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

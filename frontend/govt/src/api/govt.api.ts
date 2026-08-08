@@ -67,6 +67,14 @@ export interface RecentCheckpointScan {
   scanned_by: string | null
 }
 
+export interface PostNewsPayload {
+  category: 'WEATHER' | 'ROAD_CLOSURE' | 'EVENT' | 'ADVISORY' | 'FESTIVAL' | 'OTHER'
+  severity: 'INFO' | 'WARNING' | 'CRITICAL'
+  headline: string
+  body?: string
+  source?: string
+}
+
 const govtApi = {
   getDashboard: () =>
     api.get<APIResponse<GovtDashboard>>('/govt/dashboard'),
@@ -114,6 +122,9 @@ const govtApi = {
 
   getRecentCheckpointScans: (limit = 20) =>
     api.get<APIResponse<RecentCheckpointScan[]>>('/govt/checkpoint/recent', { params: { limit } }),
+
+  postDestinationNews: (destinationId: string, data: PostNewsPayload) =>
+    api.post<APIResponse<unknown>>(`/govt/destinations/${destinationId}/news`, data),
 }
 
 export default govtApi

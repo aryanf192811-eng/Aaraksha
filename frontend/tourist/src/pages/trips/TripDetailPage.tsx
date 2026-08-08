@@ -8,17 +8,18 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   ArrowLeft, Share2, Download, Map, List, Package, FileText, AlertTriangle,
   Rocket, Sparkles, RefreshCw, Loader2, Check, Lightbulb, HeartPulse, Backpack, LocateFixed,
-  Users, Copy, LogOut, Clock,
+  Users, Copy, LogOut, Clock, Newspaper,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Button } from '../../components/ui/button'
-import { TSIBadge, EmptyState, PageSkeleton } from '../../components/shared'
+import { TSIBadge, EmptyState, PageSkeleton, NewsFeed } from '../../components/shared'
 import tripApi from '../../api/trip.api'
 import packingApi from '../../api/packing.api'
 import passportApi from '../../api/passport.api'
+import newsApi from '../../api/news.api'
 import { queryClient } from '../../lib/queryClient'
 import { useAuthStore } from '../../store/auth.store'
 import { formatDate, formatINR, formatTimeAgo, cn } from '../../lib/utils'
@@ -37,7 +38,7 @@ const STATUS_STYLES: Record<string, string> = {
   CANCELLED: 'bg-red-500/90 text-white',
 }
 
-type TabType = 'itinerary' | 'budget' | 'packing' | 'map' | 'group'
+type TabType = 'itinerary' | 'budget' | 'packing' | 'map' | 'group' | 'news'
 
 // Recenter control — resets a panned/zoomed map back to fit every stop,
 // the way a navigation app's "recenter" button returns to your route.
@@ -73,6 +74,13 @@ export default function TripDetailPage() {
     queryKey: ['trips', id, 'members'],
     queryFn: () => tripApi.getTripMembers(id!).then(r => r.data.data),
     enabled: !!id && tab === 'group',
+  })
+
+  const { data: newsItems } = useQuery({
+    queryKey: ['trips', id, 'news'],
+    queryFn: () => newsApi.getForTrip(id!).then(r => r.data.data),
+    enabled: !!id,
+    staleTime: 2 * 60_000,
   })
 
   const { mutate: generateInvite, isPending: generatingInvite } = useMutation({
@@ -265,12 +273,16 @@ export default function TripDetailPage() {
           { key: 'packing' as TabType, icon: Package, label: 'Packing' },
           { key: 'map' as TabType, icon: Map, label: 'Map' },
           { key: 'group' as TabType, icon: Users, label: 'Group' },
+          { key: 'news' as TabType, icon: Newspaper, label: 'News' },
         ]).map(({ key, icon: Icon, label }) => (
           <button key={key} onClick={() => setTab(key)}
-            className={cn('flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-full whitespace-nowrap transition-all',
+            className={cn('relative flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-full whitespace-nowrap transition-all',
               tab === key ? 'bg-on-surface text-surface shadow-md' : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface shadow-sm'
             )}>
             <Icon className="w-4 h-4" /> {label}
+            {key === 'news' && (newsItems || []).some(n => n.severity === 'CRITICAL') && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500" />
+            )}
           </button>
         ))}
       </div>
@@ -495,6 +507,12 @@ export default function TripDetailPage() {
               )}
             </div>
           </div>
+        )}
+
+        {/* ── News Tab ──────────────────────────────────────── */}
+        {tab === 'news' && (
+          <NewsFeed items={newsItems || []} showDestinationName
+            emptyMessage="No news or alerts for this trip's destinations right now" />
         )}
 
         {/* Journey Passport button */}
