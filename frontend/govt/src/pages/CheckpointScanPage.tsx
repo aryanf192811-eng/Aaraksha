@@ -12,10 +12,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { QrCode, Loader2, Droplet, Phone, ShieldCheck, MapPin, Clock, AlertTriangle, ScanLine, LogOut, Lock } from 'lucide-react'
+import { QrCode, Loader2, Droplet, Phone, ShieldCheck, MapPin, Clock, AlertTriangle, ScanLine, LogOut, Lock, Camera, Keyboard } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
+import { QRScanner } from '../components/QRScanner'
 import govtApi, { type CheckpointScanResult } from '../api/govt.api'
 import { useAuthStore } from '../store/auth.store'
 import { formatTimeAgo, cn } from '../lib/utils'
@@ -34,6 +35,8 @@ export default function CheckpointScanPage() {
   const [checkpointName, setCheckpointName] = useState('')
   const [district, setDistrict] = useState('')
   const [result, setResult] = useState<CheckpointScanResult | null>(null)
+  const [showScanner, setShowScanner] = useState(false)
+  const [showManualEntry, setShowManualEntry] = useState(false)
 
   const authorized = !!govtUser && ALLOWED_CHECKPOINT_ROLES.includes(govtUser.role)
 
@@ -44,8 +47,12 @@ export default function CheckpointScanPage() {
     enabled: authorized,
   })
 
+  // Takes the token explicitly rather than reading it from state — the
+  // camera scanner detects a code and needs to submit it immediately in
+  // the same tick, before a setState from onDetected would have flushed.
   const { mutate: scan, isPending: scanning } = useMutation({
-    mutationFn: () => govtApi.scanCheckpoint({ token: token.trim(), checkpointName: checkpointName.trim(), district: district.trim() || undefined }),
+    mutationFn: (scannedToken: string) =>
+      govtApi.scanCheckpoint({ token: scannedToken, checkpointName: checkpointName.trim(), district: district.trim() || undefined }),
     onSuccess: (res) => {
       setResult(res.data.data)
       setToken('')
@@ -54,7 +61,21 @@ export default function CheckpointScanPage() {
     onError: (err: any) => toast.error(err?.response?.data?.message || 'Scan failed — check the code and try again'),
   })
 
-  const canScan = token.trim().length > 0 && checkpointName.trim().length >= 2 && !scanning
+  const checkpointNameValid = checkpointName.trim().length >= 2
+  const canScan = token.trim().length > 0 && checkpointNameValid && !scanning
+
+  const handleOpenScanner = () => {
+    if (!checkpointNameValid) {
+      toast.error('Enter the checkpoint name first')
+      return
+    }
+    setShowScanner(true)
+  }
+
+  const handleDetected = (data: string) => {
+    setShowScanner(false)
+    scan(data)
+  }
 
   const handleLogout = () => { logout(); navigate('/login') }
 
@@ -94,7 +115,7 @@ export default function CheckpointScanPage() {
           {/* Scan form */}
           <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 border border-outline-variant">
             <h2 className="font-bold text-on-surface mb-3 flex items-center gap-2 text-sm">
-              <QrCode className="w-4 h-4" /> Scan or Enter Code
+              <QrCode className="w-4 h-4" /> Scan Tourist
             </h2>
             <div className="space-y-3">
               <div>
@@ -105,24 +126,42 @@ export default function CheckpointScanPage() {
                 <label className="text-xs font-semibold text-on-surface-variant mb-1 block">District</label>
                 <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="e.g. Dimapur" className="h-12 text-base" />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Scanned Code *</label>
-                <Input
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="Paste or scan the tourist's QR token"
-                  className="font-mono text-xs h-12"
-                  autoFocus
-                />
-              </div>
-              <Button onClick={() => scan()} disabled={!canScan}
-                className="w-full h-12 bg-primary hover:brightness-95 text-primary-foreground rounded-xl font-bold flex items-center justify-center gap-2 text-base">
-                {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
-                {scanning ? 'Verifying...' : 'Scan'}
+
+              <Button onClick={handleOpenScanner} disabled={scanning}
+                className="w-full h-14 bg-primary hover:brightness-95 text-primary-foreground rounded-xl font-bold flex items-center justify-center gap-2 text-base">
+                {scanning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+                {scanning ? 'Verifying...' : 'Scan with Camera'}
               </Button>
+
+              {!showManualEntry ? (
+                <button type="button" onClick={() => setShowManualEntry(true)}
+                  className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface py-2">
+                  <Keyboard className="w-3.5 h-3.5" /> Enter code manually instead
+                </button>
+              ) : (
+                <div className="space-y-2 pt-1">
+                  <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Scanned Code</label>
+                  <Input
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    placeholder="Paste the tourist's QR token"
+                    className="font-mono text-xs h-12"
+                  />
+                  <Button onClick={() => scan(token.trim())} disabled={!canScan} variant="outline"
+                    className="w-full h-11 rounded-xl font-bold flex items-center justify-center gap-2 text-sm">
+                    {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    {scanning ? 'Verifying...' : 'Submit Code'}
+                  </Button>
+                </div>
+              )}
+
               <p className="text-xs text-on-surface-variant">Codes expire 5 minutes after the tourist generates them — ask them to refresh if the scan fails.</p>
             </div>
           </div>
+
+          {showScanner && (
+            <QRScanner onDetected={handleDetected} onClose={() => setShowScanner(false)} />
+          )}
 
           {/* Result card */}
           <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 border border-outline-variant">
