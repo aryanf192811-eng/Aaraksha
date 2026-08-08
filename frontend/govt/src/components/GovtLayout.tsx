@@ -1,8 +1,9 @@
 // src/components/GovtLayout.tsx
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Shield, Map, Bell, TrendingUp, AlertTriangle, LogOut, Activity, ScanLine } from 'lucide-react'
+import { Shield, Map, Bell, TrendingUp, AlertTriangle, LogOut, Activity, ScanLine, Smartphone } from 'lucide-react'
 import { useAuthStore } from '../store/auth.store'
 import { useSOSSocket } from '../hooks/useSOSSocket'
+import { ALLOWED_CHECKPOINT_ROLES } from '../pages/CheckpointScanPage'
 import { cn } from '../lib/utils'
 
 const NAV_ITEMS = [
@@ -11,13 +12,13 @@ const NAV_ITEMS = [
   { to: '/map', icon: Map, label: 'Live Map' },
   { to: '/risk', icon: AlertTriangle, label: 'Risk Overview' },
   { to: '/analytics', icon: TrendingUp, label: 'Analytics' },
-  { to: '/checkpoint', icon: ScanLine, label: 'Checkpoint Scan' },
 ]
 
 export default function GovtLayout() {
   const navigate = useNavigate()
   const { logout, govtUser } = useAuthStore()
   const { activeSosCount } = useSOSSocket()
+  const canScanCheckpoints = !!govtUser && ALLOWED_CHECKPOINT_ROLES.includes(govtUser.role)
 
   const handleLogout = () => { logout(); navigate('/login') }
 
@@ -55,6 +56,17 @@ export default function GovtLayout() {
               )}
             </NavLink>
           ))}
+
+          {/* Only shown to roles that actually staff a checkpoint — opens
+              its own mobile-first field-tool view, not part of this sidebar. */}
+          {canScanCheckpoints && (
+            <button onClick={() => navigate('/checkpoint')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all">
+              <ScanLine className="w-5 h-5 flex-shrink-0" />
+              <span>Checkpoint Scan</span>
+              <Smartphone className="w-3.5 h-3.5 ml-auto opacity-50" />
+            </button>
+          )}
         </nav>
 
         <div className="p-4 border-t border-outline-variant/60">

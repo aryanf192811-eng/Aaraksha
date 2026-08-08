@@ -217,6 +217,18 @@ async function seed() {
     )
     console.log('  ✅ Govt district admin seeded: district.officer@aaraksha.gov.in / District@123')
 
+    // Ground-level checkpoint officer — the only role that actually staffs
+    // an ILP/entry checkpoint day to day, distinct from the desk-bound
+    // SUPER_ADMIN/DISTRICT_ADMIN oversight roles above.
+    const checkpointOfficerHash = await hashPassword('Checkpoint@123')
+    await client.query(`
+      INSERT INTO govt_users (name, email, password_hash, role, district, state)
+      VALUES ($1,$2,$3,$4,$5,$6)`,
+      ['Rohit Thapa', 'checkpoint.officer@aaraksha.gov.in', checkpointOfficerHash,
+       'POLICE', 'Dimapur', 'Nagaland']
+    )
+    console.log('  ✅ Govt checkpoint officer seeded: checkpoint.officer@aaraksha.gov.in / Checkpoint@123')
+
     // ── DEMO TOURIST ──────────────────────────────────────────────────
     const demoPhone    = '9999999999'
     const passwordHash = await hashPassword('Demo@123')
@@ -555,6 +567,7 @@ async function seed() {
     console.log(`  Rescue teams:    ${teams.length}`)
     console.log(`  Govt super admin:    admin@aaraksha.gov.in / Admin@123`)
     console.log(`  Govt district admin: district.officer@aaraksha.gov.in / District@123`)
+    console.log(`  Govt checkpoint officer (POLICE): checkpoint.officer@aaraksha.gov.in / Checkpoint@123`)
     console.log('  ── Demo tourists ──')
     console.log(`  1. Aryan Demo   — demo@aaraksha.in       (9999999999) / Demo@123  — ACTIVE trip, 1 check-in, 1 resolved SOS`)
     console.log(`  2. Priya Sharma — priya.demo@aaraksha.in (9876500001) / Demo@123  — COMPLETED trip, passport-ready (3 check-ins, activities, packing list)`)

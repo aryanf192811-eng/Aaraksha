@@ -3,7 +3,8 @@
 
 const router = require('express').Router()
 const ctrl   = require('../controllers/govt.controller')
-const { authenticateGovt } = require('../middleware/auth')
+const { authenticateGovt, requireGovtRole } = require('../middleware/auth')
+const { GOVT_ROLES } = require('../constants/enums')
 const { validate } = require('../middleware/validate')
 const { z } = require('zod')
 const { TEAM_STATUSES } = require('../constants/enums')
@@ -36,7 +37,13 @@ router.patch('/sos/:id/assign',    validate(AssignRescueSchema),     ctrl.assign
 router.patch('/sos/:id/resolve',   validate(ResolveSOSSchema),       ctrl.resolveSOS)
 router.get('/rescue-teams',        ctrl.getRescueTeams)
 router.patch('/rescue-teams/:id/status', validate(UpdateTeamStatusSchema), ctrl.updateTeamStatus)
-router.post('/checkpoint/scan',    validate(ScanCheckpointSchema), ctrl.scanCheckpoint)
+// Checkpoint scanning is a ground-level action — SUPER_ADMIN as a
+// superuser override, POLICE and TOURISM_OFFICER as the roles that
+// actually staff an ILP/entry checkpoint. DISTRICT_ADMIN/MEDICAL are
+// desk/oversight roles and don't perform scans, but can still view the log.
+router.post('/checkpoint/scan',
+  requireGovtRole(GOVT_ROLES.SUPER_ADMIN, GOVT_ROLES.POLICE, GOVT_ROLES.TOURISM_OFFICER),
+  validate(ScanCheckpointSchema), ctrl.scanCheckpoint)
 router.get('/checkpoint/recent',   ctrl.getRecentCheckpointScans)
 
 module.exports = router

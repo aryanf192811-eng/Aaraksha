@@ -72,4 +72,17 @@ async function authenticateGovt(req, res, next) {
   }
 }
 
-module.exports = { authenticateTourist, authenticateGovt }
+// Gates a route to specific govt_users.role values (SUPER_ADMIN,
+// DISTRICT_ADMIN, TOURISM_OFFICER, POLICE, MEDICAL) beyond the base
+// authenticateGovt check, which only confirms "is a govt account" and lets
+// every role reach every route. Must run AFTER authenticateGovt so
+// req.govtUser is already populated.
+function requireGovtRole(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.govtUser) return sendError(res, ERRORS.UNAUTHORIZED, 401)
+    if (!allowedRoles.includes(req.govtUser.role)) return sendError(res, ERRORS.FORBIDDEN, 403)
+    next()
+  }
+}
+
+module.exports = { authenticateTourist, authenticateGovt, requireGovtRole }

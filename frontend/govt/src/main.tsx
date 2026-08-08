@@ -26,13 +26,16 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<GovtLoginPage />} />
+          {/* Standalone — deliberately outside GovtLayout's desktop sidebar
+              shell. A checkpoint officer opens this directly on a phone
+              browser as a focused field tool, not the full ops dashboard. */}
+          <Route path="/checkpoint" element={<ProtectedRoute><CheckpointScanPage /></ProtectedRoute>} />
           <Route path="/" element={<ProtectedRoute><GovtLayout /></ProtectedRoute>}>
             <Route index element={<DashboardPage />} />
             <Route path="sos" element={<SOSManagementPage />} />
             <Route path="map" element={<LiveMapPage />} />
             <Route path="risk" element={<RiskOverviewPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
-            <Route path="checkpoint" element={<CheckpointScanPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
