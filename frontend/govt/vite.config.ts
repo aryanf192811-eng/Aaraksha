@@ -14,5 +14,7 @@ export default defineConfig({
     },
   },
   // Fixed per-portal port (tourist 5173, govt 5174, guardian 5175).
-  server: { port: 5174, strictPort: true },
+  // host:true + allowedHosts:true so the dev server is reachable through a
+  // cloudflared/ngrok tunnel (or over LAN) for real-device demo testing.
+  server: { port: 5174, strictPort: true, host: true, allowedHosts: true },
 })

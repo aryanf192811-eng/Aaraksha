@@ -55,5 +55,8 @@ export default defineConfig({
   // Fixed per-portal ports (tourist 5173, govt 5174, guardian 5175) — the
   // Guardian tracking link is built from this origin, so it can't be left to
   // Vite's auto-increment, which depends on start order across portals.
-  server: { port: 5173, strictPort: true },
+  // host:true + allowedHosts:true so the dev server is reachable through a
+  // cloudflared/ngrok tunnel (or over LAN) for real-device demo testing —
+  // Vite otherwise rejects requests whose Host header isn't localhost.
+  server: { port: 5173, strictPort: true, host: true, allowedHosts: true },
 })
