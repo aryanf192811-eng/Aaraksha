@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { User, Lock, CreditCard, Plus, Trash2, Loader2, ChevronRight, ChevronLeft, CheckCircle2 } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
+import { PasswordInput } from '../../../components/ui/password-input'
 import { Label } from '../../../components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select'
 import authApi, { type RegisterPayload } from '../../../api/auth.api'
@@ -157,15 +158,12 @@ export function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-sm font-semibold">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
-                <Input type="password" placeholder="Min 8 chars" className="pl-10 h-12 rounded-xl" {...step1.register('password')} />
-              </div>
+              <PasswordInput placeholder="Min 8 chars" className="h-12 rounded-xl" {...step1.register('password')} />
               {step1.formState.errors.password && <p className="text-xs text-red-500">{step1.formState.errors.password.message}</p>}
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm font-semibold">Confirm</Label>
-              <Input type="password" placeholder="Repeat" className="h-12 rounded-xl" {...step1.register('confirmPassword')} />
+              <PasswordInput showLockIcon={false} placeholder="Repeat" className="h-12 rounded-xl" {...step1.register('confirmPassword')} />
               {step1.formState.errors.confirmPassword && <p className="text-xs text-red-500">{step1.formState.errors.confirmPassword.message}</p>}
             </div>
           </div>

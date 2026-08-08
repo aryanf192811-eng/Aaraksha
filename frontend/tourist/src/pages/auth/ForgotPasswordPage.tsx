@@ -7,6 +7,7 @@ import { Shield, Loader2, ArrowLeft, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
+import { PasswordInput } from '../../components/ui/password-input'
 import { Label } from '../../components/ui/label'
 import authApi from '../../api/auth.api'
 
@@ -186,12 +187,12 @@ export default function ForgotPasswordPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="font-semibold text-sm">New Password</Label>
-                  <Input type="password" placeholder="Min 8 characters" value={newPassword}
+                  <PasswordInput showLockIcon={false} placeholder="Min 8 characters" value={newPassword}
                     onChange={e => setNewPassword(e.target.value)} className="h-12 rounded-xl" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="font-semibold text-sm">Confirm Password</Label>
-                  <Input type="password" placeholder="Repeat password" value={confirm}
+                  <PasswordInput showLockIcon={false} placeholder="Repeat password" value={confirm}
                     onChange={e => setConfirm(e.target.value)} className="h-12 rounded-xl" />
                 </div>
                 {confirm && newPassword !== confirm && (

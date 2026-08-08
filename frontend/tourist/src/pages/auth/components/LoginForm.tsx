@@ -5,9 +5,10 @@ import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useNavigate, Link } from 'react-router-dom'
-import { Phone, Lock, Loader2 } from 'lucide-react'
+import { Phone, Loader2 } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
+import { PasswordInput } from '../../../components/ui/password-input'
 import { Label } from '../../../components/ui/label'
 import authApi from '../../../api/auth.api'
 import { useAuthStore } from '../../../store/auth.store'
@@ -65,14 +66,11 @@ export function LoginForm({ onSwitch }: { onSwitch: () => void }) {
             Forgot password?
           </Link>
         </div>
-        <div className="relative">
-          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
-          <Input
-            id="password" type="password" placeholder="Enter your password"
-            className="pl-10 h-12 rounded-xl border-outline-variant focus:border-primary focus:ring-primary/20"
-            {...register('password')}
-          />
-        </div>
+        <PasswordInput
+          id="password" placeholder="Enter your password"
+          className="h-12 rounded-xl border-outline-variant focus:border-primary focus:ring-primary/20"
+          {...register('password')}
+        />
         {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
       </div>
 
