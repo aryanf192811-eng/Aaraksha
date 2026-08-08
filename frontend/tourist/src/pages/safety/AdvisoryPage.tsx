@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { ComponentType } from 'react'
 import {
   ArrowLeft, Search, AlertTriangle, Shield, MapPin, Activity,
-  CheckCircle2, ShieldAlert, Ban, ClipboardList, HeartPulse,
+  CheckCircle2, ShieldAlert, Ban, ClipboardList, HeartPulse, Users,
 } from 'lucide-react'
 import { Input } from '../../components/ui/input'
 import { WeatherBadge } from '../../components/shared'
@@ -31,6 +31,19 @@ export default function AdvisoryPage() {
     queryFn: () => destinationApi.getAll().then(r => r.data.data),
     staleTime: 5 * 60_000,
   })
+
+  // Live "how many tourists are actually there right now" — the same
+  // aggregation the govt Command Center's Risk Overview shows, surfaced
+  // here too since it's genuinely useful trip-planning context, not just
+  // an ops-dashboard number: knowing 8 other travelers are currently in a
+  // HIGH_RISK zone (2 of them flagged low-safety-score) is a real signal.
+  const { data: riskOverview } = useQuery({
+    queryKey: ['destinations', 'risk-overview'],
+    queryFn: () => destinationApi.getRiskOverview().then(r => r.data.data),
+    staleTime: 2 * 60_000,
+    refetchInterval: 2 * 60_000,
+  })
+  const activityByDest = new Map((riskOverview || []).map(r => [r.destinationId ?? r.city.toUpperCase(), r]))
 
   const filtered = (destinations || []).filter((d) => {
     const matchSearch = !search || d.name.toLowerCase().includes(search.toLowerCase()) || d.state.toLowerCase().includes(search.toLowerCase())
@@ -77,6 +90,7 @@ export default function AdvisoryPage() {
         {filtered.map((dest) => {
           const zone = ZONE_CONFIG[dest.zone_type] || ZONE_CONFIG.SAFE
           const ZoneIcon = zone.icon
+          const activity = activityByDest.get(dest.id) ?? activityByDest.get(dest.name.toUpperCase())
           return (
             <div key={dest.id} className="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
               <div className="p-5">
@@ -89,6 +103,18 @@ export default function AdvisoryPage() {
                     <ZoneIcon className="w-3.5 h-3.5" /> {zone.label}
                   </span>
                 </div>
+
+                {activity && activity.total > 0 && (
+                  <div className="bg-surface-container rounded-xl px-3 py-2 mb-3 flex items-center gap-2">
+                    <Users className="w-3.5 h-3.5 text-on-surface-variant flex-shrink-0" />
+                    <p className="text-xs text-on-surface-variant">
+                      <span className="font-bold text-on-surface">{activity.total} {activity.total === 1 ? 'tourist' : 'tourists'}</span> here right now
+                      {activity.highRisk > 0 && (
+                        <span className="text-orange-600 font-semibold"> · {activity.highRisk} flagged high-risk</span>
+                      )}
+                    </p>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   <div className="bg-surface-container rounded-xl p-2.5 text-center">

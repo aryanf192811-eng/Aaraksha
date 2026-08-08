@@ -1,5 +1,9 @@
 'use strict'
 const destinationService = require('../services/destination.service')
+// Reuses the exact same aggregation govt.service.js's dashboard uses — one
+// source of truth for "how risky is this zone right now", rather than a
+// parallel tourist-facing copy that could silently drift from it.
+const govtService = require('../services/govt.service')
 const { sendSuccess } = require('../utils/response')
 
 const getAllDestinations = async (req, res, next) => {
@@ -10,4 +14,8 @@ const getDestinationById = async (req, res, next) => {
   try { sendSuccess(res, await destinationService.getDestinationById(req.params.id)) }
   catch (err) { next(err) }
 }
-module.exports = { getAllDestinations, getDestinationById }
+const getRiskOverview = async (req, res, next) => {
+  try { sendSuccess(res, await govtService.getRiskOverview()) }
+  catch (err) { next(err) }
+}
+module.exports = { getAllDestinations, getDestinationById, getRiskOverview }
