@@ -22,7 +22,14 @@ export default function ProfilePage() {
     initialData: tourist || undefined,
   })
 
-  const guardianUrl = `${window.location.origin.replace(':5173', ':5175')}/track/${profile?.guardian_token}`
+  // Deriving this from window.location.origin by string-replacing the port
+  // only worked for plain localhost dev — through a tunnel (or any deployed
+  // origin) there's no ":5173" in the origin to replace, so the guardian
+  // link silently pointed back at the tourist app's own domain with a
+  // /track path it doesn't have. Explicit env var, same pattern already
+  // used for the govt portal link on the landing page.
+  const GUARDIAN_PORTAL_URL = import.meta.env.VITE_GUARDIAN_PORTAL_URL || 'http://localhost:5175'
+  const guardianUrl = `${GUARDIAN_PORTAL_URL}/track/${profile?.guardian_token}`
 
   const handleCopyGuardianLink = async () => {
     await navigator.clipboard.writeText(guardianUrl)

@@ -1,6 +1,7 @@
 // src/components/shared/DMSCard.tsx
 // Dead Man's Switch card: countdown timer + reset button + status indicator
-import { Timer, RotateCcw, AlertCircle } from 'lucide-react'
+import { useState } from 'react'
+import { Timer, RotateCcw, AlertCircle, Siren, PowerOff } from 'lucide-react'
 import { Button } from '../ui/button'
 import { cn, formatCountdown } from '../../lib/utils'
 import { useSafetyStore } from '../../store/safety.store'
@@ -13,8 +14,9 @@ interface DMSCardProps {
 }
 
 export function DMSCard({ dms, className }: DMSCardProps) {
-  const { resetDMS, resetting } = useDMS()
+  const { resetDMS, resetting, disableDMS, disabling } = useDMS()
   const { dmsSecondsRemaining, dmsWarning } = useSafetyStore()
+  const [confirmingDisable, setConfirmingDisable] = useState(false)
 
   if (!dms) {
     return (
@@ -77,16 +79,58 @@ export function DMSCard({ dms, className }: DMSCardProps) {
         </div>
       )}
 
+      {/* Triggered — the countdown block above only renders for ACTIVE, so
+          without this the card went blank between the header badge and the
+          footer once status flipped, giving no confirmation anything
+          happened. */}
+      {isTriggered && (
+        <div className="flex items-center gap-2 bg-red-100 rounded-lg p-3 mb-3">
+          <Siren className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <p className="text-sm text-red-700 font-semibold">
+            Missed check-in — an automatic SOS has been sent to authorities and your emergency contacts.
+          </p>
+        </div>
+      )}
+
       {/* Actions */}
       {dms.status === 'ACTIVE' && (
-        <Button
-          onClick={() => resetDMS(dms.id)}
-          disabled={resetting}
-          className="w-full bg-green-600 hover:bg-green-700 text-white rounded-full h-11 font-bold"
-        >
-          <RotateCcw className="w-4 h-4 mr-2" />
-          {resetting ? 'Checking in...' : "I'm Safe — Check In"}
-        </Button>
+        <div className="space-y-2">
+          <Button
+            onClick={() => resetDMS(dms.id)}
+            disabled={resetting}
+            className="w-full bg-green-600 hover:bg-green-700 text-white rounded-full h-11 font-bold"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            {resetting ? 'Checking in...' : "I'm Safe — Check In"}
+          </Button>
+
+          {confirmingDisable ? (
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => { disableDMS(dms.id); setConfirmingDisable(false) }}
+                disabled={disabling}
+                variant="outline"
+                className="flex-1 rounded-full h-9 text-xs font-bold border-red-300 text-red-600 hover:bg-red-50"
+              >
+                {disabling ? 'Disabling...' : 'Confirm disable'}
+              </Button>
+              <Button
+                onClick={() => setConfirmingDisable(false)}
+                variant="ghost"
+                className="flex-1 rounded-full h-9 text-xs font-bold text-slate-500"
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmingDisable(true)}
+              className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-red-600 py-1.5 transition-colors"
+            >
+              <PowerOff className="w-3.5 h-3.5" /> Disable Dead Man's Switch
+            </button>
+          )}
+        </div>
       )}
 
       <p className="text-xs text-slate-400 text-center mt-2">

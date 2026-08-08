@@ -17,7 +17,14 @@ export function useDMS() {
   const { data: dmsData } = useQuery({
     queryKey: ['dms', 'active'],
     queryFn: () => dmsApi.getActiveDMS().then((r) => r.data.data),
-    refetchInterval: 30_000,  // Refresh every 30s
+    // Poll fast once close to the deadline — the backend cron that actually
+    // fires the auto-SOS only ticks once a minute, so a flat 30s poll left
+    // up to ~90s where the countdown sat at "0:00" with nothing visibly
+    // happening, reading as "auto-SOS isn't working" during a demo.
+    refetchInterval: (query) => {
+      const remaining = query.state.data?.seconds_remaining
+      return remaining != null && remaining <= 90 ? 5_000 : 30_000
+    },
   })
 
   // seconds_remaining is only computed by GET /dms/active — always present
@@ -43,7 +50,12 @@ export function useDMS() {
       if (seconds <= 600 && seconds > 595) {
         toast.warning('Check-in required in 10 minutes!', { duration: 10000, id: 'dms-warning' })
       }
-      if (seconds <= 0 && timerRef.current) clearInterval(timerRef.current)
+      if (seconds <= 0 && timerRef.current) {
+        clearInterval(timerRef.current)
+        // Don't wait for the next poll tick to find out whether the backend
+        // cron (runs once a minute) has actually fired the auto-SOS yet.
+        queryClient.invalidateQueries({ queryKey: ['dms', 'active'] })
+      }
     }, 1000)
 
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
@@ -67,5 +79,17 @@ export function useDMS() {
     },
   })
 
-  return { dms: dmsData, resetDMS: resetDMSMutation, resetting }
+  // The backend has always supported this (PATCH /dms/:id/status →
+  // PAUSED/RESOLVED) and dms.api.ts already had the client method — there
+  // was just never a button in the UI to call it, so a tourist had no way
+  // to turn an active switch off short of letting it run out.
+  const { mutateAsync: disableDMSMutation, isPending: disabling } = useMutation({
+    mutationFn: (dmsId: string) => dmsApi.updateDMSStatus(dmsId, 'RESOLVED'),
+    onSuccess: () => {
+      toast.success("Dead Man's Switch disabled")
+      queryClient.invalidateQueries({ queryKey: ['dms'] })
+    },
+  })
+
+  return { dms: dmsData, resetDMS: resetDMSMutation, resetting, disableDMS: disableDMSMutation, disabling }
 }
