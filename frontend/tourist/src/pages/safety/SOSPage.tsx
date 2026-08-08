@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { SOSButton } from '../../components/shared/SOSButton'
+import { RescueTrackingCard } from '../../components/shared/RescueTrackingCard'
 import { useSOS } from '../../hooks/useSOS'
 import { useBattery } from '../../hooks/useBattery'
 import { useDMS } from '../../hooks/useDMS'
@@ -95,6 +96,8 @@ export default function SOSPage() {
             </div>
           </div>
         </div>
+
+        <RescueTrackingCard />
 
         {/* Big SOS Section */}
         <div className="flex flex-col items-center gap-5 py-4">

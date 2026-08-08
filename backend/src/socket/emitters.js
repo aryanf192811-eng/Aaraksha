@@ -5,6 +5,7 @@
 
 const { getIO } = require('./index')
 const { SOCKET_EVENTS, SOCKET_ROOMS } = require('../constants/events')
+const { estimateRescueEtaMinutes } = require('../utils/geo')
 const logger = require('../utils/logger')
 
 function safeEmit(room, event, payload) {
@@ -68,8 +69,11 @@ function emitRescueAssigned(assignment, sosEvent, team) {
     assignedAt:   assignment.assigned_at,
   })
   if (sosEvent.tourist_id) {
+    const eta = estimateRescueEtaMinutes(team.latitude, team.longitude, sosEvent.latitude, sosEvent.longitude)
     safeEmit(SOCKET_ROOMS.tourist(sosEvent.tourist_id), SOCKET_EVENTS.SOS_STATUS_UPDATED, {
       sosId: sosEvent.id, status: 'ASSIGNED', teamName: team.name, teamType: team.type,
+      teamPhone: team.contact_phone, teamLat: team.latitude, teamLng: team.longitude,
+      distanceKm: eta?.distanceKm ?? null, etaMinutes: eta?.etaMinutes ?? null,
     })
   }
 }

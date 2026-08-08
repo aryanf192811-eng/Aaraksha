@@ -26,6 +26,26 @@ class SOSRepository extends BaseRepository {
     return this.queryOne(`SELECT * FROM sos_events WHERE id = $1`, [id])
   }
 
+  // Powers the tourist-facing "rescue is on the way" view — the most
+  // recent SOS that's still open, with full rescue team detail (not just
+  // the name, like findByTouristId's history list has) so the client can
+  // show contact info and compute an ETA.
+  async findActiveWithRescueInfo(touristId) {
+    return this.queryOne(`
+      SELECT se.id, se.category, se.status, se.latitude, se.longitude, se.created_at,
+        ra.id as assignment_id, ra.status as assignment_status, ra.assigned_at,
+        rt.id as team_id, rt.name as team_name, rt.type as team_type,
+        rt.contact_phone as team_phone, rt.latitude as team_lat, rt.longitude as team_lng
+      FROM sos_events se
+      LEFT JOIN rescue_assignments ra ON ra.sos_event_id = se.id AND ra.status != 'RESOLVED'
+      LEFT JOIN rescue_teams rt ON rt.id = ra.team_id
+      WHERE se.tourist_id = $1 AND se.status IN ('ACTIVE', 'ASSIGNED')
+      ORDER BY se.created_at DESC
+      LIMIT 1`,
+      [touristId]
+    )
+  }
+
   async findByTouristId(touristId, filters = {}) {
     const conditions = ['se.tourist_id = $1']
     const params = [touristId]

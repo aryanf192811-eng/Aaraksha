@@ -14,6 +14,29 @@ export interface CreateSOSPayload {
   isStaleLocation?: boolean
 }
 
+export interface ActiveRescueTeam {
+  id: string
+  name: string
+  type: string
+  phone: string
+  latitude: string
+  longitude: string
+  status: string
+  assignedAt: string
+  distanceKm: number | null
+  etaMinutes: number | null
+}
+
+export interface ActiveRescueInfo {
+  sosId: string
+  category: string
+  status: string
+  createdAt: string
+  latitude: string
+  longitude: string
+  team: ActiveRescueTeam | null
+}
+
 const sosApi = {
   createSOS: (data: CreateSOSPayload) =>
     api.post<APIResponse<SOSEvent>>('/sos', data),
@@ -24,6 +47,9 @@ const sosApi = {
   // No request body — backend's FalseAlarmSchema is an empty object schema.
   markFalseAlarm: (id: string) =>
     api.patch<APIResponse<SOSEvent>>(`/sos/${id}/false-alarm`),
+
+  getActiveRescue: () =>
+    api.get<APIResponse<ActiveRescueInfo | null>>('/sos/active-rescue'),
 }
 
 export default sosApi

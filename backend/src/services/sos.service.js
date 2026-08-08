@@ -10,6 +10,7 @@ const { notifyOnSOS } = require('./notification/notification.service')
 const { emitSOSReceived, emitSOSResolved } = require('../socket/emitters')
 const { SOS_TRIGGER_TYPES, SOS_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
+const { estimateRescueEtaMinutes } = require('../utils/geo')
 const logger = require('../utils/logger')
 
 async function createSOS(touristId, data) {
@@ -64,6 +65,43 @@ async function getSOSHistory(touristId, filters) {
   return repo.findByTouristId(touristId, filters)
 }
 
+// Powers the tourist-facing "rescue is on the way" view. ETA is a rough
+// estimate from the team's registered base location, not live GPS — no
+// rescue-team-side app/login exists to report a real live position, so this
+// is the honest, buildable version: distance-and-speed math, not a
+// simulated live tracker.
+async function getActiveRescueInfo(touristId) {
+  const repo = new SOSRepository()
+  const row = await repo.findActiveWithRescueInfo(touristId)
+  if (!row) return null
+
+  const hasTeam = !!row.team_id
+  const eta = hasTeam
+    ? estimateRescueEtaMinutes(row.team_lat, row.team_lng, row.latitude, row.longitude)
+    : null
+
+  return {
+    sosId:      row.id,
+    category:   row.category,
+    status:     row.status,
+    createdAt:  row.created_at,
+    latitude:   row.latitude,
+    longitude:  row.longitude,
+    team: hasTeam ? {
+      id:          row.team_id,
+      name:        row.team_name,
+      type:        row.team_type,
+      phone:       row.team_phone,
+      latitude:    row.team_lat,
+      longitude:   row.team_lng,
+      status:      row.assignment_status,
+      assignedAt:  row.assigned_at,
+      distanceKm:  eta?.distanceKm ?? null,
+      etaMinutes:  eta?.etaMinutes ?? null,
+    } : null,
+  }
+}
+
 async function markFalseAlarm(sosId, touristId) {
   const repo = new SOSRepository()
   const sos = await repo.findById(sosId)
@@ -84,4 +122,4 @@ async function markFalseAlarm(sosId, touristId) {
   return updated
 }
 
-module.exports = { createSOS, getSOSHistory, markFalseAlarm }
+module.exports = { createSOS, getSOSHistory, markFalseAlarm, getActiveRescueInfo }

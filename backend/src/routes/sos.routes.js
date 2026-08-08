@@ -11,6 +11,7 @@ router.use(authenticateTourist)
 
 router.post('/',                  validate(CreateSOSSchema), ctrl.createSOS)
 router.get('/mine',               ctrl.getMySOSHistory)
+router.get('/active-rescue',      ctrl.getActiveRescueInfo)
 router.patch('/:id/false-alarm',  ctrl.markFalseAlarm)
 
 module.exports = router

@@ -27,4 +27,11 @@ const markFalseAlarm = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
-module.exports = { createSOS, getMySOSHistory, markFalseAlarm }
+const getActiveRescueInfo = async (req, res, next) => {
+  try {
+    const info = await sosService.getActiveRescueInfo(req.tourist.id)
+    sendSuccess(res, info)
+  } catch (err) { next(err) }
+}
+
+module.exports = { createSOS, getMySOSHistory, markFalseAlarm, getActiveRescueInfo }
