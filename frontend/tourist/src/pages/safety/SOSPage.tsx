@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import {
   ArrowLeft, MapPin, Battery, Loader2, Timer, CheckCircle2, Wifi, WifiOff,
-  HeartPulse, Compass, Mountain, Waves, ShieldAlert, HelpCircle,
+  HeartPulse, Compass, Mountain, Waves, ShieldAlert, HelpCircle, PowerOff,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { SOSButton } from '../../components/shared/SOSButton'
@@ -39,9 +39,10 @@ export default function SOSPage() {
   const [message, setMessage] = useState('')
   const [showDMSSetup, setShowDMSSetup] = useState(false)
   const [dmsInterval, setDmsInterval] = useState(60)
+  const [confirmingDisable, setConfirmingDisable] = useState(false)
   const { sendSOS, sending } = useSOS()
   const { batteryPct } = useBattery()
-  const { dms } = useDMS()
+  const { dms, disableDMS, disabling } = useDMS()
 
   const { mutate: createDMS, isPending: creatingDMS } = useMutation({
     mutationFn: () => dmsApi.createDMS({ intervalMinutes: dmsInterval }),
@@ -56,8 +57,12 @@ export default function SOSPage() {
     await sendSOS(category, message || undefined)
   }
 
+  // pb-40, not the usual pb-24 — this page's last section (DMS setup)
+  // expands in place when the interval picker opens, and pb-24 wasn't
+  // enough clearance to keep the Activate button from landing under the
+  // fixed bottom nav and becoming unclickable.
   return (
-    <div className="min-h-screen bg-surface pb-10 font-sans">
+    <div className="min-h-screen bg-surface pb-40 font-sans">
       {/* TopAppBar */}
       <header className="sticky top-0 z-30 bg-surface/85 backdrop-blur-md px-5 pt-12 pb-3 flex items-center justify-between border-b border-outline-variant/50">
         <div className="flex items-center gap-3">
@@ -139,11 +144,38 @@ export default function SOSPage() {
           </div>
 
           {dms && dms.status === 'ACTIVE' ? (
-            <div className="bg-tsi-low/10 border border-tsi-low/30 rounded-xl p-4 text-center">
-              <p className="flex items-center justify-center gap-1.5 font-bold text-tsi-low">
-                <CheckCircle2 className="w-4 h-4" /> Active — Check-in every {dms.interval_minutes} min
-              </p>
-              <p className="text-xs text-tsi-low/80 mt-1">Tap "Check In" from the bottom nav to reset</p>
+            <div className="space-y-2">
+              <div className="bg-tsi-low/10 border border-tsi-low/30 rounded-xl p-4 text-center">
+                <p className="flex items-center justify-center gap-1.5 font-bold text-tsi-low">
+                  <CheckCircle2 className="w-4 h-4" /> Active — Check-in every {dms.interval_minutes} min
+                </p>
+                <p className="text-xs text-tsi-low/80 mt-1">Tap "Check In" from the bottom nav to reset</p>
+              </div>
+
+              {confirmingDisable ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { disableDMS(dms.id); setConfirmingDisable(false) }}
+                    disabled={disabling}
+                    className="flex-1 rounded-full h-10 text-xs font-bold border-2 border-red-300 text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    {disabling ? 'Disabling...' : 'Confirm disable'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmingDisable(false)}
+                    className="flex-1 rounded-full h-10 text-xs font-bold text-on-surface-variant hover:bg-surface-container transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmingDisable(true)}
+                  className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:text-red-600 py-2 transition-colors"
+                >
+                  <PowerOff className="w-3.5 h-3.5" /> Disable Dead Man's Switch
+                </button>
+              )}
             </div>
           ) : (
             <>

@@ -107,7 +107,7 @@ export default function CreateTripPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface pb-10">
+    <div className="min-h-screen bg-surface pb-24">
       {/* Header */}
       <div className="bg-surface-container-lowest px-5 pt-12 pb-4 shadow-sm flex items-center gap-3">
         <button onClick={() => step > 1 ? setStep(s => s - 1) : navigate(-1)}>

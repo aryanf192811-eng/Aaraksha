@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Map, Shield, ChevronRight, MapPin, AlertTriangle, Plane } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, BottomNav } from '../components/shared'
+import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState } from '../components/shared'
 import { useAuthStore } from '../store/auth.store'
 import { useSafetyStore } from '../store/safety.store'
 import { useDMS } from '../hooks/useDMS'
@@ -180,8 +180,6 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-
-      <BottomNav />
     </div>
   )
 }

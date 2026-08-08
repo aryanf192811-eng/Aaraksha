@@ -1,7 +1,10 @@
 // src/components/shared/DMSCard.tsx
-// Dead Man's Switch card: countdown timer + reset button + status indicator
-import { useState } from 'react'
-import { Timer, RotateCcw, AlertCircle, Siren, PowerOff } from 'lucide-react'
+// Dead Man's Switch card: countdown timer + reset button + status indicator.
+// Disabling the switch lives on the Safety Center (SOSPage) instead of
+// here — this card is the Home-screen summary and should only ever offer
+// the one-tap "I'm safe" action; a disable control here would be one tap
+// away from someone accidentally turning off their own safety net.
+import { Timer, RotateCcw, AlertCircle, Siren } from 'lucide-react'
 import { Button } from '../ui/button'
 import { cn, formatCountdown } from '../../lib/utils'
 import { useSafetyStore } from '../../store/safety.store'
@@ -14,9 +17,8 @@ interface DMSCardProps {
 }
 
 export function DMSCard({ dms, className }: DMSCardProps) {
-  const { resetDMS, resetting, disableDMS, disabling } = useDMS()
+  const { resetDMS, resetting } = useDMS()
   const { dmsSecondsRemaining, dmsWarning } = useSafetyStore()
-  const [confirmingDisable, setConfirmingDisable] = useState(false)
 
   if (!dms) {
     return (
@@ -94,43 +96,14 @@ export function DMSCard({ dms, className }: DMSCardProps) {
 
       {/* Actions */}
       {dms.status === 'ACTIVE' && (
-        <div className="space-y-2">
-          <Button
-            onClick={() => resetDMS(dms.id)}
-            disabled={resetting}
-            className="w-full bg-green-600 hover:bg-green-700 text-white rounded-full h-11 font-bold"
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            {resetting ? 'Checking in...' : "I'm Safe — Check In"}
-          </Button>
-
-          {confirmingDisable ? (
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => { disableDMS(dms.id); setConfirmingDisable(false) }}
-                disabled={disabling}
-                variant="outline"
-                className="flex-1 rounded-full h-9 text-xs font-bold border-red-300 text-red-600 hover:bg-red-50"
-              >
-                {disabling ? 'Disabling...' : 'Confirm disable'}
-              </Button>
-              <Button
-                onClick={() => setConfirmingDisable(false)}
-                variant="ghost"
-                className="flex-1 rounded-full h-9 text-xs font-bold text-slate-500"
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setConfirmingDisable(true)}
-              className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-red-600 py-1.5 transition-colors"
-            >
-              <PowerOff className="w-3.5 h-3.5" /> Disable Dead Man's Switch
-            </button>
-          )}
-        </div>
+        <Button
+          onClick={() => resetDMS(dms.id)}
+          disabled={resetting}
+          className="w-full bg-green-600 hover:bg-green-700 text-white rounded-full h-11 font-bold"
+        >
+          <RotateCcw className="w-4 h-4 mr-2" />
+          {resetting ? 'Checking in...' : "I'm Safe — Check In"}
+        </Button>
       )}
 
       <p className="text-xs text-slate-400 text-center mt-2">

@@ -7,6 +7,7 @@ import { queryClient } from './lib/queryClient'
 import { useAuthStore } from './store/auth.store'
 import { useOfflineSync } from './hooks/useOfflineSync'
 import { useSOSStatusListener } from './hooks/useSOSStatusListener'
+import { AppLayout } from './components/AppLayout'
 import './index.css'
 // Pages
 import LandingPage from './pages/LandingPage'
@@ -43,16 +44,18 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
-          <Route path="/trips" element={<PrivateRoute><TripListPage /></PrivateRoute>} />
-          <Route path="/trips/new" element={<PrivateRoute><CreateTripPage /></PrivateRoute>} />
-          <Route path="/trips/:id" element={<PrivateRoute><TripDetailPage /></PrivateRoute>} />
-          <Route path="/sos" element={<PrivateRoute><SOSPage /></PrivateRoute>} />
-          <Route path="/checkin" element={<PrivateRoute><CheckinPage /></PrivateRoute>} />
-          <Route path="/advisory" element={<PrivateRoute><AdvisoryPage /></PrivateRoute>} />
-          <Route path="/community" element={<PrivateRoute><CommunityPage /></PrivateRoute>} />
-          <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
-          <Route path="/profile/edit" element={<PrivateRoute><ProfileEditPage /></PrivateRoute>} />
+          <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/trips" element={<TripListPage />} />
+            <Route path="/trips/new" element={<CreateTripPage />} />
+            <Route path="/trips/:id" element={<TripDetailPage />} />
+            <Route path="/sos" element={<SOSPage />} />
+            <Route path="/checkin" element={<CheckinPage />} />
+            <Route path="/advisory" element={<AdvisoryPage />} />
+            <Route path="/community" element={<CommunityPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/edit" element={<ProfileEditPage />} />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Toaster richColors position="top-center" closeButton />
