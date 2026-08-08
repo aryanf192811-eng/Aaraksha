@@ -25,8 +25,20 @@ export function SOSButton({
   const rafRef = useRef<number | null>(null)
   const startRef = useRef<number | null>(null)
   const triggeredRef = useRef(false)
+  // Tracks which single pointer (finger) owns the current hold. Without
+  // this, a second finger touching the button mid-hold — or a stray
+  // pointerup/leave from an unrelated pointer — could reset or interfere
+  // with a legitimate in-progress hold.
+  const activePointerIdRef = useRef<number | null>(null)
 
-  const stopHold = useCallback(() => {
+  const stopHold = useCallback((e?: React.PointerEvent<HTMLButtonElement>) => {
+    // Ignore events from a pointer that isn't the one currently holding —
+    // e.g. a second finger lifting off shouldn't cancel the first finger's hold.
+    if (e && activePointerIdRef.current != null && e.pointerId !== activePointerIdRef.current) return
+    if (e?.currentTarget.hasPointerCapture?.(e.pointerId)) {
+      try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* already released */ }
+    }
+    activePointerIdRef.current = null
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
     rafRef.current = null
     startRef.current = null
@@ -49,8 +61,21 @@ export function SOSButton({
     rafRef.current = requestAnimationFrame(tick)
   }, [onTrigger, stopHold])
 
-  const startHold = useCallback(() => {
+  const startHold = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
     if (disabled || loading || isActive) return
+    // A hold is already in progress (from another finger, or a re-entrant
+    // pointerdown) — ignore additional pointers rather than restarting or
+    // double-counting the hold.
+    if (activePointerIdRef.current != null) return
+
+    activePointerIdRef.current = e.pointerId
+    // Pointer capture keeps this element receiving this pointer's events
+    // even if the finger drifts a few px off the visual bounds during the
+    // hold (natural on a small, pulsing, scaling touch target) — without
+    // it, that drift fires a premature pointerleave and silently cancels
+    // an otherwise-deliberate hold.
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* unsupported — falls back to normal bubbling */ }
+
     triggeredRef.current = false
     rafRef.current = requestAnimationFrame(tick)
   }, [disabled, loading, isActive, tick])
@@ -91,6 +116,7 @@ export function SOSButton({
         disabled={disabled || loading}
         className={cn(
           'relative z-10 flex flex-col items-center justify-center gap-2 select-none touch-none',
+          '[-webkit-touch-callout:none]', // suppresses Safari's long-press "Save Image/Copy" menu mid-hold
           'rounded-full font-display font-black tracking-wide shadow-2xl',
           'transition-transform duration-200',
           holdProgress > 0 && 'scale-95',
