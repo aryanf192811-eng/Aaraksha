@@ -7,7 +7,30 @@ const { DestinationRepository } = require('../repositories/destination.repositor
 const { emitDestinationNewsCritical } = require('../socket/emitters')
 const { sendPushToTourist } = require('./notification/push.service')
 const { ERRORS } = require('../constants/errors')
+const { NEWS_BANK } = require('../data/newsBank')
 const logger = require('../utils/logger')
+
+// How long a rotated item "holds" before the next one in that destination's
+// bank takes over. Deterministic (time-slot based) rather than a random
+// pick or a persisted counter, so it survives server restarts and never
+// needs its own state table — the slot is just derived from wall-clock time.
+const ROTATION_WINDOW_MS = 3 * 60 * 60 * 1000 // 3 hours
+
+function hashString(str) {
+  let h = 0
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0
+  return Math.abs(h)
+}
+
+// Per-destination offset (from the name) means every destination isn't
+// rotating in lockstep on the same clock tick — Kaziranga and Tawang land
+// on different items even though both windows are 3 hours wide.
+function pickRotationSlotItem(destinationName) {
+  const bank = NEWS_BANK[destinationName]
+  if (!bank || bank.length === 0) return null
+  const slot = Math.floor(Date.now() / ROTATION_WINDOW_MS) + hashString(destinationName)
+  return bank[slot % bank.length]
+}
 
 async function getNewsForDestination(destinationId) {
   return new NewsRepository().findByDestinationId(destinationId)
@@ -72,4 +95,29 @@ async function postNews(destinationId, data, govtUserId) {
   return news
 }
 
-module.exports = { getNewsForDestination, getNewsForTrip, postNews }
+// Curated-rotation source (no external news API key — a deliberate product
+// choice). Walks every destination, computes which bank item "owns" the
+// current time slot, and posts it only if it isn't already the latest item
+// for that destination — so re-running the job every tick doesn't spam
+// duplicate rows, but the feed still visibly changes as slots roll over.
+async function rotateNewsForAllDestinations() {
+  const destRepo = new DestinationRepository()
+  const newsRepo = new NewsRepository()
+  const destinations = await destRepo.findAll()
+
+  let posted = 0
+  for (const dest of destinations) {
+    const item = pickRotationSlotItem(dest.name)
+    if (!item) continue
+
+    const [latest] = await newsRepo.findByDestinationId(dest.id, 1)
+    if (latest && latest.headline === item.headline) continue
+
+    await postNews(dest.id, item, null)
+    posted++
+  }
+
+  return { destinationsChecked: destinations.length, posted }
+}
+
+module.exports = { getNewsForDestination, getNewsForTrip, postNews, rotateNewsForAllDestinations }
