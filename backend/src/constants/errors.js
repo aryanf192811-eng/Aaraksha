@@ -43,6 +43,9 @@ const ERRORS = Object.freeze({
   // Destination
   DESTINATION_NOT_FOUND: 'Destination not found',
 
+  // Reviews
+  REVIEW_ALREADY_EXISTS: 'You have already reviewed this destination',
+
   // Guardian
   GUARDIAN_TOKEN_INVALID: 'Tracking link not found or expired',
 

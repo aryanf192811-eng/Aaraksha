@@ -63,6 +63,11 @@ Desktop.ini
 .cache/
 .tmp/
 
+# ─── User-uploaded content ───────────────────────────────────────────────
+# Review photos land on local disk (no cloud storage configured) — never
+# committed, only the upload directory structure matters for dev setup.
+backend/uploads/
+
 # ─── Internal build/session artifacts ───────────────────────────────────
 # Raw AI-prompting and session-log docs — useful locally while developing,
 # not published to keep the repo reading as a normal engineering project.

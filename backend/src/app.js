@@ -3,6 +3,7 @@
 
 require('./config/env')  // Validate env vars on startup — throws if anything is missing
 
+const path      = require('node:path')
 const express   = require('express')
 const helmet    = require('helmet')
 const cors      = require('cors')
@@ -41,6 +42,9 @@ app.use((req, _res, next) => {
   logger.debug({ method: req.method, url: req.url, ip: req.ip }, 'Incoming request')
   next()
 })
+
+// ── Uploaded content (review photos) ─────────────────────────────────
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 // ── Health check (no auth, no rate limit) ────────────────────────────
 app.get('/health', (_req, res) => {
