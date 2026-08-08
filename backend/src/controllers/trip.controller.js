@@ -62,4 +62,35 @@ const getPublicTrip = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
-module.exports = { createTrip, getMyTrips, getTripById, updateTrip, updateTripStatus, updateChecklist, deleteTrip, getPublicTrip }
+const getInviteCode = async (req, res, next) => {
+  try {
+    const inviteCode = await tripService.getOrCreateInviteCode(req.params.id, req.tourist.id)
+    sendSuccess(res, { inviteCode })
+  } catch (err) { next(err) }
+}
+
+const joinTrip = async (req, res, next) => {
+  try {
+    const trip = await tripService.joinTripByCode(req.tourist.id, req.validatedBody.inviteCode)
+    sendSuccess(res, trip, 'Joined trip', 201)
+  } catch (err) { next(err) }
+}
+
+const getTripMembers = async (req, res, next) => {
+  try {
+    const result = await tripService.getTripMembers(req.params.id, req.tourist.id)
+    sendSuccess(res, result)
+  } catch (err) { next(err) }
+}
+
+const leaveTrip = async (req, res, next) => {
+  try {
+    await tripService.leaveTrip(req.params.id, req.tourist.id)
+    res.status(204).end()
+  } catch (err) { next(err) }
+}
+
+module.exports = {
+  createTrip, getMyTrips, getTripById, updateTrip, updateTripStatus, updateChecklist, deleteTrip, getPublicTrip,
+  getInviteCode, joinTrip, getTripMembers, leaveTrip,
+}

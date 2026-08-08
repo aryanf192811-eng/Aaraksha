@@ -15,6 +15,17 @@ function generatePublicToken() {
   return crypto.randomBytes(16).toString('hex')
 }
 
+// Group-trip invite code: short enough to read aloud/type on a second
+// phone. Excludes 0/O/1/I — easy to mis-type and mis-read on a small screen.
+const INVITE_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+function generateInviteCode(length = 6) {
+  let code = ''
+  for (let i = 0; i < length; i++) {
+    code += INVITE_CODE_CHARS[crypto.randomInt(INVITE_CODE_CHARS.length)]
+  }
+  return code
+}
+
 // Govt ID HMAC-SHA256 with server secret
 // NOT bcrypt — we need deterministic lookup to detect duplicate registrations
 // AND to add a UNIQUE constraint on the hash column
@@ -53,6 +64,7 @@ function extractSuffix(str, n = 4) {
 module.exports = {
   generateGuardianToken,
   generatePublicToken,
+  generateInviteCode,
   hashGovtId,
   hashPassword,
   verifyPassword,

@@ -121,6 +121,21 @@ function emitWeatherRiskIncreased(touristId, tripId, cityName, fromRisk, toRisk,
   })
 }
 
+// Tourist room (one per co-traveler): another member of the same group trip
+// sent an SOS. Distinct from emitSOSReceived (govt-only) and emitGuardianSOSAlert
+// (the sender's own emergency contacts) — this is the sender's travel group,
+// who may be nearby and best placed to physically help.
+function emitGroupSOSAlert(touristIds, sosEvent, tourist) {
+  for (const touristId of touristIds) {
+    safeEmit(SOCKET_ROOMS.tourist(touristId), SOCKET_EVENTS.GROUP_SOS_ALERT, {
+      sosId: sosEvent.id, tripId: sosEvent.trip_id,
+      touristName: tourist?.full_name, category: sosEvent.category,
+      latitude: sosEvent.latitude, longitude: sosEvent.longitude,
+      createdAt: sosEvent.created_at,
+    })
+  }
+}
+
 // Guardian room + Govt dashboard: tourist checked in
 function emitCheckinUpdate(touristId, guardianToken, location, batteryPct, eta) {
   const payload = {
@@ -153,4 +168,5 @@ function emitGuardianSOSAlert(guardianToken, sosEvent, tourist) {
 module.exports = {
   emitSOSReceived, emitSOSResolved, emitRescueAssigned, emitDMSTriggered,
   emitTSIUpdated, emitCheckinUpdate, emitGuardianSOSAlert, emitWeatherRiskIncreased,
+  emitGroupSOSAlert,
 }

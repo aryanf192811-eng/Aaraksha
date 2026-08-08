@@ -10,6 +10,7 @@ import { useSOSStatusListener } from './hooks/useSOSStatusListener'
 import { useZoneWarnings } from './hooks/useZoneWarnings'
 import { useWeatherAlerts } from './hooks/useWeatherAlerts'
 import { usePanicGesture } from './hooks/usePanicGesture'
+import { useGroupSOSListener } from './hooks/useGroupSOSListener'
 import { AppLayout } from './components/AppLayout'
 import './index.css'
 // Pages
@@ -38,6 +39,7 @@ function AppWithSync() {
   useZoneWarnings()       // Warn once when GPS enters a high-risk/restricted trip stop
   useWeatherAlerts()      // Warn when weather risk worsens for an active trip destination
   usePanicGesture()       // Shake-to-SOS backup, opt-in via Safety Center
+  useGroupSOSListener()   // Alert when a co-traveler on a group trip sends SOS
   return null
 }
 

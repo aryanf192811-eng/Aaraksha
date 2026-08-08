@@ -3,12 +3,15 @@
 
 const { v4: uuid } = require('uuid')
 const { TripRepository } = require('../repositories/trip.repository')
+const { TripMemberRepository } = require('../repositories/tripMember.repository')
 const { DestinationRepository } = require('../repositories/destination.repository')
 const { calculateTSI, computeRescueReadiness } = require('./tsi.service')
-const { generatePublicToken } = require('../utils/crypto')
+const { generatePublicToken, generateInviteCode } = require('../utils/crypto')
 const { TRIP_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const logger = require('../utils/logger')
+
+const INVITE_CODE_MAX_ATTEMPTS = 5
 
 const VALID_TRANSITIONS = {
   [TRIP_STATUSES.PLANNED]:   [TRIP_STATUSES.ACTIVE, TRIP_STATUSES.CANCELLED],
@@ -91,9 +94,81 @@ async function getMyTrips(touristId, filters) {
 
 async function getTrip(tripId, touristId) {
   const repo = new TripRepository()
-  const trip = await repo.findById(tripId, touristId)
+  let trip = await repo.findById(tripId, touristId)
+  if (!trip) {
+    // Not the owner — check whether they're a joined group member instead
+    // of failing outright, so co-travelers can open the same trip.
+    const memberRepo = new TripMemberRepository()
+    if (await memberRepo.isMember(tripId, touristId)) {
+      trip = await repo.findById(tripId)
+    }
+  }
   if (!trip) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
   return trip
+}
+
+// Owner-only. Returns the existing code if one was already generated —
+// re-sharing shouldn't invalidate a code travel companions may already have.
+async function getOrCreateInviteCode(tripId, touristId) {
+  const repo = new TripRepository()
+  const trip = await repo.findById(tripId, touristId)
+  if (!trip) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
+  if (trip.invite_code) return trip.invite_code
+
+  for (let attempt = 0; attempt < INVITE_CODE_MAX_ATTEMPTS; attempt++) {
+    const code = generateInviteCode()
+    try {
+      const updated = await repo.setInviteCode(tripId, touristId, code)
+      if (updated) return updated.invite_code
+    } catch (err) {
+      // Unique constraint collision on invite_code — vanishingly unlikely
+      // at 6 chars from a 33-char alphabet, but retry rather than fail.
+      if (err.code !== '23505') throw err
+    }
+  }
+  throw Object.assign(new Error('Could not generate a unique invite code — try again'), { statusCode: 500 })
+}
+
+async function joinTripByCode(touristId, inviteCode) {
+  const tripRepo = new TripRepository()
+  const memberRepo = new TripMemberRepository()
+
+  const trip = await tripRepo.findByInviteCode(inviteCode.toUpperCase())
+  if (!trip || trip.status === TRIP_STATUSES.CANCELLED) {
+    throw Object.assign(new Error(ERRORS.INVITE_CODE_INVALID), { statusCode: 404 })
+  }
+  if (trip.tourist_id === touristId) {
+    throw Object.assign(new Error(ERRORS.CANNOT_JOIN_OWN_TRIP), { statusCode: 400 })
+  }
+  if (await memberRepo.isMember(trip.id, touristId)) {
+    throw Object.assign(new Error(ERRORS.ALREADY_TRIP_MEMBER), { statusCode: 400 })
+  }
+
+  await memberRepo.add(trip.id, touristId)
+  logger.info({ tripId: trip.id, touristId }, 'Tourist joined group trip')
+  return trip
+}
+
+// Owner or member only.
+async function getTripMembers(tripId, touristId) {
+  const tripRepo = new TripRepository()
+  const memberRepo = new TripMemberRepository()
+
+  const trip = await tripRepo.findById(tripId, touristId)
+  const isMember = trip ? true : await memberRepo.isMember(tripId, touristId)
+  if (!trip && !isMember) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
+
+  const ownerTrip = trip || await tripRepo.findById(tripId)
+  const members = await memberRepo.findByTripId(tripId)
+  return { ownerId: ownerTrip.tourist_id, members }
+}
+
+async function leaveTrip(tripId, touristId) {
+  const memberRepo = new TripMemberRepository()
+  const removed = await memberRepo.remove(tripId, touristId)
+  if (!removed) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
+  logger.info({ tripId, touristId }, 'Tourist left group trip')
+  return removed
 }
 
 async function getPublicTrip(publicToken) {
@@ -157,4 +232,7 @@ async function deleteTrip(tripId, touristId) {
   return deleted
 }
 
-module.exports = { createTrip, getMyTrips, getTrip, getPublicTrip, updateTrip, updateTripStatus, updateChecklist, deleteTrip }
+module.exports = {
+  createTrip, getMyTrips, getTrip, getPublicTrip, updateTrip, updateTripStatus, updateChecklist, deleteTrip,
+  getOrCreateInviteCode, joinTripByCode, getTripMembers, leaveTrip,
+}

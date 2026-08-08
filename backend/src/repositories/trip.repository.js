@@ -92,6 +92,17 @@ class TripRepository extends BaseRepository {
     return this.query(`SELECT * FROM trips WHERE status = 'ACTIVE'`)
   }
 
+  async findByInviteCode(code) {
+    return this.queryOne(`SELECT * FROM trips WHERE invite_code = $1`, [code])
+  }
+
+  async setInviteCode(id, touristId, code) {
+    return this.queryOne(
+      `UPDATE trips SET invite_code=$3 WHERE id=$1 AND tourist_id=$2 RETURNING id, invite_code`,
+      [id, touristId, code]
+    )
+  }
+
   // Fleet-wide safety index for the govt dashboard: mean TSI across trips
   // currently in progress. NULL (no active trips with a score yet) rather
   // than 0, so the dashboard can distinguish "no data" from "genuinely 0".

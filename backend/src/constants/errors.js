@@ -22,6 +22,11 @@ const ERRORS = Object.freeze({
   INVALID_TRIP_TRANSITION:'Invalid status transition',
   TRIP_DATE_INVALID:      'End date must be after start date',
 
+  // Group trip
+  INVITE_CODE_INVALID:    'Invite code not found or trip is no longer joinable',
+  CANNOT_JOIN_OWN_TRIP:   'You already own this trip',
+  ALREADY_TRIP_MEMBER:    'You are already part of this trip',
+
   // SOS
   SOS_NOT_FOUND:    'SOS event not found or access denied',
   SOS_ALREADY_CLOSED: 'This SOS is already closed',

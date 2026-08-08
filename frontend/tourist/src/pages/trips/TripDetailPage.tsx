@@ -8,6 +8,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   ArrowLeft, Share2, Download, Map, List, Package, FileText, AlertTriangle,
   Rocket, Sparkles, RefreshCw, Loader2, Check, Lightbulb, HeartPulse, Backpack, LocateFixed,
+  Users, Copy, LogOut, Clock,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
@@ -19,7 +20,8 @@ import tripApi from '../../api/trip.api'
 import packingApi from '../../api/packing.api'
 import passportApi from '../../api/passport.api'
 import { queryClient } from '../../lib/queryClient'
-import { formatDate, formatINR, cn } from '../../lib/utils'
+import { useAuthStore } from '../../store/auth.store'
+import { formatDate, formatINR, formatTimeAgo, cn } from '../../lib/utils'
 import { TRIP_STATUSES } from '../../constants/enums'
 import { getDestinationImage } from '../../lib/destinationImages'
 import type { Stop, PackingItem } from '../../types/api.types'
@@ -35,7 +37,7 @@ const STATUS_STYLES: Record<string, string> = {
   CANCELLED: 'bg-red-500/90 text-white',
 }
 
-type TabType = 'itinerary' | 'budget' | 'packing' | 'map'
+type TabType = 'itinerary' | 'budget' | 'packing' | 'map' | 'group'
 
 // Recenter control — resets a panned/zoomed map back to fit every stop,
 // the way a navigation app's "recenter" button returns to your route.
@@ -56,12 +58,47 @@ function RecenterControl({ coords }: { coords: [number, number][] }) {
 export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const tourist = useAuthStore((s) => s.tourist)
   const [tab, setTab] = useState<TabType>('itinerary')
 
   const { data: trip, isLoading } = useQuery({
     queryKey: ['trips', id],
     queryFn: () => tripApi.getTripById(id!).then(r => r.data.data),
     enabled: !!id,
+  })
+
+  const isOwner = !!trip && trip.tourist_id === tourist?.id
+
+  const { data: groupData } = useQuery({
+    queryKey: ['trips', id, 'members'],
+    queryFn: () => tripApi.getTripMembers(id!).then(r => r.data.data),
+    enabled: !!id && tab === 'group',
+  })
+
+  const { mutate: generateInvite, isPending: generatingInvite } = useMutation({
+    mutationFn: () => tripApi.getInviteCode(id!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trips', id] }),
+  })
+
+  const { mutate: copyInviteCode } = useMutation({
+    mutationFn: async () => {
+      const code = trip?.invite_code || (await tripApi.getInviteCode(id!)).data.data.inviteCode
+      await navigator.clipboard.writeText(code)
+      return code
+    },
+    onSuccess: () => {
+      toast.success('Invite code copied!')
+      queryClient.invalidateQueries({ queryKey: ['trips', id] })
+    },
+  })
+
+  const { mutate: leaveTrip, isPending: leaving } = useMutation({
+    mutationFn: () => tripApi.leaveTrip(id!),
+    onSuccess: () => {
+      toast.success('Left the group trip')
+      queryClient.invalidateQueries({ queryKey: ['trips'] })
+      navigate('/trips')
+    },
   })
 
   const { mutate: generatePacking, isPending: generatingPacking } = useMutation({
@@ -227,6 +264,7 @@ export default function TripDetailPage() {
           { key: 'budget' as TabType, icon: FileText, label: 'Budget' },
           { key: 'packing' as TabType, icon: Package, label: 'Packing' },
           { key: 'map' as TabType, icon: Map, label: 'Map' },
+          { key: 'group' as TabType, icon: Users, label: 'Group' },
         ]).map(({ key, icon: Icon, label }) => (
           <button key={key} onClick={() => setTab(key)}
             className={cn('flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-full whitespace-nowrap transition-all',
@@ -396,6 +434,66 @@ export default function TripDetailPage() {
                 <p className="text-on-surface-variant">Add stops with coordinates to view map</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Group Tab ─────────────────────────────────────── */}
+        {tab === 'group' && (
+          <div className="space-y-4">
+            {isOwner ? (
+              <div className="bg-surface-container-lowest rounded-3xl shadow-sm p-5">
+                <h3 className="font-display font-bold text-on-surface mb-1">Invite companions</h3>
+                <p className="text-xs text-on-surface-variant mb-4">Share this code so they can join and see this trip, and so their SOS alerts reach you too.</p>
+                {trip.invite_code ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-surface-container-high rounded-2xl py-3 text-center font-mono text-2xl font-black tracking-[0.3em] text-on-surface">
+                      {trip.invite_code}
+                    </div>
+                    <Button onClick={() => copyInviteCode()} size="icon" variant="outline" className="rounded-full h-12 w-12 flex-shrink-0">
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button onClick={() => generateInvite()} disabled={generatingInvite}
+                    className="w-full h-12 bg-primary hover:brightness-95 text-on-surface rounded-full font-bold flex items-center justify-center gap-2">
+                    {generatingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                    Generate Invite Code
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Button onClick={() => leaveTrip()} disabled={leaving} variant="outline"
+                className="w-full h-11 rounded-full font-bold flex items-center justify-center gap-2 border-red-200 text-red-600 hover:bg-red-50">
+                {leaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+                Leave Group Trip
+              </Button>
+            )}
+
+            <div className="bg-surface-container-lowest rounded-3xl shadow-sm p-5">
+              <h3 className="font-display font-bold text-on-surface mb-3">Travel companions</h3>
+              {!groupData || groupData.members.length === 0 ? (
+                <p className="text-sm text-on-surface-variant text-center py-4">
+                  {isOwner ? 'No one has joined yet — share your invite code.' : 'No other companions yet.'}
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {groupData.members.map((member) => (
+                    <div key={member.tourist_id} className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center flex-shrink-0">
+                        {member.full_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-on-surface truncate">{member.full_name}</p>
+                        <p className="text-xs text-on-surface-variant flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {member.location_updated_at ? `Last seen ${formatTimeAgo(member.location_updated_at)}` : 'No location yet'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

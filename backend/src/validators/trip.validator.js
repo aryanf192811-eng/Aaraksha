@@ -70,7 +70,11 @@ const UpdateChecklistSchema = z.object({
   packingChecklist: z.array(PackingItemSchema),
 })
 
+const JoinTripSchema = z.object({
+  inviteCode: z.string().min(4).max(8),
+})
+
 module.exports = {
   CreateTripSchema, UpdateTripSchema, UpdateTripStatusSchema,
-  UpdateChecklistSchema, StopSchema, PackingItemSchema,
+  UpdateChecklistSchema, StopSchema, PackingItemSchema, JoinTripSchema,
 }

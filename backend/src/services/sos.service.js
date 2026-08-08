@@ -6,8 +6,9 @@ const { withTransaction } = require('../database/transaction')
 const { SOSRepository } = require('../repositories/sos.repository')
 const { LocationRepository } = require('../repositories/location.repository')
 const { TouristRepository } = require('../repositories/tourist.repository')
+const { TripMemberRepository } = require('../repositories/tripMember.repository')
 const { notifyOnSOS } = require('./notification/notification.service')
-const { emitSOSReceived, emitSOSResolved } = require('../socket/emitters')
+const { emitSOSReceived, emitSOSResolved, emitGroupSOSAlert } = require('../socket/emitters')
 const { SOS_TRIGGER_TYPES, SOS_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const { estimateRescueEtaMinutes } = require('../utils/geo')
@@ -47,6 +48,18 @@ async function createSOS(touristId, data) {
 
   // 2. Side effects AFTER transaction — failures here do not rollback SOS
   emitSOSReceived(sosEvent, tourist)
+
+  // Group SOS fan-out: alert co-travelers on the same trip, not just the
+  // sender's own emergency contacts — they may be nearby and best placed to
+  // physically help. Best-effort: a lookup failure must never block the SOS.
+  if (sosEvent.trip_id) {
+    new TripMemberRepository().getGroupTouristIds(sosEvent.trip_id)
+      .then(groupIds => {
+        const others = groupIds.filter(id => id !== touristId)
+        if (others.length > 0) emitGroupSOSAlert(others, sosEvent, tourist)
+      })
+      .catch(err => logger.error({ err: { message: err.message }, sosId: sosEvent.id }, 'Group SOS fan-out failed'))
+  }
 
   // Fire and forget — never await, never throw to caller
   notifyOnSOS(tourist, sosEvent)

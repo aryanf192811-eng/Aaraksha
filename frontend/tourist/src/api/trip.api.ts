@@ -2,7 +2,7 @@
 // FIELD NAMES: verified against backend src/validators/trip.validator.js
 // and src/routes/trip.routes.js
 import api from './client'
-import type { APIResponse, PaginatedResponse, Trip, PackingItem } from '../types/api.types'
+import type { APIResponse, PaginatedResponse, Trip, PackingItem, TripMember } from '../types/api.types'
 
 export interface ActivityInput {
   name: string
@@ -71,6 +71,18 @@ const tripApi = {
 
   getPublicTrip: (token: string) =>
     api.get<APIResponse<Trip>>(`/trips/public/${token}`),
+
+  getInviteCode: (id: string) =>
+    api.post<APIResponse<{ inviteCode: string }>>(`/trips/${id}/invite`),
+
+  joinTrip: (inviteCode: string) =>
+    api.post<APIResponse<Trip>>('/trips/join', { inviteCode }),
+
+  getTripMembers: (id: string) =>
+    api.get<APIResponse<{ ownerId: string; members: TripMember[] }>>(`/trips/${id}/members`),
+
+  leaveTrip: (id: string) =>
+    api.delete(`/trips/${id}/leave`),
 }
 
 export default tripApi

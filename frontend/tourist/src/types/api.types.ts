@@ -141,11 +141,22 @@ export interface Trip {
   tsi_updated_at: string | null
   rescue_readiness: Record<string, boolean>
   rescue_readiness_score: number
+  invite_code: string | null
   created_at: string
   updated_at: string
   // Computed fields from backend joins:
   stop_count?: number
   author_name?: string
+}
+
+export interface TripMember {
+  tourist_id: string
+  joined_at: string
+  full_name: string
+  phone: string
+  latitude: number | null
+  longitude: number | null
+  location_updated_at: string | null
 }
 
 // ── SOS ────────────────────────────────────────────────────────────────────
