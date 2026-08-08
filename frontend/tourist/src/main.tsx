@@ -7,6 +7,7 @@ import { queryClient } from './lib/queryClient'
 import { useAuthStore } from './store/auth.store'
 import { useOfflineSync } from './hooks/useOfflineSync'
 import { useSOSStatusListener } from './hooks/useSOSStatusListener'
+import { useZoneWarnings } from './hooks/useZoneWarnings'
 import { AppLayout } from './components/AppLayout'
 import './index.css'
 // Pages
@@ -32,6 +33,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 function AppWithSync() {
   useOfflineSync()        // Register online/offline listeners
   useSOSStatusListener()  // Notify when a sent SOS is assigned or resolved
+  useZoneWarnings()       // Warn once when GPS enters a high-risk/restricted trip stop
   return null
 }
 
