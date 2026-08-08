@@ -1,6 +1,6 @@
 // src/components/GovtLayout.tsx
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Shield, Map, Bell, TrendingUp, AlertTriangle, LogOut, Activity } from 'lucide-react'
+import { Shield, Map, Bell, TrendingUp, AlertTriangle, LogOut, Activity, ScanLine } from 'lucide-react'
 import { useAuthStore } from '../store/auth.store'
 import { useSOSSocket } from '../hooks/useSOSSocket'
 import { cn } from '../lib/utils'
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { to: '/map', icon: Map, label: 'Live Map' },
   { to: '/risk', icon: AlertTriangle, label: 'Risk Overview' },
   { to: '/analytics', icon: TrendingUp, label: 'Analytics' },
+  { to: '/checkpoint', icon: ScanLine, label: 'Checkpoint Scan' },
 ]
 
 export default function GovtLayout() {

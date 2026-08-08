@@ -41,6 +41,32 @@ export interface AnalyticsResponse {
   avgResponseMinutes: number
 }
 
+export interface CheckpointScanResult {
+  scan: { id: string; checkpointName: string; district: string | null; scannedAt: string }
+  tourist: {
+    id: string
+    fullName: string
+    phone: string
+    bloodGroup: string | null
+    medicalInfo: string | null
+    govtIdType: string
+    govtIdSuffix: string
+    profilePhotoUrl: string | null
+    emergencyContacts: Array<{ name: string; phone: string; relation: string; verified?: boolean }>
+  }
+  activeTrip: { id: string; city: string | null; tsiScore: number | null; tsiLabel: string | null } | null
+}
+
+export interface RecentCheckpointScan {
+  id: string
+  checkpoint_name: string
+  district: string | null
+  scanned_at: string
+  tourist_name: string
+  tourist_phone: string
+  scanned_by: string | null
+}
+
 const govtApi = {
   getDashboard: () =>
     api.get<APIResponse<GovtDashboard>>('/govt/dashboard'),
@@ -82,6 +108,12 @@ const govtApi = {
     const token = useAuthStore.getState().token
     return `${API_URL}/govt/analytics/export?period=${period || '30d'}&token=${encodeURIComponent(token || '')}`
   },
+
+  scanCheckpoint: (data: { token: string; checkpointName: string; district?: string }) =>
+    api.post<APIResponse<CheckpointScanResult>>('/govt/checkpoint/scan', data),
+
+  getRecentCheckpointScans: (limit = 20) =>
+    api.get<APIResponse<RecentCheckpointScan[]>>('/govt/checkpoint/recent', { params: { limit } }),
 }
 
 export default govtApi

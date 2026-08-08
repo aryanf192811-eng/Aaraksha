@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { ArrowLeft, Copy, ExternalLink, Shield, LogOut, User, Phone, Droplet, Lock, Eye, Siren, CheckCircle2, Pencil, ShieldCheck, Loader2 } from 'lucide-react'
+import { ArrowLeft, Copy, ExternalLink, Shield, LogOut, User, Phone, Droplet, Lock, Eye, Siren, CheckCircle2, Pencil, ShieldCheck, Loader2, QrCode } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -238,6 +238,18 @@ export default function ProfilePage() {
           </div>
           <p className="text-xs text-primary mt-2">Valid for 90 days · Renews automatically</p>
         </div>
+
+        {/* Checkpoint Pass */}
+        <button onClick={() => navigate('/checkpoint-pass')}
+          className="w-full bg-surface-container-lowest rounded-2xl shadow-sm p-5 flex items-center gap-3 text-left hover:shadow-md transition-shadow">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <QrCode className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-on-surface">Checkpoint Pass</p>
+            <p className="text-xs text-on-surface-variant">Show a QR code at govt checkpoints and ILP posts</p>
+          </div>
+        </button>
 
         {/* Logout */}
         <Button variant="outline" onClick={handleLogout}

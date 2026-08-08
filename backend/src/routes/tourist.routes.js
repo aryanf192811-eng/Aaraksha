@@ -31,6 +31,7 @@ router.get('/me',                    authenticateTourist, ctrl.getMe)
 router.patch('/me',                  authenticateTourist, validate(UpdateProfileSchema), ctrl.updateMe)
 router.post('/emergency-contacts/send-otp',   authenticateTourist, validate(SendEmergencyContactOTPSchema),   ctrl.sendEmergencyContactOTP)
 router.post('/emergency-contacts/verify-otp', authenticateTourist, validate(VerifyEmergencyContactOTPSchema), ctrl.verifyEmergencyContactOTP)
+router.get('/checkpoint-qr',         authenticateTourist, ctrl.getCheckpointQR)
 router.get('/guardian/:token',       ctrl.getGuardianView)  // Public — no auth
 
 module.exports = router

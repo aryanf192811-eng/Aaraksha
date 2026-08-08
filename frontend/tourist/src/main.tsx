@@ -23,6 +23,7 @@ import CreateTripPage from './pages/trips/CreateTripPage'
 import TripDetailPage from './pages/trips/TripDetailPage'
 import SOSPage from './pages/safety/SOSPage'
 import CheckinPage from './pages/safety/CheckinPage'
+import CheckpointPassPage from './pages/safety/CheckpointPassPage'
 import AdvisoryPage from './pages/safety/AdvisoryPage'
 import CommunityPage from './pages/community/CommunityPage'
 import ProfilePage from './pages/profile/ProfilePage'
@@ -59,6 +60,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/trips/:id" element={<TripDetailPage />} />
             <Route path="/sos" element={<SOSPage />} />
             <Route path="/checkin" element={<CheckinPage />} />
+            <Route path="/checkpoint-pass" element={<CheckpointPassPage />} />
             <Route path="/advisory" element={<AdvisoryPage />} />
             <Route path="/community" element={<CommunityPage />} />
             <Route path="/profile" element={<ProfilePage />} />

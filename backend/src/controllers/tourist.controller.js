@@ -3,6 +3,7 @@
 
 const touristService = require('../services/tourist.service')
 const otpService = require('../services/otp.service')
+const checkpointService = require('../services/checkpoint.service')
 const { sendSuccess } = require('../utils/response')
 
 const getMe = async (req, res, next) => {
@@ -42,4 +43,14 @@ const verifyEmergencyContactOTP = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
-module.exports = { getMe, updateMe, getGuardianView, sendEmergencyContactOTP, verifyEmergencyContactOTP }
+const getCheckpointQR = async (req, res, next) => {
+  try {
+    const result = await checkpointService.getCheckpointQR(req.tourist.id)
+    sendSuccess(res, result)
+  } catch (err) { next(err) }
+}
+
+module.exports = {
+  getMe, updateMe, getGuardianView, sendEmergencyContactOTP, verifyEmergencyContactOTP,
+  getCheckpointQR,
+}

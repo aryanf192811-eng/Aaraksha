@@ -18,6 +18,11 @@ const ResolveSOSSchema = z.object({
 const UpdateTeamStatusSchema = z.object({
   status: z.enum(Object.values(TEAM_STATUSES)),
 })
+const ScanCheckpointSchema = z.object({
+  token:           z.string().min(1),
+  checkpointName:  z.string().min(2).max(255),
+  district:        z.string().max(100).optional().nullable(),
+})
 
 router.use(authenticateGovt)
 
@@ -31,5 +36,7 @@ router.patch('/sos/:id/assign',    validate(AssignRescueSchema),     ctrl.assign
 router.patch('/sos/:id/resolve',   validate(ResolveSOSSchema),       ctrl.resolveSOS)
 router.get('/rescue-teams',        ctrl.getRescueTeams)
 router.patch('/rescue-teams/:id/status', validate(UpdateTeamStatusSchema), ctrl.updateTeamStatus)
+router.post('/checkpoint/scan',    validate(ScanCheckpointSchema), ctrl.scanCheckpoint)
+router.get('/checkpoint/recent',   ctrl.getRecentCheckpointScans)
 
 module.exports = router

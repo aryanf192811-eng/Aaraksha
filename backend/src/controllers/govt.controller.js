@@ -1,6 +1,7 @@
 'use strict'
 const govtService = require('../services/govt.service')
 const govtReportService = require('../services/govtReport.service')
+const checkpointService = require('../services/checkpoint.service')
 const { sendSuccess, sendPaginated } = require('../utils/response')
 const { parsePaginationParams } = require('../utils/pagination')
 const logger = require('../utils/logger')
@@ -51,5 +52,21 @@ const updateTeamStatus = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+const scanCheckpoint = async (req, res, next) => {
+  try {
+    const { token, checkpointName, district } = req.validatedBody
+    const result = await checkpointService.scanCheckpoint(token, req.govtUser.id, checkpointName, district)
+    sendSuccess(res, result, 'Checkpoint scan recorded')
+  } catch (err) { next(err) }
+}
+
+const getRecentCheckpointScans = async (req, res, next) => {
+  try {
+    const scans = await checkpointService.getRecentScans(parseInt(req.query.limit, 10) || 20)
+    sendSuccess(res, scans)
+  } catch (err) { next(err) }
+}
+
 module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRescueTeams,
-  getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, resolveSOS, updateTeamStatus }
+  getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, resolveSOS, updateTeamStatus,
+  scanCheckpoint, getRecentCheckpointScans }
