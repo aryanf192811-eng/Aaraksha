@@ -20,6 +20,20 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 })
 
+// Straight-line-distance ETAs can land far from the tourist's real access
+// road (mountain terrain, or a team based hours away) — collapsing raw
+// minutes into d/h/m keeps a large-but-real estimate legible instead of
+// reading as a bug ("~5988 min" vs "~4d 3h").
+function formatEta(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`
+  const totalHours = Math.floor(minutes / 60)
+  const remMinutes = minutes % 60
+  if (totalHours < 24) return remMinutes > 0 ? `${totalHours}h ${remMinutes}m` : `${totalHours}h`
+  const days = Math.floor(totalHours / 24)
+  const remHours = totalHours % 24
+  return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`
+}
+
 type StatusType = 'SAFE' | 'SOS' | 'ASSIGNED' | 'WARNING' | 'NO_SIGNAL'
 
 const STATUS_CONFIG: Record<StatusType, {
@@ -216,7 +230,7 @@ export default function TrackingPage() {
             </p>
             <p className="text-amber-100 text-xs">
               {view.activeSOS.rescueTeam?.type ? `${view.activeSOS.rescueTeam.type} · ` : ''}
-              {view.activeSOS.rescueTeam?.etaMinutes != null ? `ETA ~${view.activeSOS.rescueTeam.etaMinutes} min` : 'On the way'}
+              {view.activeSOS.rescueTeam?.etaMinutes != null ? `ETA ~${formatEta(view.activeSOS.rescueTeam.etaMinutes)}` : 'On the way'}
             </p>
           </div>
         )}

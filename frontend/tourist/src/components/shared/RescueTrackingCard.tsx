@@ -30,9 +30,12 @@ const YOU_ICON  = markerIcon('#ef4444', '!')
 function formatEta(minutes: number | null): string {
   if (minutes == null) return '—'
   if (minutes < 60) return `~${minutes} min`
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return `~${h}h ${m}m`
+  const totalHours = Math.floor(minutes / 60)
+  const remMinutes = minutes % 60
+  if (totalHours < 24) return remMinutes > 0 ? `~${totalHours}h ${remMinutes}m` : `~${totalHours}h`
+  const days = Math.floor(totalHours / 24)
+  const remHours = totalHours % 24
+  return remHours > 0 ? `~${days}d ${remHours}h` : `~${days}d`
 }
 
 export function RescueTrackingCard() {
