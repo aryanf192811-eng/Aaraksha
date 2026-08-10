@@ -110,7 +110,7 @@ export default function RiskOverviewPage() {
   }, [riskData, filter])
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6 max-w-full overflow-x-hidden">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-black text-on-surface">Risk Overview</h1>

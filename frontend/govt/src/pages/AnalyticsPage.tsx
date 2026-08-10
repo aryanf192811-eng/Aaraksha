@@ -39,17 +39,17 @@ export default function AnalyticsPage() {
   const avgResponse  = a?.avgResponseMinutes ?? 0
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-6 max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-on-surface">Command Analytics & Reporting</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-on-surface">Command Analytics & Reporting</h1>
           <p className="text-on-surface-variant text-sm">Real-time intelligence and incident response metrics</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1 bg-surface-container-lowest rounded-full p-1 shadow-sm border border-outline-variant">
             {PERIOD_OPTIONS.map(({ label, value }) => (
               <button key={value} onClick={() => setPeriod(value)}
-                className={cn('px-4 py-1.5 rounded-full text-sm font-semibold transition-all',
+                className={cn('px-3 sm:px-4 py-1.5 rounded-full text-sm font-semibold transition-all',
                   period === value ? 'bg-primary-dark text-white' : 'text-on-surface-variant hover:text-on-surface'
                 )}>
                 {label}
@@ -58,29 +58,29 @@ export default function AnalyticsPage() {
           </div>
           <Button onClick={() => window.location.href = govtApi.getExportUrl(period)}
             className="bg-primary-dark hover:brightness-90 text-white rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2">
-            <Download className="w-4 h-4" /> Export PDF
+            <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export PDF</span>
           </Button>
         </div>
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
           { label: 'Total Incidents', value: totals.total, color: 'text-on-surface' },
           { label: 'Resolved', value: totals.resolved, color: 'text-green-600' },
           { label: 'Still Active', value: totals.active, color: 'text-red-600' },
           { label: 'Avg Response', value: `${avgResponse}min`, color: 'text-primary' },
         ].map(({ label, value, color }) => (
-          <div key={label} className="bg-surface-container-lowest rounded-xl p-5 shadow-sm text-center">
-            <p className={cn('text-3xl font-black', color)}>{value}</p>
-            <p className="text-xs text-on-surface-variant font-medium mt-1 uppercase tracking-wide">{label}</p>
+          <div key={label} className="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm text-center min-w-0">
+            <p className={cn('text-2xl sm:text-3xl font-black', color)}>{value}</p>
+            <p className="text-[10px] sm:text-xs text-on-surface-variant font-medium mt-1 uppercase tracking-wide">{label}</p>
           </div>
         ))}
       </div>
 
       {/* Charts row */}
-      <div className="grid grid-cols-3 gap-5">
-        <div className="col-span-2 bg-surface-container-lowest rounded-xl p-6 shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-4 sm:p-6 shadow-sm min-w-0">
           <h2 className="text-lg font-bold text-on-surface mb-6">SOS Incidents Over Time</h2>
           <ResponsiveContainer width="100%" height={250}>
             <AreaChart data={perDay} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
+        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 shadow-sm min-w-0">
           <h2 className="text-lg font-bold text-on-surface mb-4">Emergency Types</h2>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
@@ -132,7 +132,7 @@ export default function AnalyticsPage() {
       </div>
 
       {byCategory.length > 0 && (
-        <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
+        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 shadow-sm min-w-0 overflow-x-auto">
           <h2 className="text-lg font-bold text-on-surface mb-6">Incidents by Category</h2>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={byCategory} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>

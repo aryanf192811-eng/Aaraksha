@@ -15,17 +15,17 @@ function StatCard({ label, value, subLabel, trend, trendUp, accentClass, icon: I
   accentClass: string; icon: ComponentType<{ className?: string }>; sparkData?: number[]
 }) {
   return (
-    <div className="bg-surface-container-lowest rounded-xl p-5 shadow-sm">
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accentClass}`}>
-          <Icon className="w-5 h-5" />
+    <div className="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm min-w-0">
+      <div className="flex items-start justify-between mb-2 sm:mb-3 gap-1">
+        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${accentClass}`}>
+          <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
-        <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">{label}</span>
+        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-on-surface-variant text-right leading-tight">{label}</span>
       </div>
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="text-3xl font-black text-on-surface">{value}</p>
-          {subLabel && <p className="text-xs font-semibold text-primary mt-0.5">{subLabel}</p>}
+      <div className="flex items-end justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-2xl sm:text-3xl font-black text-on-surface">{value}</p>
+          {subLabel && <p className="text-[11px] sm:text-xs font-semibold text-primary mt-0.5 leading-snug">{subLabel}</p>}
           {trend && (
             <p className={`text-xs font-semibold mt-1 ${trendUp ? 'text-red-500' : 'text-emerald-500'}`}>
               {trendUp ? '↑' : '↓'} {trend}
@@ -33,14 +33,16 @@ function StatCard({ label, value, subLabel, trend, trendUp, accentClass, icon: I
           )}
         </div>
         {sparkData && (
-          <ResponsiveContainer width={100} height={40}>
-            <AreaChart data={sparkData.map(v => ({ v }))}>
-              <Area type="monotone" dataKey="v"
-                stroke={trendUp ? '#ef4444' : '#10b981'}
-                fill={trendUp ? '#fef2f2' : '#d1fae5'}
-                strokeWidth={1.5} dot={false} isAnimationActive={false} />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div className="hidden sm:block flex-shrink-0">
+            <ResponsiveContainer width={100} height={40}>
+              <AreaChart data={sparkData.map(v => ({ v }))}>
+                <Area type="monotone" dataKey="v"
+                  stroke={trendUp ? '#ef4444' : '#10b981'}
+                  fill={trendUp ? '#fef2f2' : '#d1fae5'}
+                  strokeWidth={1.5} dot={false} isAnimationActive={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </div>
     </div>
@@ -71,25 +73,25 @@ export default function DashboardPage() {
   const a: AnalyticsResponse | undefined = analytics
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-on-surface">Command Analytics & Reporting</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-on-surface">Command Analytics & Reporting</h1>
           <p className="text-on-surface-variant text-sm">Real-time intelligence and incident response metrics</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-2 bg-surface-container-lowest rounded-full px-4 py-2 shadow-sm border border-outline-variant text-sm font-medium text-on-surface-variant">
             <span>Last 30 days</span>
           </div>
           <Button onClick={() => window.location.href = govtApi.getExportUrl('30d')}
             className="bg-primary-dark hover:brightness-90 text-white rounded-lg px-4 py-2 text-sm font-semibold shadow-sm flex items-center gap-2">
-            <Download className="w-4 h-4" /> Export PDF
+            <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export PDF</span>
           </Button>
         </div>
       </div>
 
       {/* ── Stat Cards ────────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
         <StatCard
           label="Total SOS Alerts"
           value={d?.activeSOS ?? 0}
@@ -131,8 +133,8 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Charts Row ────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-5">
-        <div className="col-span-2 bg-surface-container-lowest rounded-xl p-6 shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-4 sm:p-6 shadow-sm min-w-0">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-on-surface">SOS Incidents Over Time</h2>
             <span className="text-xs font-semibold text-on-surface-variant">Last 30 days</span>
@@ -154,7 +156,7 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
+        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 shadow-sm min-w-0">
           <h2 className="text-lg font-bold text-on-surface mb-6">Emergency Types</h2>
           <div className="flex flex-col items-center">
             <ResponsiveContainer width="100%" height={180}>
@@ -186,16 +188,16 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Recent SOS ────────────────────────────────────────── */}
-      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
+      <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 shadow-sm">
         <h2 className="text-lg font-bold text-on-surface mb-4">Recent Incidents</h2>
         {d?.recentSOS && d.recentSOS.length > 0 ? (
           <div className="space-y-2">
             {d.recentSOS.map(sos => (
-              <div key={sos.id} className="flex items-center gap-4 py-2 border-b border-outline-variant last:border-0">
+              <div key={sos.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 border-b border-outline-variant last:border-0">
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${sos.status === 'ACTIVE' ? 'bg-sos animate-pulse' : 'bg-green-500'}`} />
-                <span className="font-semibold text-on-surface text-sm flex-1">{sos.full_name}</span>
+                <span className="font-semibold text-on-surface text-sm flex-1 min-w-[8rem]">{sos.full_name}</span>
                 <span className="text-xs text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">{sos.category}</span>
-                <span className="text-xs text-on-surface-variant">{formatTimeAgo(sos.created_at)}</span>
+                <span className="text-xs text-on-surface-variant ml-auto">{formatTimeAgo(sos.created_at)}</span>
               </div>
             ))}
           </div>

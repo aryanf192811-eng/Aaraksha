@@ -65,8 +65,8 @@ export default function SOSManagementPage() {
   const availableTeams = teams.filter((t: RescueTeam) => t.status === 'AVAILABLE')
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6 max-w-full overflow-x-hidden">
+      <div className="flex items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-black text-on-surface">SOS Management</h1>
           <p className="text-on-surface-variant text-sm">Active incidents · Real-time feed</p>

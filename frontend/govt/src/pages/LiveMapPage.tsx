@@ -8,6 +8,7 @@ import { AlertTriangle, Battery, LocateFixed } from 'lucide-react'
 import govtApi from '../api/govt.api'
 import { cn, formatTimeAgo } from '../lib/utils'
 import type { LiveTourist } from '../types/api.types'
+import { useSOSSocket } from '../hooks/useSOSSocket'
 
 // Plain geometric marks (not pictorial emoji) keep the divIcon HTML string
 // legible at 24px and consistent with the rest of the UI's icon language.
@@ -37,6 +38,9 @@ function RecenterControl({ center, zoom }: { center: [number, number]; zoom: num
 
 export default function LiveMapPage() {
   const [selectedTourist, setSelectedTourist] = useState<LiveTourist | null>(null)
+  // Pushes an instant refetch on SOS/DMS/location events instead of waiting
+  // for the next poll tick; the interval below stays as a safety net.
+  useSOSSocket()
 
   const { data: tourists, isLoading } = useQuery({
     queryKey: ['govt', 'tourists', 'live'],
@@ -58,27 +62,27 @@ export default function LiveMapPage() {
   const mapCenter: [number, number] = [26.0, 93.0]
 
   return (
-    <div className="h-screen flex flex-col">
-      <div className="bg-surface-container-lowest border-b border-outline-variant px-6 py-4 flex items-center gap-4 shadow-sm">
-        <h1 className="text-xl font-black text-on-surface">Live Tourist Map</h1>
-        <div className="flex items-center gap-4 ml-auto text-sm">
+    <div className="h-full flex flex-col">
+      <div className="bg-surface-container-lowest border-b border-outline-variant px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center gap-x-4 gap-y-2 shadow-sm">
+        <h1 className="text-lg sm:text-xl font-black text-on-surface">Live Tourist Map</h1>
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 sm:ml-auto text-sm">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-sos" />
-            <span className="text-on-surface-variant font-medium">{activeSOS} SOS active</span>
+            <div className="w-3 h-3 rounded-full bg-sos flex-shrink-0" />
+            <span className="text-on-surface-variant font-medium whitespace-nowrap">{activeSOS} SOS active</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-            <span className="text-on-surface-variant font-medium">{liveTourists.length} tracked</span>
+            <div className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0" />
+            <span className="text-on-surface-variant font-medium whitespace-nowrap">{liveTourists.length} tracked</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs text-on-surface-variant">Live · updates every 15s</span>
+          <div className="hidden sm:flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+            <span className="text-xs text-on-surface-variant whitespace-nowrap">Live · updates every 15s</span>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 relative">
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden min-h-0">
+        <div className="h-[45vh] lg:h-auto lg:flex-1 relative flex-shrink-0">
           <MapContainer center={mapCenter} zoom={7} style={{ height: '100%', width: '100%' }}>
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -125,7 +129,7 @@ export default function LiveMapPage() {
           )}
         </div>
 
-        <div className="w-72 bg-surface-container-lowest border-l border-outline-variant overflow-y-auto">
+        <div className="w-full lg:w-72 flex-1 lg:flex-initial min-h-0 bg-surface-container-lowest border-t lg:border-t-0 lg:border-l border-outline-variant overflow-y-auto">
           <div className="p-4 border-b border-outline-variant">
             <p className="text-sm font-bold text-on-surface">{liveTourists.length} tourists tracked in last 2h</p>
           </div>
