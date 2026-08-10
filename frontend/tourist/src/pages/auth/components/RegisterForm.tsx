@@ -266,12 +266,14 @@ export function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Input placeholder="Name" className="h-10 rounded-lg text-sm" {...step3.register(`emergencyContacts.${idx}.name`)} />
-                  <Input placeholder="10-digit mobile" type="tel" className="h-10 rounded-lg text-sm" {...step3.register(`emergencyContacts.${idx}.phone`)} />
+                  <Input placeholder="10-digit mobile (starts 6-9)" type="tel" className="h-10 rounded-lg text-sm" {...step3.register(`emergencyContacts.${idx}.phone`)} />
                   <Input placeholder="Relation (Parent, Friend...)" className="h-10 rounded-lg text-sm col-span-2" {...step3.register(`emergencyContacts.${idx}.relation`)} />
                 </div>
-                {step3.formState.errors.emergencyContacts?.[idx] && (
-                  <p className="text-xs text-red-500">Please fill all fields correctly</p>
-                )}
+                {(() => {
+                  const err = step3.formState.errors.emergencyContacts?.[idx]
+                  const message = err?.name?.message || err?.phone?.message || err?.relation?.message
+                  return message ? <p className="text-xs text-red-500">{message}</p> : null
+                })()}
               </div>
             ))}
 
