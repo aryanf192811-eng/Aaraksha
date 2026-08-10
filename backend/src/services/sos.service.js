@@ -8,7 +8,7 @@ const { LocationRepository } = require('../repositories/location.repository')
 const { TouristRepository } = require('../repositories/tourist.repository')
 const { TripMemberRepository } = require('../repositories/tripMember.repository')
 const { notifyOnSOS } = require('./notification/notification.service')
-const { emitSOSReceived, emitSOSResolved, emitGroupSOSAlert } = require('../socket/emitters')
+const { emitSOSReceived, emitSOSResolved, emitGroupSOSAlert, emitGuardianSOSAlert } = require('../socket/emitters')
 const { SOS_TRIGGER_TYPES, SOS_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const { estimateRescueEtaMinutes } = require('../utils/geo')
@@ -48,6 +48,7 @@ async function createSOS(touristId, data) {
 
   // 2. Side effects AFTER transaction — failures here do not rollback SOS
   emitSOSReceived(sosEvent, tourist)
+  emitGuardianSOSAlert(tourist.guardian_token, sosEvent, tourist)
 
   // Group SOS fan-out: alert co-travelers on the same trip, not just the
   // sender's own emergency contacts — they may be nearby and best placed to

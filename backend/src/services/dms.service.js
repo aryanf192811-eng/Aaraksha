@@ -7,7 +7,7 @@ const { CheckinRepository } = require('../repositories/checkin.repository')
 const { LocationRepository } = require('../repositories/location.repository')
 const { TouristRepository } = require('../repositories/tourist.repository')
 const { SOSRepository } = require('../repositories/sos.repository')
-const { emitDMSTriggered, emitCheckinUpdate } = require('../socket/emitters')
+const { emitDMSTriggered, emitCheckinUpdate, emitGuardianSOSAlert } = require('../socket/emitters')
 const { notifyOnSOS, notifyDMSWarning } = require('./notification/notification.service')
 const { DMS_STATUSES, SOS_CATEGORIES, SOS_TRIGGER_TYPES, CHECKIN_TYPES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
@@ -115,6 +115,7 @@ async function processDMSTriggers() {
         govt_id_suffix: dmsRow.govt_id_suffix,
       }
       emitDMSTriggered(sosEvent, tourist)
+      emitGuardianSOSAlert(tourist.guardian_token, sosEvent, tourist)
       notifyOnSOS(tourist, sosEvent).catch(err =>
         logger.error({ err: { message: err.message } }, 'DMS SOS notification failed'))
 

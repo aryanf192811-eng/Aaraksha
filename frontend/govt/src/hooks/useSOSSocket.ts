@@ -64,16 +64,25 @@ export function useSOSSocket() {
       queryClient.invalidateQueries({ queryKey: ['govt', 'tourists', 'live'] })
     }
 
+    // Another operator assigned a rescue team — reflect it immediately
+    // instead of waiting for the next poll tick.
+    const onRescueAssigned = () => {
+      queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
+      queryClient.invalidateQueries({ queryKey: ['govt', 'dashboard'] })
+    }
+
     socket.on(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
     socket.on(SOCKET_EVENTS.SOS_RESOLVED, onSOSResolved)
     socket.on(SOCKET_EVENTS.DMS_TRIGGERED, onDMSTriggered)
     socket.on(SOCKET_EVENTS.LIVE_MAP_UPDATE, onLiveMapUpdate)
+    socket.on(SOCKET_EVENTS.RESCUE_ASSIGNED, onRescueAssigned)
 
     return () => {
       socket.off(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
       socket.off(SOCKET_EVENTS.SOS_RESOLVED, onSOSResolved)
       socket.off(SOCKET_EVENTS.DMS_TRIGGERED, onDMSTriggered)
       socket.off(SOCKET_EVENTS.LIVE_MAP_UPDATE, onLiveMapUpdate)
+      socket.off(SOCKET_EVENTS.RESCUE_ASSIGNED, onRescueAssigned)
       mountCount.current -= 1
       if (mountCount.current <= 0) disconnectSocket()
     }
