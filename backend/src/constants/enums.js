@@ -59,6 +59,11 @@ const GOVT_ROLES = Object.freeze({
   TOURISM_OFFICER: 'TOURISM_OFFICER',
   POLICE: 'POLICE',
   MEDICAL: 'MEDICAL',
+  // A field-only role — this account's entire experience is the checkpoint
+  // scanner (see ALLOWED_CHECKPOINT_ROLES in the govt frontend and the
+  // requireGovtRole gates in govt.routes.js). Distinct from POLICE, which
+  // can also staff a checkpoint but retains full command-center access.
+  CHECKPOINT_OFFICER: 'CHECKPOINT_OFFICER',
 })
 
 const GOVT_ID_TYPES = Object.freeze({

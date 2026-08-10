@@ -39,7 +39,9 @@ export default function GovtLoginPage() {
       const { token, user } = res.data.data
       setGovtAuth(token, user)
       toast.success(`Welcome back, ${user.name}`)
-      navigate('/', { replace: true })
+      // Checkpoint officers have no command-center access at all — send them
+      // straight to the one screen they actually use.
+      navigate(user.role === 'CHECKPOINT_OFFICER' ? '/checkpoint' : '/', { replace: true })
     } catch (err) {
       toast.error(getErrorMessage(err))
     } finally {

@@ -42,7 +42,7 @@ export interface AnalyticsResponse {
 }
 
 export interface CheckpointScanResult {
-  scan: { id: string; checkpointName: string; district: string | null; scannedAt: string }
+  scan: { id: string; checkpointName: string; district: string | null; latitude: string | null; longitude: string | null; scannedAt: string }
   tourist: {
     id: string
     fullName: string
@@ -117,7 +117,7 @@ const govtApi = {
     return `${API_URL}/govt/analytics/export?period=${period || '30d'}&token=${encodeURIComponent(token || '')}`
   },
 
-  scanCheckpoint: (data: { token: string; checkpointName: string; district?: string }) =>
+  scanCheckpoint: (data: { token: string; checkpointName: string; district?: string; latitude?: number; longitude?: number }) =>
     api.post<APIResponse<CheckpointScanResult>>('/govt/checkpoint/scan', data),
 
   getRecentCheckpointScans: (limit = 20) =>

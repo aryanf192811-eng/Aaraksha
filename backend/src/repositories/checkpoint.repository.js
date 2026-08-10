@@ -4,12 +4,12 @@
 const { BaseRepository } = require('./base.repository')
 
 class CheckpointRepository extends BaseRepository {
-  async create({ touristId, govtUserId, checkpointName, district }) {
+  async create({ touristId, govtUserId, checkpointName, district, latitude, longitude }) {
     return this.queryOne(`
-      INSERT INTO checkpoint_scans (tourist_id, govt_user_id, checkpoint_name, district)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO checkpoint_scans (tourist_id, govt_user_id, checkpoint_name, district, latitude, longitude)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *`,
-      [touristId, govtUserId, checkpointName, district ?? null]
+      [touristId, govtUserId, checkpointName, district ?? null, latitude ?? null, longitude ?? null]
     )
   }
 

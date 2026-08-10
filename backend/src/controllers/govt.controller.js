@@ -55,8 +55,8 @@ const updateTeamStatus = async (req, res, next) => {
 
 const scanCheckpoint = async (req, res, next) => {
   try {
-    const { token, checkpointName, district } = req.validatedBody
-    const result = await checkpointService.scanCheckpoint(token, req.govtUser.id, checkpointName, district)
+    const { token, checkpointName, district, latitude, longitude } = req.validatedBody
+    const result = await checkpointService.scanCheckpoint(token, req.govtUser.id, checkpointName, district, latitude, longitude)
     sendSuccess(res, result, 'Checkpoint scan recorded')
   } catch (err) { next(err) }
 }

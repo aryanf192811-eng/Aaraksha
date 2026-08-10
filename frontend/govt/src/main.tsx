@@ -20,6 +20,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
 }
 
+// CHECKPOINT_OFFICER has no command-center API access at all (see
+// COMMAND_CENTER_ROLES in the backend's govt.routes.js) — every request
+// from the dashboard routes would just 403. Redirect at the router level
+// instead of letting them land on a broken page full of failed fetches.
+function CommandCenterRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const govtUser = useAuthStore(s => s.govtUser)
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (govtUser?.role === 'CHECKPOINT_OFFICER') return <Navigate to="/checkpoint" replace />
+  return <>{children}</>
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
@@ -30,7 +42,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               shell. A checkpoint officer opens this directly on a phone
               browser as a focused field tool, not the full ops dashboard. */}
           <Route path="/checkpoint" element={<ProtectedRoute><CheckpointScanPage /></ProtectedRoute>} />
-          <Route path="/" element={<ProtectedRoute><GovtLayout /></ProtectedRoute>}>
+          <Route path="/" element={<CommandCenterRoute><GovtLayout /></CommandCenterRoute>}>
             <Route index element={<DashboardPage />} />
             <Route path="sos" element={<SOSManagementPage />} />
             <Route path="map" element={<LiveMapPage />} />

@@ -64,11 +64,12 @@ export const CHECKIN_TYPES = {
 export type CheckinType = typeof CHECKIN_TYPES[keyof typeof CHECKIN_TYPES]
 
 export const GOVT_ROLES = {
-  SUPER_ADMIN:     'SUPER_ADMIN',
-  DISTRICT_ADMIN:  'DISTRICT_ADMIN',
-  TOURISM_OFFICER: 'TOURISM_OFFICER',
-  POLICE:          'POLICE',
-  MEDICAL:         'MEDICAL',
+  SUPER_ADMIN:         'SUPER_ADMIN',
+  DISTRICT_ADMIN:      'DISTRICT_ADMIN',
+  TOURISM_OFFICER:     'TOURISM_OFFICER',
+  POLICE:              'POLICE',
+  MEDICAL:             'MEDICAL',
+  CHECKPOINT_OFFICER:  'CHECKPOINT_OFFICER',
 } as const
 export type GovtRole = typeof GOVT_ROLES[keyof typeof GOVT_ROLES]
 

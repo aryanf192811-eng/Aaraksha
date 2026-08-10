@@ -24,28 +24,38 @@ const ScanCheckpointSchema = z.object({
   token:           z.string().min(1),
   checkpointName:  z.string().min(2).max(255),
   district:        z.string().max(100).optional().nullable(),
+  latitude:        z.coerce.number().min(-90).max(90).optional().nullable(),
+  longitude:       z.coerce.number().min(-180).max(180).optional().nullable(),
 })
+
+// Every role except CHECKPOINT_OFFICER — that account's entire access is
+// the scanner endpoints below, nothing on the command-center side. Computed
+// once rather than repeated per-route so a future new role doesn't need to
+// be remembered at every call site.
+const COMMAND_CENTER_ROLES = Object.values(GOVT_ROLES).filter(r => r !== GOVT_ROLES.CHECKPOINT_OFFICER)
 
 router.use(authenticateGovt)
 
-router.get('/dashboard',           ctrl.getDashboard)
-router.get('/tourists/live',       ctrl.getLiveTourists)
-router.get('/risk-overview',       ctrl.getRiskOverview)
-router.get('/analytics',           ctrl.getAnalytics)
-router.get('/analytics/export',    ctrl.exportAnalyticsReport)
-router.get('/sos/active',          ctrl.getActiveSOS)
-router.patch('/sos/:id/assign',    validate(AssignRescueSchema),     ctrl.assignRescue)
-router.patch('/sos/:id/resolve',   validate(ResolveSOSSchema),       ctrl.resolveSOS)
-router.get('/rescue-teams',        ctrl.getRescueTeams)
-router.patch('/rescue-teams/:id/status', validate(UpdateTeamStatusSchema), ctrl.updateTeamStatus)
+router.get('/dashboard',           requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getDashboard)
+router.get('/tourists/live',       requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getLiveTourists)
+router.get('/risk-overview',       requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getRiskOverview)
+router.get('/analytics',           requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getAnalytics)
+router.get('/analytics/export',    requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.exportAnalyticsReport)
+router.get('/sos/active',          requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getActiveSOS)
+router.patch('/sos/:id/assign',    requireGovtRole(...COMMAND_CENTER_ROLES), validate(AssignRescueSchema),     ctrl.assignRescue)
+router.patch('/sos/:id/resolve',   requireGovtRole(...COMMAND_CENTER_ROLES), validate(ResolveSOSSchema),       ctrl.resolveSOS)
+router.get('/rescue-teams',        requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getRescueTeams)
+router.patch('/rescue-teams/:id/status', requireGovtRole(...COMMAND_CENTER_ROLES), validate(UpdateTeamStatusSchema), ctrl.updateTeamStatus)
 // Checkpoint scanning is a ground-level action — SUPER_ADMIN as a
-// superuser override, POLICE and TOURISM_OFFICER as the roles that
-// actually staff an ILP/entry checkpoint. DISTRICT_ADMIN/MEDICAL are
-// desk/oversight roles and don't perform scans, but can still view the log.
+// superuser override, POLICE and TOURISM_OFFICER as roles that can staff a
+// checkpoint alongside their normal command-center access, and the
+// dedicated CHECKPOINT_OFFICER role whose only access is this. DISTRICT_ADMIN
+// /MEDICAL are desk/oversight roles and don't perform scans, but can still
+// view the log below.
 router.post('/checkpoint/scan',
-  requireGovtRole(GOVT_ROLES.SUPER_ADMIN, GOVT_ROLES.POLICE, GOVT_ROLES.TOURISM_OFFICER),
+  requireGovtRole(GOVT_ROLES.SUPER_ADMIN, GOVT_ROLES.POLICE, GOVT_ROLES.TOURISM_OFFICER, GOVT_ROLES.CHECKPOINT_OFFICER),
   validate(ScanCheckpointSchema), ctrl.scanCheckpoint)
 router.get('/checkpoint/recent',   ctrl.getRecentCheckpointScans)
-router.post('/destinations/:id/news', validate(PostNewsSchema), ctrl.postDestinationNews)
+router.post('/destinations/:id/news', requireGovtRole(...COMMAND_CENTER_ROLES), validate(PostNewsSchema), ctrl.postDestinationNews)
 
 module.exports = router

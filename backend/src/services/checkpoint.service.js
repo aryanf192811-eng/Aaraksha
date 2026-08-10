@@ -29,7 +29,7 @@ async function getCheckpointQR(touristId) {
   return { token, qrDataUri, expiresInSeconds: CHECKPOINT_TOKEN_TTL_SECONDS }
 }
 
-async function scanCheckpoint(rawToken, govtUserId, checkpointName, district) {
+async function scanCheckpoint(rawToken, govtUserId, checkpointName, district, latitude, longitude) {
   let payload
   try {
     payload = jwt.verify(rawToken, config.jwt.secret)
@@ -51,12 +51,15 @@ async function scanCheckpoint(rawToken, govtUserId, checkpointName, district) {
   if (!tourist || !tourist.is_active) throw Object.assign(new Error(ERRORS.NOT_FOUND), { statusCode: 404 })
 
   const activeTrip = await tripRepo.findActiveByTouristId(tourist.id)
-  const scan = await checkpointRepo.create({ touristId: tourist.id, govtUserId, checkpointName, district })
+  const scan = await checkpointRepo.create({ touristId: tourist.id, govtUserId, checkpointName, district, latitude, longitude })
 
   logger.info({ touristId: tourist.id, govtUserId, checkpointName }, 'Checkpoint scan recorded')
 
   return {
-    scan: { id: scan.id, checkpointName: scan.checkpoint_name, district: scan.district, scannedAt: scan.scanned_at },
+    scan: {
+      id: scan.id, checkpointName: scan.checkpoint_name, district: scan.district,
+      latitude: scan.latitude, longitude: scan.longitude, scannedAt: scan.scanned_at,
+    },
     tourist: {
       id:               tourist.id,
       fullName:         tourist.full_name,

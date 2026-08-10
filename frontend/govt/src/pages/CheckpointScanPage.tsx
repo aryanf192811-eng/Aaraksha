@@ -9,10 +9,10 @@
 // server-side (requireGovtRole on POST /govt/checkpoint/scan); this check
 // is just so a DISTRICT_ADMIN/MEDICAL account sees a clear explanation
 // instead of a scan form that would fail with 403 on submit.
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { QrCode, Loader2, Droplet, Phone, ShieldCheck, MapPin, Clock, AlertTriangle, ScanLine, LogOut, Lock, Camera, Keyboard } from 'lucide-react'
+import { QrCode, Loader2, Droplet, Phone, ShieldCheck, MapPin, Clock, AlertTriangle, ScanLine, LogOut, Lock, Camera, Keyboard, LocateFixed, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -21,12 +21,14 @@ import govtApi, { type CheckpointScanResult } from '../api/govt.api'
 import { useAuthStore } from '../store/auth.store'
 import { formatTimeAgo, cn } from '../lib/utils'
 
-export const ALLOWED_CHECKPOINT_ROLES = ['SUPER_ADMIN', 'POLICE', 'TOURISM_OFFICER']
+export const ALLOWED_CHECKPOINT_ROLES = ['SUPER_ADMIN', 'POLICE', 'TOURISM_OFFICER', 'CHECKPOINT_OFFICER']
 
 const TSI_COLOR: Record<string, string> = {
   SAFE: 'text-emerald-600 bg-emerald-100', MODERATE: 'text-amber-600 bg-amber-100',
   RISKY: 'text-orange-600 bg-orange-100', EXTREME: 'text-red-600 bg-red-100',
 }
+
+type GeoStatus = 'locating' | 'found' | 'denied' | 'unavailable'
 
 export default function CheckpointScanPage() {
   const navigate = useNavigate()
@@ -37,8 +39,49 @@ export default function CheckpointScanPage() {
   const [result, setResult] = useState<CheckpointScanResult | null>(null)
   const [showScanner, setShowScanner] = useState(false)
   const [showManualEntry, setShowManualEntry] = useState(false)
+  const [geoStatus, setGeoStatus] = useState<GeoStatus>('locating')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
 
   const authorized = !!govtUser && ALLOWED_CHECKPOINT_ROLES.includes(govtUser.role)
+
+  // The whole point: an officer opens this page and it's already ready to
+  // scan — no typing a checkpoint name or district by hand. GPS gives the
+  // coordinates; Nominatim (OpenStreetMap's free reverse-geocoder, same
+  // provider the live map already uses) turns that into a readable name.
+  // Reverse geocoding is best-effort — a failure there still leaves the raw
+  // coordinates usable, and the fields stay editable either way.
+  const locate = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGeoStatus('unavailable')
+      return
+    }
+    setGeoStatus('locating')
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude
+        const lng = pos.coords.longitude
+        setCoords({ lat, lng })
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=14`)
+          const data = await res.json()
+          const addr = data.address || {}
+          const place = addr.village || addr.town || addr.suburb || addr.city || addr.county
+            || (typeof data.display_name === 'string' ? data.display_name.split(',')[0] : null)
+          setCheckpointName(place ? `${place} Checkpoint` : `Checkpoint @ ${lat.toFixed(4)}, ${lng.toFixed(4)}`)
+          setDistrict(addr.state_district || addr.county || addr.city_district || '')
+        } catch {
+          setCheckpointName(`Checkpoint @ ${lat.toFixed(4)}, ${lng.toFixed(4)}`)
+        }
+        setGeoStatus('found')
+      },
+      () => setGeoStatus('denied'),
+      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 60_000 }
+    )
+  }, [])
+
+  useEffect(() => {
+    if (authorized) locate()
+  }, [authorized, locate])
 
   const { data: recentScans } = useQuery({
     queryKey: ['govt', 'checkpoint', 'recent'],
@@ -52,7 +95,13 @@ export default function CheckpointScanPage() {
   // the same tick, before a setState from onDetected would have flushed.
   const { mutate: scan, isPending: scanning } = useMutation({
     mutationFn: (scannedToken: string) =>
-      govtApi.scanCheckpoint({ token: scannedToken, checkpointName: checkpointName.trim(), district: district.trim() || undefined }),
+      govtApi.scanCheckpoint({
+        token: scannedToken,
+        checkpointName: checkpointName.trim(),
+        district: district.trim() || undefined,
+        latitude: coords?.lat,
+        longitude: coords?.lng,
+      }),
     onSuccess: (res) => {
       setResult(res.data.data)
       setToken('')
@@ -118,6 +167,25 @@ export default function CheckpointScanPage() {
               <QrCode className="w-4 h-4" /> Scan Tourist
             </h2>
             <div className="space-y-3">
+              {/* Auto-detect status — this is the whole point: an officer
+                  shouldn't have to type anything to start scanning. */}
+              <div className={cn(
+                'flex items-center gap-2 text-xs font-semibold rounded-lg px-3 py-2',
+                geoStatus === 'found' && 'bg-emerald-50 text-emerald-700',
+                geoStatus === 'locating' && 'bg-surface-container text-on-surface-variant',
+                (geoStatus === 'denied' || geoStatus === 'unavailable') && 'bg-amber-50 text-amber-700'
+              )}>
+                {geoStatus === 'locating' && <><Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" /> Detecting checkpoint location…</>}
+                {geoStatus === 'found' && <><LocateFixed className="w-3.5 h-3.5 flex-shrink-0" /> Location auto-filled from GPS</>}
+                {geoStatus === 'denied' && <><AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" /> Location permission denied — enter manually</>}
+                {geoStatus === 'unavailable' && <><AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" /> Location not supported — enter manually</>}
+                {geoStatus !== 'locating' && (
+                  <button type="button" onClick={locate} className="ml-auto flex items-center gap-1 hover:underline flex-shrink-0">
+                    <RefreshCw className="w-3 h-3" /> Retry
+                  </button>
+                )}
+              </div>
+
               <div>
                 <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Checkpoint Name *</label>
                 <Input value={checkpointName} onChange={(e) => setCheckpointName(e.target.value)} placeholder="e.g. Dimapur ILP Checkpost" className="h-12 text-base" />
