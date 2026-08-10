@@ -8,7 +8,8 @@ const { DMSRepository } = require('../repositories/dms.repository')
 const { LocationRepository } = require('../repositories/location.repository')
 const { DestinationRepository } = require('../repositories/destination.repository')
 const { TripRepository } = require('../repositories/trip.repository')
-const { emitSOSResolved, emitRescueAssigned } = require('../socket/emitters')
+const { TouristRepository } = require('../repositories/tourist.repository')
+const { emitSOSResolved, emitRescueAssigned, emitGuardianRescueAssigned } = require('../socket/emitters')
 const { SOS_STATUSES, TEAM_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const logger = require('../utils/logger')
@@ -70,6 +71,14 @@ async function assignRescue(sosId, govtUserId, teamId, notes) {
   })
 
   emitRescueAssigned(assignment, sos, team)
+  if (sos.tourist_id) {
+    // Best-effort: the guardian push is a nice-to-have live update, not a
+    // step the assignment itself depends on — a lookup failure here must
+    // never undo an already-committed rescue dispatch.
+    new TouristRepository().findById(sos.tourist_id)
+      .then(tourist => { if (tourist?.guardian_token) emitGuardianRescueAssigned(tourist.guardian_token, sos, team) })
+      .catch(err => logger.error({ err: { message: err.message }, sosId }, 'Guardian rescue-assigned push failed'))
+  }
   logger.info({ sosId, teamId, assignmentId: assignment.id }, 'Rescue assigned')
   return { assignment, sosStatus: SOS_STATUSES.ASSIGNED, teamStatus: TEAM_STATUSES.DEPLOYED }
 }

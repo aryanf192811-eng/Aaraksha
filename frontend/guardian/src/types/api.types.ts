@@ -272,6 +272,11 @@ export interface GuardianView {
     category: string
     status: string
     createdAt: string
+    rescueTeam: {
+      name: string
+      type: string
+      etaMinutes: number | null
+    } | null
   } | null
   activeTripCity: string | null
   tsiScore: number | null

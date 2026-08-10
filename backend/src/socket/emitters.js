@@ -202,8 +202,24 @@ function emitGuardianSOSAlert(guardianToken, sosEvent, tourist) {
   })
 }
 
+// Guardian room: a rescue team was dispatched to this tourist's SOS — the
+// guardian sees the same "help is on the way" state the tourist does,
+// instead of just a static red SOS banner until their next 30s poll.
+function emitGuardianRescueAssigned(guardianToken, sosEvent, team) {
+  if (!guardianToken) return
+  const eta = estimateRescueEtaMinutes(team.latitude, team.longitude, sosEvent.latitude, sosEvent.longitude)
+  safeEmit(SOCKET_ROOMS.guardian(guardianToken), SOCKET_EVENTS.GUARDIAN_ETA_UPDATE, {
+    sosId:      sosEvent.id,
+    status:     'ASSIGNED',
+    teamName:   team.name,
+    teamType:   team.type,
+    distanceKm: eta?.distanceKm ?? null,
+    etaMinutes: eta?.etaMinutes ?? null,
+  })
+}
+
 module.exports = {
   emitSOSReceived, emitSOSResolved, emitRescueAssigned, emitDMSTriggered,
-  emitTSIUpdated, emitCheckinUpdate, emitGuardianSOSAlert, emitWeatherRiskIncreased,
-  emitGroupSOSAlert, emitDestinationNewsCritical,
+  emitTSIUpdated, emitCheckinUpdate, emitGuardianSOSAlert, emitGuardianRescueAssigned,
+  emitWeatherRiskIncreased, emitGroupSOSAlert, emitDestinationNewsCritical,
 }

@@ -6,6 +6,7 @@ const { LocationRepository } = require('../repositories/location.repository')
 const { SOSRepository }      = require('../repositories/sos.repository')
 const { TripRepository }     = require('../repositories/trip.repository')
 const { normalizePhone } = require('../utils/crypto')
+const { estimateRescueEtaMinutes } = require('../utils/geo')
 const { ERRORS } = require('../constants/errors')
 
 // tourists.rescue_readiness_score is a DB column that nothing ever wrote —
@@ -99,7 +100,13 @@ async function getGuardianView(token) {
     tripRepo.findActiveByTouristId(tourist.id),
   ])
 
-  const activeSOS = location ? await sosRepo.findLatestActiveByTouristId(tourist.id) : null
+  // Joins to the current (non-resolved) rescue assignment, if any, so the
+  // guardian can see "help is on the way" instead of just a static "SOS
+  // active" — the same detail the tourist's own app already gets.
+  const activeSOS = location ? await sosRepo.findActiveWithRescueInfo(tourist.id) : null
+  const rescueEta = activeSOS?.team_id
+    ? estimateRescueEtaMinutes(activeSOS.team_lat, activeSOS.team_lng, activeSOS.latitude, activeSOS.longitude)
+    : null
 
   // node-postgres auto-parses JSONB columns into real JS values, so `stops`
   // arrives as an already-parsed array, not a string — JSON.parse on it
@@ -120,7 +127,13 @@ async function getGuardianView(token) {
       batteryPct: location.battery_pct,
       updatedAt:  location.updated_at,
     } : null,
-    activeSOS:    activeSOS ? { id: activeSOS.id, category: activeSOS.category, createdAt: activeSOS.created_at } : null,
+    activeSOS:    activeSOS ? {
+      id: activeSOS.id, category: activeSOS.category, status: activeSOS.status, createdAt: activeSOS.created_at,
+      rescueTeam: activeSOS.team_id ? {
+        name: activeSOS.team_name, type: activeSOS.team_type,
+        etaMinutes: rescueEta?.etaMinutes ?? null,
+      } : null,
+    } : null,
     activeTripCity: activeStops[0]?.city ?? null,
     tsiScore:     activeTrip?.tsi_score ?? null,
     tsiLabel:     activeTrip?.tsi_label ?? null,

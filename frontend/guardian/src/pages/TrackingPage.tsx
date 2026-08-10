@@ -2,7 +2,7 @@
 // Shows: status banner (safe/warning/SOS) -> map -> last checkin time -> TSI -> medical info
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off, LocateFixed } from 'lucide-react'
+import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off, LocateFixed, Truck } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
@@ -20,7 +20,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 })
 
-type StatusType = 'SAFE' | 'SOS' | 'WARNING' | 'NO_SIGNAL'
+type StatusType = 'SAFE' | 'SOS' | 'ASSIGNED' | 'WARNING' | 'NO_SIGNAL'
 
 const STATUS_CONFIG: Record<StatusType, {
   banner: string; Icon: typeof CheckCircle2; headline: (name: string) => string; sub: string; dotColor: string
@@ -37,6 +37,16 @@ const STATUS_CONFIG: Record<StatusType, {
     Icon:     Siren,
     headline: (n) => `${n} needs help!`,
     sub:      'Emergency services have been notified',
+    dotColor: 'bg-surface-container-lowest animate-pulse',
+  },
+  // Distinct from SOS on purpose — once a rescue team is actually dispatched
+  // this is no longer "we don't know what's happening," it's "help is
+  // confirmed and on the way," and the color should say that at a glance.
+  ASSIGNED: {
+    banner:   'bg-amber-500 text-white',
+    Icon:     Truck,
+    headline: (n) => `Help is on the way to ${n}`,
+    sub:      'A rescue team has been dispatched',
     dotColor: 'bg-surface-container-lowest animate-pulse',
   },
   WARNING: {
@@ -70,7 +80,7 @@ function RecenterControl({ center }: { center: [number, number] }) {
 
 function getStatus(view: GuardianView | null): StatusType {
   if (!view) return 'NO_SIGNAL'
-  if (view.activeSOS) return 'SOS'
+  if (view.activeSOS) return view.activeSOS.status === 'ASSIGNED' ? 'ASSIGNED' : 'SOS'
   if (!view.location) return 'NO_SIGNAL'
   const lastSeen = new Date(view.location.updatedAt).getTime()
   const ageMin = (Date.now() - lastSeen) / 60000
@@ -109,9 +119,9 @@ export default function TrackingPage() {
   }, [token])
 
   // Socket.IO: real-time updates via the shared singleton (guardian-scoped
-  // auth). Note: the backend's GUARDIAN_SOS_ALERT emitter exists but isn't
-  // currently wired into any service call, so SOS visibility here relies on
-  // the 30s poll above, not this listener — kept for when it is wired in.
+  // auth). GUARDIAN_SOS_ALERT and GUARDIAN_ETA_UPDATE are both wired
+  // server-side (see sos.service.js / dms.service.js and govt.service.js's
+  // assignRescue), so this is a live push, not just the 30s poll fallback.
   useEffect(() => {
     if (!token) return
     const socket = connectSocket('guardian', token)
@@ -120,7 +130,17 @@ export default function TrackingPage() {
       setLastRefresh(new Date())
     })
     socket.on('GUARDIAN_SOS_ALERT', (data) => {
-      setView(prev => prev ? { ...prev, activeSOS: { id: data.sosId, category: data.category, status: 'ACTIVE', createdAt: data.createdAt } } : prev)
+      setView(prev => prev ? { ...prev, activeSOS: { id: data.sosId, category: data.category, status: 'ACTIVE', createdAt: data.createdAt, rescueTeam: null } } : prev)
+    })
+    socket.on('GUARDIAN_ETA_UPDATE', (data) => {
+      setView(prev => (prev && prev.activeSOS) ? {
+        ...prev,
+        activeSOS: {
+          ...prev.activeSOS,
+          status: data.status,
+          rescueTeam: { name: data.teamName, type: data.teamType, etaMinutes: data.etaMinutes },
+        },
+      } : prev)
     })
     return () => { disconnectSocket() }
   }, [token])
@@ -129,7 +149,11 @@ export default function TrackingPage() {
   const statusConfig = STATUS_CONFIG[status]
   const StatusIcon = statusConfig.Icon
   const name = view?.firstName || 'Traveler'
+  // SOS and ASSIGNED share the "urgent, white-on-color" banner treatment —
+  // the color itself (red vs amber) is what tells them apart.
+  const isUrgent = status === 'SOS' || status === 'ASSIGNED'
   const isSOSActive = status === 'SOS'
+  const isAssigned = status === 'ASSIGNED'
 
   if (loading) {
     return (
@@ -164,24 +188,36 @@ export default function TrackingPage() {
       </div>
 
       {/* ── Status Banner ─────────────────────────────────────── */}
-      <div className={`${statusConfig.banner} ${isSOSActive ? 'min-h-[180px]' : 'min-h-[100px]'} px-6 py-6 flex flex-col justify-center`}>
+      <div className={`${statusConfig.banner} ${isUrgent ? 'min-h-[180px]' : 'min-h-[100px]'} px-6 py-6 flex flex-col justify-center`}>
         <div className="flex items-center gap-2 mb-2">
           <div className={`w-3 h-3 rounded-full ${statusConfig.dotColor}`} />
-          <span className={`text-xs font-bold uppercase tracking-widest ${isSOSActive ? 'text-red-100' : 'text-on-surface-variant'}`}>
+          <span className={`text-xs font-bold uppercase tracking-widest ${isUrgent ? 'text-white/80' : 'text-on-surface-variant'}`}>
             {status.replace('_', ' ')}
           </span>
         </div>
-        <h1 className={`flex items-center gap-2.5 text-3xl font-black leading-tight ${isSOSActive ? 'text-white' : 'text-on-surface'}`}>
+        <h1 className={`flex items-center gap-2.5 text-3xl font-black leading-tight ${isUrgent ? 'text-white' : 'text-on-surface'}`}>
           <StatusIcon className="w-7 h-7 flex-shrink-0" />
           {statusConfig.headline(name)}
         </h1>
-        <p className={`text-sm mt-1 ${isSOSActive ? 'text-red-100' : 'text-on-surface-variant'}`}>
+        <p className={`text-sm mt-1 ${isUrgent ? 'text-white/80' : 'text-on-surface-variant'}`}>
           {statusConfig.sub}
         </p>
         {isSOSActive && view?.activeSOS && (
           <div className="mt-3 bg-red-600 rounded-xl px-4 py-2">
             <p className="text-white text-sm font-bold">Category: {view.activeSOS.category}</p>
             <p className="text-red-100 text-xs">Triggered at {new Date(view.activeSOS.createdAt).toLocaleTimeString('en-IN')}</p>
+          </div>
+        )}
+        {isAssigned && view?.activeSOS && (
+          <div className="mt-3 bg-amber-600 rounded-xl px-4 py-2">
+            <p className="text-white text-sm font-bold flex items-center gap-1.5">
+              <Truck className="w-4 h-4 flex-shrink-0" />
+              {view.activeSOS.rescueTeam?.name ?? 'Rescue team'} dispatched
+            </p>
+            <p className="text-amber-100 text-xs">
+              {view.activeSOS.rescueTeam?.type ? `${view.activeSOS.rescueTeam.type} · ` : ''}
+              {view.activeSOS.rescueTeam?.etaMinutes != null ? `ETA ~${view.activeSOS.rescueTeam.etaMinutes} min` : 'On the way'}
+            </p>
           </div>
         )}
       </div>
@@ -199,12 +235,12 @@ export default function TrackingPage() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution="© OpenStreetMap"
             />
-            {/* SOS pulse ring */}
-            {isSOSActive && (
+            {/* Urgent pulse ring — red while unassigned, amber once a team is dispatched */}
+            {isUrgent && (
               <Circle
                 center={[view.location.latitude, view.location.longitude]}
                 radius={500}
-                color="#ef4444" fillColor="#ef4444" fillOpacity={0.15}
+                color={isAssigned ? '#f59e0b' : '#ef4444'} fillColor={isAssigned ? '#f59e0b' : '#ef4444'} fillOpacity={0.15}
               />
             )}
             <Marker position={[view.location.latitude, view.location.longitude]}>
