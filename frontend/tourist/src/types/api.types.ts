@@ -191,6 +191,7 @@ export interface DMS {
   tourist_id: string
   trip_id: string | null
   interval_minutes: number
+  interval_seconds: number | null
   last_reset_at: string
   next_trigger_at: string
   warning_sent_at: string | null

@@ -17,8 +17,15 @@ async function createDMS(touristId, data) {
   const repo = new DMSRepository()
   const existing = await repo.findActiveByTouristId(touristId)
   if (existing) throw Object.assign(new Error(ERRORS.DMS_ALREADY_ACTIVE), { statusCode: 400 })
-  const dms = await repo.create({ touristId, tripId: data.tripId || null, intervalMinutes: data.intervalMinutes })
-  logger.info({ dmsId: dms.id, touristId, intervalMinutes: data.intervalMinutes }, 'DMS created')
+  const dms = await repo.create({
+    touristId,
+    tripId: data.tripId || null,
+    // demoSeconds present => interval_minutes stores the sentinel 0 (see
+    // migration 008); intervalMinutes present => interval_seconds stays null.
+    intervalMinutes: data.demoSeconds != null ? 0 : data.intervalMinutes,
+    intervalSeconds: data.demoSeconds ?? null,
+  })
+  logger.info({ dmsId: dms.id, touristId, intervalMinutes: data.intervalMinutes, demoSeconds: data.demoSeconds }, 'DMS created')
   return dms
 }
 
@@ -37,7 +44,7 @@ async function resetDMS(dmsId, touristId, data) {
     const locationRepo = new LocationRepository(client)
     const touristRepo  = new TouristRepository(client)
 
-    const dmsUpdated = await dmsRepo_t.reset(dmsId, dms.interval_minutes)
+    const dmsUpdated = await dmsRepo_t.reset(dmsId, dms.interval_minutes, dms.interval_seconds)
 
     const checkin = await checkinRepo.create({
       touristId,

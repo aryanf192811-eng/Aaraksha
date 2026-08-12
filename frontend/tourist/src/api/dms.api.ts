@@ -4,7 +4,8 @@ import api from './client'
 import type { APIResponse, DMS, Checkin } from '../types/api.types'
 
 export interface CreateDMSPayload {
-  intervalMinutes: number     // 15 to 480
+  intervalMinutes?: number    // 15 to 480 — omit when demoSeconds is set
+  demoSeconds?: number        // 5 to 120 — judge-demo escape hatch, see backend validator
   tripId?: string | null
 }
 

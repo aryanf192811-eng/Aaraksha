@@ -36,13 +36,17 @@ const DMS_INTERVALS = [
   { label: '30 min', value: 30 }, { label: '1 hour', value: 60 },
   { label: '2 hours', value: 120 }, { label: '3 hours', value: 180 },
 ]
+// Judge-demo-only quick pick — bypasses the real 15-480 min minimum via the
+// backend's separate demoSeconds path (see dms.validator.js) so the
+// auto-SOS mechanism can be shown live without a real wait.
+const DMS_DEMO_SECONDS = 20
 
 export default function SOSPage() {
   const navigate = useNavigate()
   const [category, setCategory] = useState<SOSCategory>('OTHER')
   const [message, setMessage] = useState('')
   const [showDMSSetup, setShowDMSSetup] = useState(false)
-  const [dmsInterval, setDmsInterval] = useState(60)
+  const [dmsInterval, setDmsInterval] = useState<number | 'demo'>(60)
   const [confirmingDisable, setConfirmingDisable] = useState(false)
   const { sendSOS, sending } = useSOS()
   const { batteryPct } = useBattery()
@@ -62,9 +66,13 @@ export default function SOSPage() {
   }, [])
 
   const { mutate: createDMS, isPending: creatingDMS } = useMutation({
-    mutationFn: () => dmsApi.createDMS({ intervalMinutes: dmsInterval }),
+    mutationFn: () => dmsInterval === 'demo'
+      ? dmsApi.createDMS({ demoSeconds: DMS_DEMO_SECONDS })
+      : dmsApi.createDMS({ intervalMinutes: dmsInterval }),
     onSuccess: () => {
-      toast.success(`Dead Man's Switch activated — check in every ${dmsInterval} min`)
+      toast.success(dmsInterval === 'demo'
+        ? `Dead Man's Switch activated — demo mode, ${DMS_DEMO_SECONDS}s`
+        : `Dead Man's Switch activated — check in every ${dmsInterval} min`)
       queryClient.invalidateQueries({ queryKey: ['dms', 'active'] })
       setShowDMSSetup(false)
     },
@@ -192,7 +200,21 @@ export default function SOSPage() {
             </div>
           </div>
 
-          {dms && dms.status === 'ACTIVE' ? (
+          {dms && dms.status === 'TRIGGERED' ? (
+            <div className="space-y-2">
+              <div className="bg-red-50 border border-red-300 rounded-xl p-4 text-center">
+                <p className="font-bold text-red-700">Missed check-in — auto-SOS was sent</p>
+                <p className="text-xs text-red-600/80 mt-1">Dismiss to re-arm a new switch</p>
+              </div>
+              <button
+                onClick={() => disableDMS(dms.id)}
+                disabled={disabling}
+                className="w-full rounded-full h-11 text-sm font-bold border-2 border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors"
+              >
+                {disabling ? 'Dismissing...' : 'Dismiss'}
+              </button>
+            </div>
+          ) : dms && dms.status === 'ACTIVE' ? (
             <div className="space-y-2">
               <div className="bg-tsi-low/10 border border-tsi-low/30 rounded-xl p-4 text-center">
                 <p className="flex items-center justify-center gap-1.5 font-bold text-tsi-low">
@@ -246,9 +268,17 @@ export default function SOSPage() {
                       </button>
                     ))}
                   </div>
+                  <button type="button" onClick={() => setDmsInterval('demo')}
+                    className={cn('w-full rounded-xl border-2 border-dashed py-2 text-center text-xs font-bold transition-all flex items-center justify-center gap-1.5',
+                      dmsInterval === 'demo' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant'
+                    )}>
+                    <Timer className="w-3.5 h-3.5" /> {DMS_DEMO_SECONDS} sec (Demo for judges)
+                  </button>
                   <button onClick={() => createDMS()} disabled={creatingDMS}
                     className="w-full bg-on-surface text-surface font-bold rounded-full h-12 flex items-center justify-center active:scale-95 transition-all">
-                    {creatingDMS ? <Loader2 className="w-5 h-5 animate-spin" /> : `Activate — ${dmsInterval} min intervals`}
+                    {creatingDMS
+                      ? <Loader2 className="w-5 h-5 animate-spin" />
+                      : dmsInterval === 'demo' ? `Activate — ${DMS_DEMO_SECONDS}s demo` : `Activate — ${dmsInterval} min intervals`}
                   </button>
                 </div>
               )}

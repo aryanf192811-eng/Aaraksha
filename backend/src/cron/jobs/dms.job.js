@@ -19,9 +19,13 @@ function startDMSJobs() {
     }
   }, { scheduled: true, timezone: 'Asia/Kolkata' })
 
-  // ── DMS Trigger: every minute ─────────────────────────────────────
-  // Auto-creates SOS for tourists who missed their check-in deadline
-  cron.schedule('* * * * *', async () => {
+  // ── DMS Trigger: every 5 seconds ────────────────────────────────────
+  // Auto-creates SOS for tourists who missed their check-in deadline.
+  // Runs far more often than the minutes-based interval strictly needs,
+  // so that demo-mode switches (armed for as little as 5-120 seconds, for
+  // showing the mechanism live to judges) fire promptly instead of
+  // silently waiting out the rest of a minute-granularity check.
+  cron.schedule('*/5 * * * * *', async () => {
     try {
       const result = await processDMSTriggers()
       if (result.processed > 0) {
@@ -32,7 +36,7 @@ function startDMSJobs() {
     }
   }, { scheduled: true, timezone: 'Asia/Kolkata' })
 
-  logger.info('DMS cron jobs started (warn + trigger every minute)')
+  logger.info('DMS cron jobs started (warn every minute, trigger every 5s)')
 }
 
 module.exports = { startDMSJobs }

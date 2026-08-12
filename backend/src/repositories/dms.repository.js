@@ -5,21 +5,34 @@ const { BaseRepository } = require('./base.repository')
 
 class DMSRepository extends BaseRepository {
   async create(data) {
-    const nextTrigger = new Date(Date.now() + data.intervalMinutes * 60 * 1000)
+    const totalMs = data.intervalSeconds != null
+      ? data.intervalSeconds * 1000
+      : data.intervalMinutes * 60 * 1000
+    const nextTrigger = new Date(Date.now() + totalMs)
+    // Demo-mode switches (interval_seconds set) skip the 10-minute-early
+    // warning entirely — it would already be "due" the instant the switch
+    // is armed, since the whole window is shorter than the warning offset.
+    const warningSentAt = data.intervalSeconds != null ? new Date() : null
     return this.queryOne(`
-      INSERT INTO dead_mans_switches (tourist_id, trip_id, interval_minutes, next_trigger_at)
-      VALUES ($1, $2, $3, $4) RETURNING *`,
-      [data.touristId, data.tripId ?? null, data.intervalMinutes, nextTrigger]
+      INSERT INTO dead_mans_switches (tourist_id, trip_id, interval_minutes, interval_seconds, next_trigger_at, warning_sent_at)
+      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [data.touristId, data.tripId ?? null, data.intervalMinutes, data.intervalSeconds ?? null, nextTrigger, warningSentAt]
     )
   }
 
+  // Includes TRIGGERED (not just ACTIVE) so the frontend can render the
+  // "missed check-in, auto-SOS sent" state instead of the row just
+  // vanishing the instant it fires — it stops showing up again once the
+  // tourist disables/resolves it (status moves to PAUSED/RESOLVED). Also
+  // doubles as createDMS's "already have one running" guard, so a
+  // TRIGGERED switch has to be dismissed before a new one can be armed.
   async findActiveByTouristId(touristId) {
     return this.queryOne(`
       SELECT *,
         EXTRACT(EPOCH FROM (next_trigger_at - NOW()))::integer as seconds_remaining,
         EXTRACT(EPOCH FROM (next_trigger_at - INTERVAL '10 minutes' - NOW()))::integer as seconds_to_warning
       FROM dead_mans_switches
-      WHERE tourist_id = $1 AND status = 'ACTIVE'
+      WHERE tourist_id = $1 AND status IN ('ACTIVE', 'TRIGGERED')
       LIMIT 1`,
       [touristId]
     )
@@ -57,13 +70,17 @@ class DMSRepository extends BaseRepository {
     )
   }
 
-  async reset(id, intervalMinutes) {
-    const nextTrigger = new Date(Date.now() + intervalMinutes * 60 * 1000)
+  async reset(id, intervalMinutes, intervalSeconds) {
+    const totalMs = intervalSeconds != null ? intervalSeconds * 1000 : intervalMinutes * 60 * 1000
+    const nextTrigger = new Date(Date.now() + totalMs)
+    // Demo-mode switches re-arm already "warned" too, for the same reason
+    // create() sets it up front — see comment there.
+    const warningSentAt = intervalSeconds != null ? new Date() : null
     return this.queryOne(`
       UPDATE dead_mans_switches
-      SET last_reset_at=NOW(), next_trigger_at=$2, warning_sent_at=NULL
+      SET last_reset_at=NOW(), next_trigger_at=$2, warning_sent_at=$3
       WHERE id=$1 RETURNING *`,
-      [id, nextTrigger]
+      [id, nextTrigger, warningSentAt]
     )
   }
 

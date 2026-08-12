@@ -107,7 +107,9 @@ export function DMSCard({ dms, className }: DMSCardProps) {
       )}
 
       <p className="text-xs text-slate-400 text-center mt-2">
-        Interval: every {dms.interval_minutes} minutes
+        {dms.interval_seconds != null
+          ? `Interval: every ${dms.interval_seconds}s (demo mode)`
+          : `Interval: every ${dms.interval_minutes} minutes`}
       </p>
     </div>
   )
