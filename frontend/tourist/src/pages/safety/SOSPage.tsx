@@ -17,7 +17,7 @@ import { useBattery } from '../../hooks/useBattery'
 import { useDMS } from '../../hooks/useDMS'
 import { requestPanicGesturePermission } from '../../hooks/usePanicGesture'
 import { usePushNotifications, isPushSupported } from '../../hooks/usePushNotifications'
-import dmsApi from '../../api/dms.api'
+import dmsApi, { withSecondsRemaining } from '../../api/dms.api'
 import { queryClient } from '../../lib/queryClient'
 import { useSafetyStore } from '../../store/safety.store'
 import type { SOSCategory } from '../../constants/enums'
@@ -69,11 +69,13 @@ export default function SOSPage() {
     mutationFn: () => dmsInterval === 'demo'
       ? dmsApi.createDMS({ demoSeconds: DMS_DEMO_SECONDS })
       : dmsApi.createDMS({ intervalMinutes: dmsInterval }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       toast.success(dmsInterval === 'demo'
         ? `Dead Man's Switch activated — demo mode, ${DMS_DEMO_SECONDS}s`
         : `Dead Man's Switch activated — check in every ${dmsInterval} min`)
-      queryClient.invalidateQueries({ queryKey: ['dms', 'active'] })
+      // Set the cache directly rather than only invalidating — see the
+      // matching comment in useDMS.ts's resetDMSMutation for why.
+      queryClient.setQueryData(['dms', 'active'], withSecondsRemaining(res.data.data))
       setShowDMSSetup(false)
     },
   })
@@ -218,7 +220,10 @@ export default function SOSPage() {
             <div className="space-y-2">
               <div className="bg-tsi-low/10 border border-tsi-low/30 rounded-xl p-4 text-center">
                 <p className="flex items-center justify-center gap-1.5 font-bold text-tsi-low">
-                  <CheckCircle2 className="w-4 h-4" /> Active — Check-in every {dms.interval_minutes} min
+                  <CheckCircle2 className="w-4 h-4" />
+                  {dms.interval_seconds != null
+                    ? `Active — demo mode, ${dms.interval_seconds}s`
+                    : `Active — Check-in every ${dms.interval_minutes} min`}
                 </p>
                 <p className="text-xs text-tsi-low/80 mt-1">Tap "Check In" from the bottom nav to reset</p>
               </div>

@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import dmsApi from '../api/dms.api'
+import dmsApi, { withSecondsRemaining } from '../api/dms.api'
 import { useSafetyStore } from '../store/safety.store'
 import { useGeolocation } from './useGeolocation'
 import { useBattery } from './useBattery'
@@ -72,9 +72,15 @@ export function useDMS() {
         message:    'Manual check-in',
       })
     },
-    onSuccess: () => {
+    // Writes the response straight into the cache instead of only
+    // invalidating — invalidate schedules a background refetch, which is
+    // one more network round trip that can lose a race against a stale
+    // in-flight poll (useDMS's own refetchInterval fires every 5s once
+    // near a deadline). Setting the cache directly makes the UI update the
+    // instant the mutation resolves, with no dependency on refetch timing.
+    onSuccess: (res) => {
       toast.success('Checked in! DMS reset.')
-      queryClient.invalidateQueries({ queryKey: ['dms'] })
+      queryClient.setQueryData(['dms', 'active'], withSecondsRemaining(res.data.data.dms))
       queryClient.invalidateQueries({ queryKey: ['checkins'] })
     },
   })
@@ -87,7 +93,11 @@ export function useDMS() {
     mutationFn: (dmsId: string) => dmsApi.updateDMSStatus(dmsId, 'RESOLVED'),
     onSuccess: () => {
       toast.success("Dead Man's Switch disabled")
-      queryClient.invalidateQueries({ queryKey: ['dms'] })
+      // See the comment on resetDMSMutation's onSuccess — same reasoning.
+      // RESOLVED is filtered out of GET /dms/active's own query, so the
+      // correct cached value is unconditionally null, no need to wait on
+      // a refetch to learn that.
+      queryClient.setQueryData(['dms', 'active'], null)
     },
   })
 

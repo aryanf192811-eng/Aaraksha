@@ -16,6 +16,16 @@ export interface ResetDMSPayload {
   message?: string | null
 }
 
+// create()/reset() return the plain row (INSERT/UPDATE RETURNING *), which
+// has no seconds_remaining — that's only computed by GET /dms/active's own
+// query. Callers that cache a create/reset response directly (to update the
+// UI instantly instead of waiting on a refetch) need this filled in
+// themselves, or the countdown reads "0:00" until the next poll.
+export function withSecondsRemaining(dms: DMS): DMS {
+  const remaining = Math.round((new Date(dms.next_trigger_at).getTime() - Date.now()) / 1000)
+  return { ...dms, seconds_remaining: remaining }
+}
+
 const dmsApi = {
   createDMS: (data: CreateDMSPayload) =>
     api.post<APIResponse<DMS>>('/dms', data),
