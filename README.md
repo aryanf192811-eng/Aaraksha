@@ -28,7 +28,7 @@ government command center watching the same live picture the tourist sees — ti
 real-time data model instead of four disconnected apps.
 
 <p align="center">
-  <img src="./docs/screenshots/tourist-landing.png" alt="Aaraksha tourist app landing page" width="100%">
+  <img src="./docs/screenshots/govt-dashboard.png" alt="Aaraksha government command center dashboard" width="100%">
 </p>
 
 ---
