@@ -1,9 +1,9 @@
 // src/pages/AuthPage.tsx
-import { useState } from 'react'
+import { useState, type InputHTMLAttributes, type ComponentType } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, ShieldCheck, LocateFixed } from 'lucide-react'
+import { Loader2, ShieldCheck, LocateFixed, Phone, Lock, User, IdCard, MapPin, Navigation2, Radio, Award } from 'lucide-react'
 import volunteerApi from '../api/volunteer.api'
 import { useAuthStore } from '../store/auth.store'
 import { cn } from '../lib/utils'
@@ -14,6 +14,24 @@ const GOVT_ID_TYPES = [
   { value: 'VOTER_ID', label: 'Voter ID' },
   { value: 'DRIVING_LICENSE', label: "Driving Licence" },
 ] as const
+
+// Icon-prefixed input — every field in this form uses it, so the pattern
+// lives once here rather than repeated six times below.
+function IconField({ icon: Icon, ...props }: { icon: ComponentType<{ className?: string }> } & InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className="relative">
+      <Icon className="w-4.5 h-4.5 text-on-surface-variant absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+      <input {...props}
+        className="w-full h-12 rounded-xl border border-outline-variant pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+    </div>
+  )
+}
+
+const WHY_VOLUNTEER = [
+  { icon: Radio, text: 'Get alerted the moment someone nearby needs help' },
+  { icon: Navigation2, text: 'Live road-routed navigation straight to them' },
+  { icon: Award, text: 'Build a public reputation with every response' },
+]
 
 export default function AuthPage() {
   const navigate = useNavigate()
@@ -73,15 +91,18 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col items-center px-5 pt-14 pb-10 font-sans">
+    <div className={cn(
+      'min-h-[100dvh] bg-surface flex flex-col items-center px-5 font-sans',
+      tab === 'login' ? 'justify-center py-10' : 'pt-[max(2.5rem,env(safe-area-inset-top))] pb-10'
+    )}>
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2.5 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
-            <ShieldCheck className="w-5.5 h-5.5 text-primary-foreground" />
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center flex-shrink-0 shadow-sm">
+            <ShieldCheck className="w-6.5 h-6.5 text-primary-foreground" />
           </div>
           <div>
-            <p className="font-display font-black text-on-surface leading-tight">Aaraksha</p>
-            <p className="text-xs text-on-surface-variant leading-tight">Rescuer</p>
+            <p className="font-display font-black text-on-surface leading-tight text-lg">Aaraksha Rescuer</p>
+            <p className="text-xs text-on-surface-variant leading-tight">Verified local emergency response</p>
           </div>
         </div>
 
@@ -97,38 +118,46 @@ export default function AuthPage() {
         </div>
 
         {tab === 'login' ? (
-          <form onSubmit={(e) => { e.preventDefault(); login() }} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-on-surface">Phone Number</label>
-              <input value={loginPhone} onChange={(e) => setLoginPhone(e.target.value)} placeholder="9876543210"
-                className="w-full h-12 rounded-xl border border-outline-variant px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+          <>
+            <form onSubmit={(e) => { e.preventDefault(); login() }} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-on-surface">Phone Number</label>
+                <IconField icon={Phone} value={loginPhone} onChange={(e) => setLoginPhone(e.target.value)} placeholder="9876543210" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-on-surface">Password</label>
+                <IconField icon={Lock} type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
+              </div>
+              <button type="submit" disabled={loggingIn}
+                className="w-full h-12 bg-primary text-primary-foreground rounded-full font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
+                {loggingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Log In'}
+              </button>
+            </form>
+
+            <div className="mt-10 space-y-3.5">
+              {WHY_VOLUNTEER.map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-4 h-4 text-primary" />
+                  </div>
+                  <p className="text-sm text-on-surface-variant leading-snug">{text}</p>
+                </div>
+              ))}
             </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-on-surface">Password</label>
-              <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full h-12 rounded-xl border border-outline-variant px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
-            </div>
-            <button type="submit" disabled={loggingIn}
-              className="w-full h-12 bg-primary text-primary-foreground rounded-full font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
-              {loggingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Log In'}
-            </button>
-          </form>
+          </>
         ) : (
           <form onSubmit={(e) => { e.preventDefault(); register() }} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-on-surface">Full Name</label>
-              <input value={fullName} onChange={(e) => setFullName(e.target.value)}
-                className="w-full h-12 rounded-xl border border-outline-variant px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+              <IconField icon={User} value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-on-surface">Phone Number</label>
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile"
-                className="w-full h-12 rounded-xl border border-outline-variant px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+              <IconField icon={Phone} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile" />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-on-surface">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-12 rounded-xl border border-outline-variant px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+              <IconField icon={Lock} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -140,20 +169,17 @@ export default function AuthPage() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-on-surface">ID Number</label>
-                <input value={govtIdNumber} onChange={(e) => setGovtIdNumber(e.target.value)}
-                  className="w-full h-12 rounded-xl border border-outline-variant px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+                <IconField icon={IdCard} value={govtIdNumber} onChange={(e) => setGovtIdNumber(e.target.value)} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-on-surface">District</label>
-                <input value={district} onChange={(e) => setDistrict(e.target.value)}
-                  className="w-full h-12 rounded-xl border border-outline-variant px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+                <IconField icon={MapPin} value={district} onChange={(e) => setDistrict(e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-on-surface">State</label>
-                <input value={state} onChange={(e) => setState(e.target.value)}
-                  className="w-full h-12 rounded-xl border border-outline-variant px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+                <IconField icon={MapPin} value={state} onChange={(e) => setState(e.target.value)} />
               </div>
             </div>
 

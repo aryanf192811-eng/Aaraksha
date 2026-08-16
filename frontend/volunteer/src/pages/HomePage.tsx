@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ShieldCheck, LogOut, Award, MapPin, Clock, CheckCircle2, XCircle, Siren, ShieldAlert, Truck } from 'lucide-react'
+import { ShieldCheck, LogOut, Award, MapPin, Clock, CheckCircle2, XCircle, Siren, ShieldAlert, Truck, Radio } from 'lucide-react'
 import volunteerApi from '../api/volunteer.api'
 import { connectSocket, disconnectSocket } from '../lib/socket'
 import { queryClient } from '../lib/queryClient'
@@ -180,7 +180,7 @@ export default function HomePage() {
           )}
         </section>
 
-        {history.length > 0 && (
+        {history.length > 0 ? (
           <section>
             <h2 className="font-display font-black text-on-surface mb-3">History</h2>
             <div className="space-y-2">
@@ -194,6 +194,24 @@ export default function HomePage() {
                     <p className="text-xs text-on-surface-variant">{formatTimeAgo(d.assigned_at)}</p>
                   </div>
                   {d.points_awarded > 0 && <span className="text-xs font-bold text-primary">+{d.points_awarded}</span>}
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <section>
+            <h2 className="font-display font-black text-on-surface mb-3">How dispatch works</h2>
+            <div className="space-y-3">
+              {[
+                { icon: Radio, text: `Stay "Available" and you'll get an alert the instant an SOS fires nearby` },
+                { icon: Siren, text: 'Respond, and a live road route to them opens automatically' },
+                { icon: Award, text: 'Complete the response to earn reputation points' },
+              ].map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-3 bg-surface-container-lowest rounded-2xl px-4 py-3.5">
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-4.5 h-4.5 text-primary" />
+                  </div>
+                  <p className="text-sm text-on-surface-variant leading-snug">{text}</p>
                 </div>
               ))}
             </div>
