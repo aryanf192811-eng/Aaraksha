@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
@@ -17,4 +18,5 @@ export default defineConfig({
   // host:true + allowedHosts:true so the dev server is reachable through a
   // cloudflared/ngrok tunnel (or over LAN) for real-device demo testing.
   server: { port: 5175, strictPort: true, host: true, allowedHosts: true },
+  test: { globals: true, environment: 'jsdom', env: { TZ: 'UTC' } },
 })

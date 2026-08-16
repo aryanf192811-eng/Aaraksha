@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
@@ -81,4 +82,8 @@ export default defineConfig({
   // cloudflared/ngrok tunnel (or over LAN) for real-device demo testing —
   // Vite otherwise rejects requests whose Host header isn't localhost.
   server: { port: 5173, strictPort: true, host: true, allowedHosts: true },
+  // Mirrors backend/vitest.config.js: globals so tests don't need to import
+  // describe/it/expect, TZ pinned so date-formatting tests are deterministic
+  // regardless of the machine/CI runner's local timezone.
+  test: { globals: true, environment: 'jsdom', env: { TZ: 'UTC' } },
 })
