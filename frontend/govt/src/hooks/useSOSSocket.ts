@@ -71,11 +71,21 @@ export function useSOSSocket() {
       queryClient.invalidateQueries({ queryKey: ['govt', 'dashboard'] })
     }
 
+    // A rescuer (team or volunteer) pushed a live position or self-reported
+    // EN_ROUTE/ARRIVED — refresh the SOS list so operators see progress
+    // without waiting on the 15s poll (see ActiveJobPage.tsx on the
+    // Rescuer app side, which is what actually sends these).
+    const onRescuerUpdate = () => {
+      queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
+    }
+
     socket.on(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
     socket.on(SOCKET_EVENTS.SOS_RESOLVED, onSOSResolved)
     socket.on(SOCKET_EVENTS.DMS_TRIGGERED, onDMSTriggered)
     socket.on(SOCKET_EVENTS.LIVE_MAP_UPDATE, onLiveMapUpdate)
     socket.on(SOCKET_EVENTS.RESCUE_ASSIGNED, onRescueAssigned)
+    socket.on(SOCKET_EVENTS.RESCUER_LOCATION_UPDATE, onRescuerUpdate)
+    socket.on(SOCKET_EVENTS.RESCUER_STATUS_UPDATE, onRescuerUpdate)
 
     return () => {
       socket.off(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
@@ -83,6 +93,8 @@ export function useSOSSocket() {
       socket.off(SOCKET_EVENTS.DMS_TRIGGERED, onDMSTriggered)
       socket.off(SOCKET_EVENTS.LIVE_MAP_UPDATE, onLiveMapUpdate)
       socket.off(SOCKET_EVENTS.RESCUE_ASSIGNED, onRescueAssigned)
+      socket.off(SOCKET_EVENTS.RESCUER_LOCATION_UPDATE, onRescuerUpdate)
+      socket.off(SOCKET_EVENTS.RESCUER_STATUS_UPDATE, onRescuerUpdate)
       mountCount.current -= 1
       if (mountCount.current <= 0) disconnectSocket()
     }

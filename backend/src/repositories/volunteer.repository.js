@@ -12,19 +12,31 @@ const SAFE_COLS = `
   is_verified, points, status, is_active, created_at`
 
 class VolunteerRepository extends BaseRepository {
-  async create(data) {
+  // isVerified defaults false — a self-registered volunteer (auth.service's
+  // registration flow) still needs govt review. A govt operator provisioning
+  // an account directly (govt.service#createVolunteer) passes true: the
+  // operator IS the verification, there's no separate identity to review.
+  async create(data, isVerified = false) {
     return this.queryOne(`
       INSERT INTO volunteers (
         full_name, phone, password_hash, govt_id_type, govt_id_hash, govt_id_suffix,
-        district, state, latitude, longitude
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        district, state, latitude, longitude, is_verified
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
       RETURNING ${SAFE_COLS}`,
       [
         data.fullName, data.phone, data.passwordHash,
         data.govtIdType, data.govtIdHash, data.govtIdSuffix,
         data.district, data.state, data.latitude ?? null, data.longitude ?? null,
+        isVerified,
       ]
     )
+  }
+
+  // All volunteers (not just the pending-review queue) — powers the govt
+  // "Volunteers" roster tab so operators can see who's already active,
+  // not just who's waiting on them.
+  async findAll() {
+    return this.query(`SELECT ${SAFE_COLS} FROM volunteers WHERE is_active = TRUE ORDER BY created_at DESC`)
   }
 
   async findByPhone(phone) {

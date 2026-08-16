@@ -407,7 +407,7 @@ export default function LandingPage() {
             <div className="relative grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
               {[
                 { num: '10+', label: 'NER Destinations Tracked' },
-                { num: '3', label: 'Portals — Tourist · Govt · Guardian' },
+                { num: '4', label: 'Portals — Tourist · Govt · Guardian · Rescuer' },
                 { num: '2G', label: 'Offline SOS Capable' },
                 { num: '24/7', label: 'Rescue Readiness' },
               ].map(({ num, label }) => (

@@ -6,7 +6,7 @@
 import api from './client'
 import { useAuthStore } from '../store/auth.store'
 import type {
-  APIResponse, PaginatedResponse, GovtDashboard, SOSWithDetails, RescueTeam, LiveTourist,
+  APIResponse, PaginatedResponse, GovtDashboard, SOSWithDetails, RescueTeam, LiveTourist, Volunteer,
 } from '../types/api.types'
 
 const API_URL = import.meta.env.VITE_API_URL
@@ -118,6 +118,12 @@ const govtApi = {
 
   updateTeamStatus: (id: string, status: string) =>
     api.patch<APIResponse<RescueTeam>>(`/govt/rescue-teams/${id}/status`, { status }),
+
+  getPendingVolunteers: () =>
+    api.get<APIResponse<Volunteer[]>>('/govt/volunteers/pending'),
+
+  verifyVolunteer: (id: string) =>
+    api.patch<APIResponse<Volunteer>>(`/govt/volunteers/${id}/verify`),
 
   getAnalytics: (period?: string) =>
     api.get<APIResponse<AnalyticsResponse>>('/govt/analytics', { params: { period } }),

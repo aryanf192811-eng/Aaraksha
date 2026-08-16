@@ -84,6 +84,17 @@ const getPendingVolunteers = async (req, res, next) => {
   try { sendSuccess(res, await govtService.getPendingVolunteers()) } catch (err) { next(err) }
 }
 
+const getAllVolunteers = async (req, res, next) => {
+  try { sendSuccess(res, await govtService.getAllVolunteers()) } catch (err) { next(err) }
+}
+
+const createVolunteer = async (req, res, next) => {
+  try {
+    const result = await govtService.createVolunteer(req.validatedBody)
+    sendSuccess(res, result, 'Volunteer account created', 201)
+  } catch (err) { next(err) }
+}
+
 const verifyVolunteer = async (req, res, next) => {
   try {
     const volunteer = await govtService.verifyVolunteer(req.params.id)
@@ -94,4 +105,4 @@ const verifyVolunteer = async (req, res, next) => {
 module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRescueTeams,
   getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, getNearbyRescuers, resolveSOS, updateTeamStatus,
   scanCheckpoint, getRecentCheckpointScans, postDestinationNews,
-  getPendingVolunteers, verifyVolunteer }
+  getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer }

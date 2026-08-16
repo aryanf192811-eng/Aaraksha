@@ -1,15 +1,18 @@
 // src/components/GovtLayout.tsx
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { Shield, Map, Bell, TrendingUp, AlertTriangle, LogOut, Activity, ScanLine, Smartphone, Menu, X } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Shield, Map, Bell, TrendingUp, AlertTriangle, LogOut, Activity, ScanLine, Smartphone, Menu, X, HeartHandshake } from 'lucide-react'
 import { useAuthStore } from '../store/auth.store'
 import { useSOSSocket } from '../hooks/useSOSSocket'
 import { ALLOWED_CHECKPOINT_ROLES } from '../pages/CheckpointScanPage'
+import govtApi from '../api/govt.api'
 import { cn } from '../lib/utils'
 
 const NAV_ITEMS = [
   { to: '/', icon: Activity, label: 'Dashboard', exact: true },
   { to: '/sos', icon: Bell, label: 'SOS Management' },
+  { to: '/volunteers', icon: HeartHandshake, label: 'Volunteers' },
   { to: '/map', icon: Map, label: 'Live Map' },
   { to: '/risk', icon: AlertTriangle, label: 'Risk Overview' },
   { to: '/analytics', icon: TrendingUp, label: 'Analytics' },
@@ -18,8 +21,9 @@ const NAV_ITEMS = [
 // Shared between the always-visible desktop sidebar and the mobile slide-in
 // drawer so the two never drift out of sync — one source of nav truth,
 // two shells around it.
-function SidebarContent({ activeSosCount, canScanCheckpoints, onNavigate }: {
+function SidebarContent({ activeSosCount, pendingVolunteerCount, canScanCheckpoints, onNavigate }: {
   activeSosCount: number
+  pendingVolunteerCount: number
   canScanCheckpoints: boolean
   onNavigate?: () => void
 }) {
@@ -55,6 +59,11 @@ function SidebarContent({ activeSosCount, canScanCheckpoints, onNavigate }: {
             {label === 'SOS Management' && activeSosCount > 0 && (
               <span className="ml-auto bg-sos text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold animate-pulse flex-shrink-0">
                 {activeSosCount}
+              </span>
+            )}
+            {label === 'Volunteers' && pendingVolunteerCount > 0 && (
+              <span className="ml-auto bg-amber-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold flex-shrink-0">
+                {pendingVolunteerCount}
               </span>
             )}
           </NavLink>
@@ -99,11 +108,19 @@ export default function GovtLayout() {
   const location = useLocation()
   const activeLabel = NAV_ITEMS.find(n => (n.exact ? location.pathname === n.to : location.pathname.startsWith(n.to)))?.label ?? 'Dashboard'
 
+  // Nav badge only — VolunteersPage runs its own query for the actual list.
+  const { data: pendingVolunteers } = useQuery({
+    queryKey: ['govt', 'volunteers', 'pending'],
+    queryFn: () => govtApi.getPendingVolunteers().then(r => r.data.data),
+    refetchInterval: 30_000,
+  })
+  const pendingVolunteerCount = pendingVolunteers?.length ?? 0
+
   return (
     <div className="min-h-screen flex bg-surface font-sans">
       {/* Desktop sidebar — always visible from lg up, hidden below it */}
       <aside className="hidden lg:flex w-64 bg-surface-container-lowest border-r border-outline-variant flex-col shadow-sm flex-shrink-0">
-        <SidebarContent activeSosCount={activeSosCount} canScanCheckpoints={canScanCheckpoints} />
+        <SidebarContent activeSosCount={activeSosCount} pendingVolunteerCount={pendingVolunteerCount} canScanCheckpoints={canScanCheckpoints} />
       </aside>
 
       {/* Mobile slide-in drawer + backdrop */}
@@ -118,7 +135,7 @@ export default function GovtLayout() {
           className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container">
           <X className="w-5 h-5" />
         </button>
-        <SidebarContent activeSosCount={activeSosCount} canScanCheckpoints={canScanCheckpoints} onNavigate={() => setDrawerOpen(false)} />
+        <SidebarContent activeSosCount={activeSosCount} pendingVolunteerCount={pendingVolunteerCount} canScanCheckpoints={canScanCheckpoints} onNavigate={() => setDrawerOpen(false)} />
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">

@@ -207,6 +207,10 @@ export const SOCKET_EVENTS = {
   DMS_TRIGGERED:      'DMS_TRIGGERED',
   TSI_BULK_UPDATE:    'TSI_BULK_UPDATE',
   LIVE_MAP_UPDATE:    'LIVE_MAP_UPDATE',
+  // Also fans out to the tourist + guardian rooms — same event name, three
+  // rooms (see backend/src/socket/emitters.js#emitRescuerLocationUpdate).
+  RESCUER_LOCATION_UPDATE: 'RESCUER_LOCATION_UPDATE',
+  RESCUER_STATUS_UPDATE:   'RESCUER_STATUS_UPDATE',
 
   // Server -> Tourist room (tourist:{touristId})
   TSI_UPDATED:        'TSI_UPDATED',

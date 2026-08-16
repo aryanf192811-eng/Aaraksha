@@ -13,6 +13,7 @@ const { VolunteerRepository } = require('../repositories/volunteer.repository')
 const { emitSOSResolved, emitRescueAssigned, emitGuardianRescueAssigned, emitVolunteerAssigned } = require('../socket/emitters')
 const { SOS_STATUSES, TEAM_STATUSES, VOLUNTEER_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
+const { hashPassword, hashGovtId, generateTempPassword, normalizePhone, extractSuffix } = require('../utils/crypto')
 const logger = require('../utils/logger')
 
 async function getDashboard() {
@@ -247,6 +248,43 @@ async function getPendingVolunteers() {
   return new VolunteerRepository().findPendingVerification()
 }
 
+async function getAllVolunteers() {
+  return new VolunteerRepository().findAll()
+}
+
+// Govt-initiated onboarding — an operator provisions a volunteer directly
+// (walk-in local responder, a district's own outreach list) rather than
+// waiting for a self-registration to review. Pre-verified since the
+// operator's own action IS the identity check; a one-time password is
+// generated and returned so it can be handed to the volunteer to log into
+// the Rescuer app with (same login endpoint self-registered volunteers
+// use — this is only a different provisioning path, not a different
+// account type).
+async function createVolunteer(data) {
+  const repo = new VolunteerRepository()
+
+  const phone = normalizePhone(data.phone)
+  const existingPhone = await repo.findByPhone(phone)
+  if (existingPhone) throw Object.assign(new Error(ERRORS.VOLUNTEER_PHONE_TAKEN), { statusCode: 409 })
+
+  const govtIdHash = hashGovtId(data.govtIdNumber)
+  const govtIdTaken = await repo.govtIdHashExists(govtIdHash)
+  if (govtIdTaken) throw Object.assign(new Error(ERRORS.VOLUNTEER_GOVTID_TAKEN), { statusCode: 409 })
+
+  const tempPassword = generateTempPassword()
+  const passwordHash = await hashPassword(tempPassword)
+
+  const volunteer = await repo.create({
+    fullName: data.fullName, phone, passwordHash,
+    govtIdType: data.govtIdType, govtIdHash, govtIdSuffix: extractSuffix(data.govtIdNumber),
+    district: data.district, state: data.state,
+    latitude: data.latitude ?? null, longitude: data.longitude ?? null,
+  }, true)
+
+  logger.info({ volunteerId: volunteer.id }, 'Volunteer provisioned by govt operator')
+  return { volunteer, temporaryPassword: tempPassword }
+}
+
 async function verifyVolunteer(volunteerId) {
   const volunteer = await new VolunteerRepository().verify(volunteerId)
   if (!volunteer) throw Object.assign(new Error(ERRORS.VOLUNTEER_NOT_FOUND), { statusCode: 404 })
@@ -257,5 +295,5 @@ async function verifyVolunteer(volunteerId) {
 module.exports = {
   getDashboard, getActiveSOS, assignRescue, resolveSOS, getNearbyRescuers,
   getLiveTourists, getRiskOverview, getRescueTeams, updateTeamStatus, getAnalytics,
-  getPendingVolunteers, verifyVolunteer,
+  getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer,
 }

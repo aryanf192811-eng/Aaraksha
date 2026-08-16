@@ -26,6 +26,19 @@ function generateInviteCode(length = 6) {
   return code
 }
 
+// One-time credential handed to a volunteer a govt operator provisions
+// directly (see govt.service#createVolunteer) — same excluded-character
+// set as generateInviteCode (no 0/O/1/I) since an operator reads this
+// aloud or writes it down for someone standing in front of them. 12 chars
+// clears the account password schema's 8-char minimum with room to spare.
+function generateTempPassword(length = 12) {
+  let password = ''
+  for (let i = 0; i < length; i++) {
+    password += INVITE_CODE_CHARS[crypto.randomInt(INVITE_CODE_CHARS.length)]
+  }
+  return password
+}
+
 // Govt ID HMAC-SHA256 with server secret
 // NOT bcrypt — we need deterministic lookup to detect duplicate registrations
 // AND to add a UNIQUE constraint on the hash column
@@ -65,6 +78,7 @@ module.exports = {
   generateGuardianToken,
   generatePublicToken,
   generateInviteCode,
+  generateTempPassword,
   hashGovtId,
   hashPassword,
   verifyPassword,

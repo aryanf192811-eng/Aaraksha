@@ -36,6 +36,23 @@ const RegisterVolunteerSchema = z.object({
   govtIdNumberRefinement(data.govtIdType)(data.govtIdNumber, ctx)
 })
 
+// Govt-provisioned volunteer — same identity fields as self-registration,
+// minus `password` (the server generates a one-time credential; see
+// govt.service#createVolunteer) since there's no one at a keyboard to pick
+// one at account-creation time.
+const CreateVolunteerByGovtSchema = z.object({
+  fullName:     z.string().min(2).max(255),
+  phone:        PhoneSchema,
+  govtIdType:   z.enum(Object.values(GOVT_ID_TYPES), { errorMap: () => ({ message: ERRORS.GOVTID_INVALID_TYPE }) }),
+  govtIdNumber: z.string().min(8).max(20),
+  district:     z.string().min(2).max(100),
+  state:        z.string().min(2).max(100),
+  latitude:     LatitudeSchema.optional(),
+  longitude:    LongitudeSchema.optional(),
+}).superRefine((data, ctx) => {
+  govtIdNumberRefinement(data.govtIdType)(data.govtIdNumber, ctx)
+})
+
 const LoginVolunteerSchema = z.object({
   phone:    PhoneSchema,
   password: z.string().min(1),
@@ -69,7 +86,7 @@ const UpdateAssignmentStatusSchema = z.object({
 })
 
 module.exports = {
-  RegisterVolunteerSchema, LoginVolunteerSchema,
+  RegisterVolunteerSchema, LoginVolunteerSchema, CreateVolunteerByGovtSchema,
   UpdateVolunteerStatusSchema, UpdateDispatchStatusSchema, UpdateLocationSchema,
   UpdateAssignmentStatusSchema,
 }

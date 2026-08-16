@@ -66,10 +66,15 @@ class SOSRepository extends BaseRepository {
     const rows = await this.query(`
       SELECT se.*,
         ra.status as assignment_status,
-        rt.name  as rescue_team_name
+        -- COALESCE onto the volunteer join so an SOS resolved by a
+        -- volunteer (not just an official team) still shows a rescuer name
+        -- in the tourist's SOS history / Journey Passport — see findActive's
+        -- identical pattern.
+        COALESCE(rt.name, v.full_name) as rescue_team_name
       FROM sos_events se
       LEFT JOIN rescue_assignments ra ON ra.sos_event_id = se.id AND ra.status != 'RESOLVED'
       LEFT JOIN rescue_teams rt ON rt.id = ra.team_id
+      LEFT JOIN volunteers v ON v.id = ra.volunteer_id
       WHERE ${conditions.join(' AND ')}
       ORDER BY se.created_at DESC
       LIMIT $${idx} OFFSET $${idx+1}`,

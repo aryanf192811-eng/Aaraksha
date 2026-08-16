@@ -12,6 +12,7 @@ import LiveMapPage from './pages/LiveMapPage'
 import RiskOverviewPage from './pages/RiskOverviewPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import CheckpointScanPage from './pages/CheckpointScanPage'
+import VolunteersPage from './pages/VolunteersPage'
 import { useAuthStore } from './store/auth.store'
 import GovtLayout from './components/GovtLayout'
 
@@ -45,6 +46,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/" element={<CommandCenterRoute><GovtLayout /></CommandCenterRoute>}>
             <Route index element={<DashboardPage />} />
             <Route path="sos" element={<SOSManagementPage />} />
+            <Route path="volunteers" element={<VolunteersPage />} />
             <Route path="map" element={<LiveMapPage />} />
             <Route path="risk" element={<RiskOverviewPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />

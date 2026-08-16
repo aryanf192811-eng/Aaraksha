@@ -20,8 +20,9 @@ async function seed() {
       console.log('⚠️  --reset flag detected — clearing all tables...')
       await client.query(`
         TRUNCATE TABLE inbound_sos_sms, scam_reports, weather_cache, rescue_assignments,
-          rescue_teams, govt_users, tourist_locations, checkins, dead_mans_switches,
-          sos_events, trips, tourists, destinations, otp_verifications CASCADE
+          rescue_teams, volunteer_dispatches, volunteers, govt_users, tourist_locations,
+          checkins, dead_mans_switches, sos_events, trips, tourists, destinations,
+          otp_verifications CASCADE
       `)
       console.log('✅ Tables cleared')
     } else {
@@ -560,6 +561,67 @@ async function seed() {
     )
     console.log(`  ✅ Demo tourist 4 (running Dead Man's Switch): sneha.demo@aaraksha.in (phone: 9876500003) / Demo@123`)
 
+    // ── VERIFIED VOLUNTEER — for the unified Rescuer network demo ──────
+    // Pre-verified (not sitting in the govt Volunteers review queue) so the
+    // scenario below is visible the moment the app opens, without a
+    // presenter having to click through the verification flow first.
+    const priyaDekaPasswordHash = await hashPassword('DemoPass123')
+    const priyaDekaGovtIdHash   = hashGovtId('999905550103')
+    const { rows: [priyaDeka] } = await client.query(`
+      INSERT INTO volunteers (full_name, phone, password_hash, govt_id_type, govt_id_hash, govt_id_suffix,
+        district, state, latitude, longitude, is_verified, status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true,'DEPLOYED')
+      RETURNING id`,
+      ['Priya Deka', '9000055503', priyaDekaPasswordHash, 'AADHAAR', priyaDekaGovtIdHash, '0103',
+       'Kamrup Metropolitan', 'Assam', 26.1500, 91.7700]
+    )
+    console.log('  ✅ Verified volunteer seeded: Priya Deka (9000055503) / DemoPass123')
+
+    // ── DEMO TOURIST 5 — SOS assigned to a volunteer, not a team ───────
+    // Shows off the unified-rescuer half of the platform without a
+    // presenter having to trigger an SOS and assign it live: a citizen
+    // volunteer (not an official team) is already EN_ROUTE on a real
+    // OSRM road route, with a live GPS fix on the assignment.
+    const karanPasswordHash = await hashPassword('DemoPass123')
+    const karanGovtIdHash   = hashGovtId('999905550101')
+    const { rows: [karan] } = await client.query(`
+      INSERT INTO tourists (full_name, phone, email, blood_group, medical_info, emergency_contacts,
+        govt_id_type, govt_id_hash, govt_id_suffix, guardian_token, guardian_token_expires, password_hash)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      RETURNING id`,
+      ['Karan Mehta', '9000055501', 'karan.demo@aaraksha.in', null, null,
+       JSON.stringify([
+         { id: uuid(), name: 'Meera Mehta', phone: '9000055502', relation: 'Sister', tier: 1, notifyOnSOS: true },
+       ]),
+       'AADHAAR', karanGovtIdHash, '0101', generateGuardianToken(), guardianExpires, karanPasswordHash]
+    )
+    const karanSosTime = new Date(Date.now() - 15 * 60 * 1000)  // 15 minutes ago
+    await client.query(`
+      INSERT INTO tourist_locations (tourist_id, latitude, longitude, battery_pct, updated_at)
+      VALUES ($1,$2,$3,$4,$5)
+      ON CONFLICT (tourist_id) DO UPDATE SET latitude=$2, longitude=$3, battery_pct=$4, updated_at=$5`,
+      [karan.id, 26.1445, 91.7362, 54, karanSosTime]
+    )
+    const { rows: [karanSos] } = await client.query(`
+      INSERT INTO sos_events (tourist_id, latitude, longitude, category, trigger_type, status,
+        battery_pct, message, created_at)
+      VALUES ($1,$2,$3,'TRAPPED','MANUAL','ASSIGNED',$4,$5,$6)
+      RETURNING id`,
+      [karan.id, 26.1445, 91.7362, 54,
+       'Stuck on a trail near Nilachal Hill, twisted my ankle and cannot walk.',
+       karanSosTime]
+    )
+    await client.query(`
+      INSERT INTO rescue_assignments (sos_event_id, volunteer_id, assigned_by, status, notes, assigned_at,
+        rescuer_latitude, rescuer_longitude, rescuer_location_updated_at)
+      VALUES ($1,$2,$3,'EN_ROUTE',$4,$5,$6,$7,$8)`,
+      [karanSos.id, priyaDeka.id, govtAdmin.id,
+       'Nearest verified volunteer — dispatched ahead of the district SDRF unit.',
+       new Date(karanSosTime.getTime() + 3 * 60 * 1000),
+       26.1520, 91.7620, new Date(Date.now() - 2 * 60 * 1000)]
+    )
+    console.log('  ✅ Demo tourist 5 (SOS assigned to a volunteer, EN_ROUTE): karan.demo@aaraksha.in (phone: 9000055501) / DemoPass123')
+
     // ── DESTINATION NEWS & ALERTS ────────────────────────────────────
     // Curated per spec (mock/curated feed is explicitly the demo-appropriate
     // source, not a live external news API) — realistic NE India travel
@@ -616,6 +678,9 @@ async function seed() {
     console.log(`  2. Priya Sharma — priya.demo@aaraksha.in (9876500001) / Demo@123  — COMPLETED trip, passport-ready (3 check-ins, activities, packing list)`)
     console.log(`  3. Rahul Verma  — rahul.demo@aaraksha.in (9876500002) / Demo@123  — ACTIVE trip with a LIVE unresolved SOS + rescue team en route`)
     console.log(`  4. Sneha Das    — sneha.demo@aaraksha.in (9876500003) / Demo@123  — ACTIVE trip with a running Dead Man's Switch`)
+    console.log(`  5. Karan Mehta  — karan.demo@aaraksha.in (9000055501) / DemoPass123 — SOS assigned to a VOLUNTEER (not a team), EN_ROUTE with a live GPS fix`)
+    console.log('  ── Rescuer app (frontend/volunteer) ──')
+    console.log(`  Verified volunteer: Priya Deka (9000055503) / DemoPass123 — already EN_ROUTE to Karan Mehta above`)
     console.log(`  Guardian link (tourist 1): /track/${guardianToken.slice(0, 16)}...`)
     console.log('═'.repeat(50) + '\n')
 

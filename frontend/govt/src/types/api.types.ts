@@ -328,6 +328,25 @@ export interface RescueTeam {
   active_assignments?: number
 }
 
+// volunteer.repository.js's SAFE_COLS — same shape whether pending or
+// verified, `is_verified` is what the govt Volunteers page filters on.
+export interface Volunteer {
+  id: string
+  full_name: string
+  phone: string
+  govt_id_type: string
+  govt_id_suffix: string
+  district: string
+  state: string
+  latitude: number | null
+  longitude: number | null
+  is_verified: boolean
+  points: number
+  status: 'AVAILABLE' | 'DEPLOYED' | 'OFF_DUTY'
+  is_active: boolean
+  created_at: string
+}
+
 export interface RescueAssignment {
   id: string
   sos_event_id: string

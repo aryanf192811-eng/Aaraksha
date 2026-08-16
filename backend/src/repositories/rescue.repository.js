@@ -96,8 +96,13 @@ class RescueRepository extends BaseRepository {
   // one distance-sorted candidate list for the govt "assign a rescuer"
   // panel — same bounding-box-prefilter-then-haversine pattern as
   // VolunteerRepository.findVerifiedNearby, just unioned across both
-  // tables instead of one.
-  async findNearbyAvailableRescuers(lat, lng, radiusKm = 25, limit = 20) {
+  // tables instead of one. 150km (not the volunteer auto-alert radius's
+  // 15km) because this panel serves state-level SDRF/police units whose
+  // real dispatch jurisdiction spans a whole district or state — Northeast
+  // India's terrain means the nearest team is often 100km+ away by road,
+  // and the operator (not an automatic cutoff) decides who's close enough
+  // to send, sorted nearest-first.
+  async findNearbyAvailableRescuers(lat, lng, radiusKm = 150, limit = 20) {
     lat = Number(lat)
     lng = Number(lng)
     const latDelta = radiusKm / 111
@@ -124,12 +129,24 @@ class RescueRepository extends BaseRepository {
       .slice(0, limit)
   }
 
+  // Ops-capacity counts for the govt dashboard stat cards — unified across
+  // official teams and verified volunteers now that both are assignable
+  // rescuers, so the number reflects real available/deployed capacity
+  // instead of silently under-reporting once volunteers start taking jobs.
   async countAvailable() {
-    return this.queryCount(`SELECT COUNT(*) FROM rescue_teams WHERE status='AVAILABLE'`)
+    return this.queryCount(`
+      SELECT (
+        (SELECT COUNT(*) FROM rescue_teams WHERE status='AVAILABLE') +
+        (SELECT COUNT(*) FROM volunteers WHERE status='AVAILABLE' AND is_verified=TRUE AND is_active=TRUE)
+      ) as count`)
   }
 
   async countDeployed() {
-    return this.queryCount(`SELECT COUNT(*) FROM rescue_teams WHERE status='DEPLOYED'`)
+    return this.queryCount(`
+      SELECT (
+        (SELECT COUNT(*) FROM rescue_teams WHERE status='DEPLOYED') +
+        (SELECT COUNT(*) FROM volunteers WHERE status='DEPLOYED' AND is_verified=TRUE AND is_active=TRUE)
+      ) as count`)
   }
 
   async avgResponseMinutes(startDate) {
