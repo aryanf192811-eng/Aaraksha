@@ -81,6 +81,17 @@ export interface NearbyRescuer {
   distanceKm: number
 }
 
+export interface CreateVolunteerPayload {
+  fullName: string
+  phone: string
+  govtIdType: 'AADHAAR' | 'PASSPORT' | 'VOTER_ID' | 'DRIVING_LICENSE'
+  govtIdNumber: string
+  district: string
+  state: string
+  latitude?: number
+  longitude?: number
+}
+
 export interface PostNewsPayload {
   category: 'WEATHER' | 'ROAD_CLOSURE' | 'EVENT' | 'ADVISORY' | 'FESTIVAL' | 'OTHER'
   severity: 'INFO' | 'WARNING' | 'CRITICAL'
@@ -118,6 +129,12 @@ const govtApi = {
 
   updateTeamStatus: (id: string, status: string) =>
     api.patch<APIResponse<RescueTeam>>(`/govt/rescue-teams/${id}/status`, { status }),
+
+  getAllVolunteers: () =>
+    api.get<APIResponse<Volunteer[]>>('/govt/volunteers'),
+
+  createVolunteer: (data: CreateVolunteerPayload) =>
+    api.post<APIResponse<{ volunteer: Volunteer; temporaryPassword: string }>>('/govt/volunteers', data),
 
   getPendingVolunteers: () =>
     api.get<APIResponse<Volunteer[]>>('/govt/volunteers/pending'),
