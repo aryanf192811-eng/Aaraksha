@@ -6,9 +6,9 @@
 > what every screen in this system is trying to do.
 
 [![Status](https://img.shields.io/badge/status-demo--ready-brightgreen)]()
-[![Portals](https://img.shields.io/badge/portals-3-blue)]()
-[![API](https://img.shields.io/badge/API%20endpoints-66-orange)]()
-[![Tables](https://img.shields.io/badge/DB%20tables-19-orange)]()
+[![Portals](https://img.shields.io/badge/portals-4-blue)]()
+[![API](https://img.shields.io/badge/API%20endpoints-78-orange)]()
+[![Tables](https://img.shields.io/badge/DB%20tables-22-orange)]()
 [![Offline SOS](https://img.shields.io/badge/offline%20SOS-2G%20capable-red)]()
 [![Track](https://img.shields.io/badge/SIH%202025-Travel%20%26%20Tourism-purple)]()
 
@@ -22,9 +22,10 @@ districts where the nearest hospital is a two-hour drive. Existing tourism apps 
 itinerary planning. Existing safety apps assume a phone signal. Aaraksha is built on the
 opposite assumption — **that the moment someone needs help is exactly the moment their phone
 stops being reliable** — and designs every safety mechanism backward from there: SOS that works
-over SMS with zero data, a Dead Man's Switch that fires *for* you if you go silent, and a
-government command center watching the same live picture the tourist sees, tied together by one
-real-time data model instead of three disconnected apps.
+over SMS with zero data, a Dead Man's Switch that fires *for* you if you go silent, a citizen
+volunteer network that gets a real turn-by-turn road route the instant they're dispatched, and a
+government command center watching the same live picture the tourist sees — tied together by one
+real-time data model instead of four disconnected apps.
 
 <p align="center">
   <img src="./docs/screenshots/tourist-landing.png" alt="Aaraksha tourist app landing page" width="100%">
@@ -36,8 +37,9 @@ real-time data model instead of three disconnected apps.
 
 - [Building the presentation](#building-the-presentation)
 - [Why this wins](#why-this-wins)
-- [Three portals, one system](#three-portals-one-system)
+- [Four portals, one system](#four-portals-one-system)
 - [Feature walkthrough](#feature-walkthrough)
+- [The unified Rescuer network](#the-unified-rescuer-network)
 - [Screenshots](#screenshots)
 - [Architecture at a glance](#architecture-at-a-glance)
 - [By the numbers](#by-the-numbers)
@@ -64,13 +66,13 @@ slides.
 | 1 | **Title** | The H1 + tagline at the top of this file | "Safety that keeps working after the signal drops" is the whole pitch in one line — use it as the deck's title or opening line |
 | 2 | **The problem** | [The pitch, in one paragraph](#the-pitch-in-one-paragraph) | Lead with terrain, not tech: 3048m passes, zero-signal valleys, two-hour hospital drives |
 | 3 | **Our bet / thesis** | The pitch paragraph above | One line: *"the moment someone needs help is exactly the moment their phone stops being reliable."* Everything else on the following slides proves this line |
-| 4 | **Three portals** | [Three portals, one system](#three-portals-one-system) table + `tourist-landing.png`, `govt-dashboard.png`, `guardian-portal.png` | One slide, three screenshots side by side — this alone shows more scope than most competing teams |
-| 5 | **Live demo / walkthrough script** | [Demo accounts](#demo-accounts) | Don't demo a blank app — log into **Rahul Verma** (`9876500002` / `Demo@123`) to show a *live SOS with a rescue team already en route*, then open his Guardian link to show the same emergency from a family member's view. That one flow sells the whole platform in 90 seconds |
-| 6 | **Feature highlights** | [Feature walkthrough](#feature-walkthrough) — pick 2–3 lines per pillar, don't read the whole list | Planning → Safety → Government Ops → Community → Offline-first. Safety is the pillar to spend the most slide time on |
-| 7 | **Numbers** | [By the numbers](#by-the-numbers) | Drop the whole table on one slide as a stat grid — 66 endpoints, 19 tables, 45 rotating news items land better as bold numbers than as prose |
+| 4 | **Four portals** | [Four portals, one system](#four-portals-one-system) table + `tourist-landing.png`, `govt-dashboard.png`, `guardian-portal.png`, `rescuer-active-job.png` | One slide, four screenshots side by side — this alone shows more scope than most competing teams |
+| 5 | **Live demo / walkthrough script** | [Demo accounts](#demo-accounts) | Don't demo a blank app — log into **Rahul Verma** (`9876500002` / `Demo@123`) to show a *live SOS with a rescue team already en route*, then open his Guardian link to show the same emergency from a family member's view. For the newer unified-rescuer story, use **Karan Mehta** (`9000055501` / `DemoPass123`) — his SOS is assigned to volunteer **Priya Deka**, live-tracked on a real road route. That one flow sells the whole platform in 90 seconds |
+| 6 | **Feature highlights** | [Feature walkthrough](#feature-walkthrough) — pick 2–3 lines per pillar, don't read the whole list | Planning → Safety → Unified Rescue Network → Government Ops → Community → Offline-first. Safety and the Rescuer network are the pillars to spend the most slide time on |
+| 7 | **Numbers** | [By the numbers](#by-the-numbers) | Drop the whole table on one slide as a stat grid — 78 endpoints, 22 tables, 45 rotating news items land better as bold numbers than as prose |
 | 8 | **Why we win** | [Why this wins](#why-this-wins) comparison table | This table is already written as a "typical hackathon app vs. Aaraksha" comparison — use it verbatim as a two-column slide |
 | 9 | **Under the hood** *(for technical judges)* | [Architecture at a glance](#architecture-at-a-glance) diagram + [Production readiness](#production-readiness) | Keep this slide for a technical Q&A round — the adversarial-testing bullet points (SQLi, race conditions, forced rollbacks) are the strongest "we didn't just make a demo" evidence in the whole repo |
-| 10 | **What's next** | [Roadmap](#roadmap) | The Volunteer SOS network item is deliberately scoped as "pitched, not built" — say that explicitly, it reads as intentional scoping rather than an unfinished feature |
+| 10 | **What's next** | [Roadmap](#roadmap) | Everything on the roadmap is a deliberate, named scope decision — say so explicitly, it reads as intentional prioritization rather than unfinished work |
 
 ---
 
@@ -80,18 +82,19 @@ slides.
 |---|---|
 | A static "call police" button | A rule-based Travel Safety Index recalculated **hourly from live weather**, scored per destination |
 | Safety features that assume signal | **Offline SOS over raw SMS** — no data connection required, a Twilio webhook does the rest |
-| One app, one audience | **Three cooperating portals** — tourist, government, and a no-login family tracking link — sharing one data model in real time |
+| One app, one audience | **Four cooperating portals** — tourist, government, a no-login family tracking link, and a dedicated Rescuer app for volunteers and official teams — sharing one real-time data model |
 | A mocked/seeded demo that falls apart under a second click | A backend that was **adversarially attacked after launch** — rate-limit bypass attempts, SQLi payloads, concurrent double-resolve races, forced transaction rollbacks — and fixed, not just tested |
 | Safety as an isolated feature | Safety **woven into planning** — every trip gets a TSI score before it's even booked, every destination card carries a live risk badge |
-| A single "it's a demo" happy path | **Four live demo accounts**, each mid-scenario: an active SOS with a rescue team en route, a running Dead Man's Switch, a completed trip ready for PDF export, a fresh account to show onboarding |
+| A single "it's a demo" happy path | **Five live demo accounts**, each mid-scenario: an active SOS with a rescue team en route, another already assigned to a live-tracked volunteer, a running Dead Man's Switch, a completed trip ready for PDF export, a fresh account to show onboarding |
+| Rescue dispatch as a phone call | A **unified Rescuer network** — official teams and govt-verified citizen volunteers in one assignable pool, live GPS, real OSRM road routing, not a straight line on a map |
 
 ---
 
-## Three portals, one system
+## Four portals, one system
 
 ```
                      ┌──────────────────┐
-                     │   PostgreSQL      │  19 tables — raw pg, no ORM
+                     │   PostgreSQL      │  22 tables — raw pg, no ORM
                      │   parameterized   │  see DB_GUIDE.md
                      │   SQL only        │
                      └────────▲──────────┘
@@ -99,36 +102,42 @@ slides.
                      ┌────────┴──────────┐
                      │  Express API       │  Route → Middleware → Controller
                      │  (backend/)        │  → Service → Repository
-                     │  JWT + RBAC        │  66 endpoints · 13 route groups
-                     └───┬─────────┬─────┘
-              Socket.IO  │         │  REST (JSON)
-              real-time  │         │
-        ┌─────────────────┘         └─────────────────┐
-        ▼                                              ▼
-┌────────────────┐   ┌───────────────────┐   ┌───────────────────┐
-│ 🧭 Tourist PWA  │   │ 🖥️ Govt Command    │   │ 👪 Guardian Portal │
-│  :5173          │   │    Center — :5174  │   │    :5175           │
-│  amber · mobile │   │  emerald · desktop │   │  token-in-URL,     │
-│  offline-first  │   │  live ops map      │   │  zero login        │
-└────────────────┘   └───────────────────┘   └───────────────────┘
+                     │  JWT + RBAC        │  78 endpoints · 13 route groups
+                     └─┬───────┬───────┬──┘
+              Socket.IO│       │       │  REST (JSON)
+              real-time│       │       │
+        ┌──────────────┘       │       └──────────────┐
+        │              ┌───────┴────────┐              │
+        ▼              ▼                ▼              ▼
+┌────────────┐ ┌───────────────┐ ┌─────────────┐ ┌─────────────┐
+│ 🧭 Tourist  │ │ 🖥️ Govt Command│ │ 👪 Guardian  │ │ 🚑 Rescuer   │
+│    PWA      │ │  Center        │ │  Portal      │ │    App       │
+│  :5173      │ │  :5174         │ │  :5175       │ │  :5176       │
+│  amber ·    │ │  emerald ·     │ │  token-in-   │ │  teal ·      │
+│  mobile ·   │ │  desktop ·     │ │  URL, zero   │ │  live GPS ·  │
+│  offline    │ │  live ops map  │ │  login       │ │  road routes │
+└────────────┘ └───────────────┘ └─────────────┘ └─────────────┘
 ```
 
 | Portal | Who | What they see |
 |---|---|---|
 | **Tourist PWA** | The traveler | Plan trips with a real Travel Safety Index, one-tap and gesture-triggered SOS, a Dead Man's Switch, curated destination news, community reviews, and a printable Digital Journey Passport |
-| **Govt Command Center** | District officers, dispatchers, checkpoint officers | A live map of every active tourist, SOS triage with one-tap rescue assignment, district-level risk overview, QR checkpoint scanning, and incident analytics with PDF export |
-| **Guardian Portal** | Family and friends | A single shared link — no account, no app install — showing live location, SOS state, battery, and medical info, auto-refreshing every 30 seconds |
+| **Govt Command Center** | District officers, dispatchers, checkpoint officers | A live map of every active tourist, SOS triage with a combined team-or-volunteer dispatch panel, volunteer identity verification, district risk overview, QR checkpoint scanning, and incident analytics with PDF export |
+| **Guardian Portal** | Family and friends | A single shared link — no account, no app install — showing live location, SOS state, the assigned rescuer's live position on a real road route, battery, and medical info, auto-refreshing every 30 seconds |
+| **Rescuer App** | Official rescue teams and govt-verified citizen volunteers | Nearby-SOS alerts, a full-screen live map with a real OSRM road route to the person in need, one-tap "Start navigation," and EN\_ROUTE/ARRIVED self-status reporting |
 
 <table>
 <tr>
-<td width="33%"><img src="./docs/screenshots/tourist-dashboard.png" alt="Tourist PWA dashboard"></td>
-<td width="33%"><img src="./docs/screenshots/govt-risk-overview.png" alt="Govt Command Center risk overview"></td>
-<td width="33%"><img src="./docs/screenshots/guardian-portal.png" alt="Guardian Portal live SOS view"></td>
+<td width="25%"><img src="./docs/screenshots/tourist-dashboard.png" alt="Tourist PWA dashboard"></td>
+<td width="25%"><img src="./docs/screenshots/govt-risk-overview.png" alt="Govt Command Center risk overview"></td>
+<td width="25%"><img src="./docs/screenshots/guardian-portal.png" alt="Guardian Portal live SOS view"></td>
+<td width="25%"><img src="./docs/screenshots/rescuer-active-job.png" alt="Rescuer app live navigation"></td>
 </tr>
 <tr>
 <td align="center"><sub>Tourist PWA — dashboard</sub></td>
 <td align="center"><sub>Govt Command Center — risk overview</sub></td>
 <td align="center"><sub>Guardian Portal — live SOS state</sub></td>
+<td align="center"><sub>Rescuer App — live road route</sub></td>
 </tr>
 </table>
 
@@ -154,9 +163,17 @@ slides.
 - **Weather-triggered risk alerts** — a sudden weather-driven TSI drop pushes a real-time alert to anyone with that destination on their itinerary
 - **Web push notifications** — critical alerts reach tourists even when the app isn't open
 
+### 🚑 Unified Rescue Network
+- **One assignable rescuer pool** — official rescue teams and govt-verified citizen volunteers, distance-sorted in a single govt dispatch panel, badge-differentiated "Official" vs "Volunteer"
+- **Govt-side volunteer onboarding** — review a citizen's self-registration through an explicit identity-confirmation dialog, *or* provision a walk-in responder's account directly with a one-time password, generated and shown once
+- **Real OSRM road routing** — every rescuer-to-SOS line on every portal (Rescuer app, Guardian, tourist) is an actual road route, not a straight line, with a graceful straight-line fallback if the routing service is unreachable
+- **Live GPS streaming** — a rescuer's position updates over Socket.IO roughly every 9 seconds while en route, moving the marker on the tourist's, guardian's, and govt operator's map without a page refresh
+- **Self-service status, govt-owned resolution** — a rescuer reports their own `EN_ROUTE`/`ARRIVED` progress; closing the incident stays an exclusive govt-operator action, matching how a real emergency response chain of custody works
+
 ### 🖥️ Government Operations
 - **Live ops map** (Leaflet + Socket.IO) — every active tourist, every open SOS, updating in real time, no refresh
-- **SOS triage & rescue assignment** — one-tap dispatch to the nearest available team, status tracked through `EN_ROUTE → RESOLVED`
+- **SOS triage & rescue assignment** — dispatch to the nearest available team *or* volunteer, status tracked live through `EN_ROUTE → ARRIVED → RESOLVED`
+- **Volunteer verification & roster** — a pending-review queue with full identity detail before granting dispatch access, plus a live roster showing every volunteer's status and reputation points
 - **District risk overview** — per-destination live tourist counts, weather, TSI distribution, and a direct "Post News / Alert" action that fans out to every tourist with that destination on an active itinerary
 - **Checkpoint QR scanning** — camera-first scan of a tourist's rotating QR code resolves their full safety profile at a physical checkpoint (ILP posts, park entrances) in one tap, manual entry as a fallback, not the default
 - **Analytics & reporting** — incident trends, category breakdowns, average response time, exportable as a real PDF with one click
@@ -170,13 +187,67 @@ slides.
 
 ### 👪 Guardian Portal
 - **Zero-friction access** — a cryptographically random token in the URL, no login, works the instant it's opened
-- **Four status states**, each visually distinct: safe, check-in-due warning, SOS active (with map, category, and trigger time), and no-signal
+- **Five status states**, each visually distinct: safe, check-in-due warning, SOS active, help-dispatched (amber, distinct from a raw SOS), and no-signal
+- **Live rescuer tracking** once help is dispatched — the assigned team or volunteer's real-time position and road route to the traveler, the same picture the govt operator sees
 - Live location on a Leaflet map, battery level, medical info (blood group, conditions), auto-refresh every 30s
 
 ### 📴 Offline-first
 - **IndexedDB (Dexie.js)** queues SOS events and location pings when the tourist app itself is offline, syncing the moment connectivity returns
 - **Cached safety guides** — nearest hospital, police, and rescue team contact stay available even with no signal
 - Every safety mechanism above degrades gracefully rather than failing outright when a network or third-party API isn't available
+
+---
+
+## The unified Rescuer network
+
+Two kinds of rescuer used to be structurally separate systems: official rescue teams (a shared
+phone number, manually dispatched by a govt operator) and citizen volunteers (individually
+logged in, only reachable by an automatic proximity broadcast — no manual assignment path
+existed, and no live location ever left their registered base). Neither had a real road route or
+a live position. This is the actual flow now, end to end, screenshotted from the running app:
+
+**1. A volunteer gets an account** — either they register themselves in the Rescuer app, or a
+district officer provisions one directly for a walk-in local responder, generating a one-time
+password on the spot.
+
+<p align="center">
+  <img src="./docs/screenshots/rescuer-auth.png" alt="Rescuer app registration and login" width="340">
+</p>
+
+**2. A district officer verifies their identity** before they're eligible for dispatch — an
+explicit confirm step, not a one-click rubber stamp, since verifying grants access to a
+tourist's exact live location the moment they're assigned.
+
+<p align="center">
+  <img src="./docs/screenshots/govt-volunteers.png" alt="Govt Volunteers page — account provisioning and credentials" width="700">
+</p>
+
+**3. An SOS comes in, and the govt operator picks a rescuer** — official team or verified
+volunteer, in one distance-sorted panel, badge-differentiated so the operator always knows
+which kind of rescuer they're sending.
+
+<p align="center">
+  <img src="./docs/screenshots/govt-assign-rescuer.png" alt="Govt SOS Management — combined team/volunteer assign panel" width="700">
+</p>
+
+**4. The Rescuer app opens straight into a live, full-screen map** — a real OSRM road route to
+the person in need (not a straight line), live distance/ETA, one-tap handoff to Google Maps
+turn-by-turn, and self-reported `EN_ROUTE` → `ARRIVED` progress.
+
+<p align="center">
+  <img src="./docs/screenshots/rescuer-active-job.png" alt="Rescuer app — live navigation to an SOS" width="340">
+</p>
+
+**5. The family sees the exact same live picture** — the assigned rescuer's real-time position
+and road route, on the same no-login Guardian link they already had open.
+
+<p align="center">
+  <img src="./docs/screenshots/guardian-rescuer-live.png" alt="Guardian Portal — live rescuer tracking" width="340">
+</p>
+
+The rescuer's position streams over Socket.IO into three rooms at once — tourist, guardian, govt
+— so all three views move in near-real-time off the same GPS ticks, not three separate polling
+loops drifting out of sync.
 
 ---
 
@@ -207,7 +278,11 @@ are in [`docs/screenshots/`](./docs/screenshots/), free to drop straight into sl
 </tr>
 <tr>
 <td width="50%"><img src="./docs/screenshots/govt-live-map.png" alt="Live ops map"><p align="center"><sub>Live Map — every active tourist, real time</sub></p></td>
-<td width="50%"><img src="./docs/screenshots/govt-sos-management.png" alt="SOS management"><p align="center"><sub>SOS Management — triage + rescue dispatch</sub></p></td>
+<td width="50%"><img src="./docs/screenshots/govt-sos-management.png" alt="SOS management"><p align="center"><sub>SOS Management — incident triage list</sub></p></td>
+</tr>
+<tr>
+<td width="50%"><img src="./docs/screenshots/govt-assign-rescuer.png" alt="Combined team/volunteer assign panel"><p align="center"><sub>Assign Rescuer — official team or verified volunteer</sub></p></td>
+<td width="50%"><img src="./docs/screenshots/govt-volunteers.png" alt="Volunteer onboarding and credentials"><p align="center"><sub>Volunteers — provisioning + one-time credentials</sub></p></td>
 </tr>
 <tr>
 <td width="50%"><img src="./docs/screenshots/govt-risk-overview.png" alt="Risk overview"><p align="center"><sub>Risk Overview — per-destination live risk</sub></p></td>
@@ -217,9 +292,22 @@ are in [`docs/screenshots/`](./docs/screenshots/), free to drop straight into sl
 
 **Guardian Portal** — mobile view, since this is the link a family member opens on their phone
 
-<p align="center">
-  <img src="./docs/screenshots/guardian-portal.png" alt="Guardian Portal live SOS tracking, mobile view" width="320">
-</p>
+<table>
+<tr>
+<td width="50%"><img src="./docs/screenshots/guardian-portal.png" alt="Guardian Portal live SOS tracking, mobile view"><p align="center"><sub>SOS active — no rescuer dispatched yet</sub></p></td>
+<td width="50%"><img src="./docs/screenshots/guardian-rescuer-live.png" alt="Guardian Portal live rescuer tracking, mobile view"><p align="center"><sub>Help dispatched — live rescuer + road route</sub></p></td>
+</tr>
+</table>
+
+**Rescuer App** — the newest portal, teal to stay visually distinct from the other three
+
+<table>
+<tr>
+<td width="33%"><img src="./docs/screenshots/rescuer-auth.png" alt="Rescuer app login"><p align="center"><sub>Log in / register</sub></p></td>
+<td width="33%"><img src="./docs/screenshots/rescuer-home.png" alt="Rescuer app home screen"><p align="center"><sub>Home — availability toggle, nearby alerts</sub></p></td>
+<td width="33%"><img src="./docs/screenshots/rescuer-active-job.png" alt="Rescuer app live navigation"><p align="center"><sub>Active job — live route + status</sub></p></td>
+</tr>
+</table>
 
 ---
 
@@ -230,11 +318,12 @@ Socket.IO · node-cron (DMS checks every minute, weather+TSI hourly, news rotati
 Twilio (outbound SMS + inbound webhook) · Google Gemini · PDFKit · multer (photo uploads) · Zod
 validation · pino structured logging.
 
-**Frontend stack** (all three apps, independently deployable Vite projects sharing one design
+**Frontend stack** (all four apps, independently deployable Vite projects sharing one design
 system — see [`UI_GUIDE.md`](./UI_GUIDE.md)): Vite 8 · React 19 · TypeScript 6 · Tailwind CSS
 3.4 · shadcn/ui (Radix primitives) · Zustand · TanStack Query v5 · Dexie.js (tourist offline
-sync) · react-leaflet (govt live map) · react-hook-form + Zod · Socket.IO client · jsQR (checkpoint
-camera scanning).
+sync) · react-leaflet (govt live map, Guardian/tourist/Rescuer live-route maps) · OSRM (real road
+routing, no API key) · react-hook-form + Zod · Socket.IO client · jsQR (checkpoint camera
+scanning).
 
 Every layer is intentionally narrow: controllers hold no SQL or business logic, all queries live
 in repositories, and every multi-table write that must be atomic goes through a single
@@ -247,16 +336,18 @@ the [production readiness report](./PRODUCTION_READINESS_REPORT.html).
 
 | | |
 |---|---|
-| **Portals** | 3 (Tourist PWA, Govt Command Center, Guardian Portal) |
-| **API endpoints** | 66, across 13 route groups |
-| **Database tables** | 19 |
+| **Portals** | 4 (Tourist PWA, Govt Command Center, Guardian Portal, Rescuer App) |
+| **API endpoints** | 78, across 13 route groups |
+| **Database tables** | 22 |
 | **Destinations seeded** | 10, across Assam, Meghalaya, Nagaland, Arunachal Pradesh, Sikkim, Manipur — each with real altitude, connectivity, ILP, and hospital data |
 | **Curated news items** | ~45, hand-written per destination, auto-rotating |
 | **Tourist app screens** | 13+ (landing, auth, dashboard, trip planning + detail with 6 tabs, check-in, SOS, community, advisory, profile) |
-| **Govt app screens** | 7 (login, dashboard, SOS management, live map, risk overview, analytics, checkpoint scan) |
+| **Govt app screens** | 8 (login, dashboard, SOS management, volunteers, live map, risk overview, analytics, checkpoint scan) |
+| **Rescuer app screens** | 3 (auth, home, active job — live map) |
 | **Cron jobs** | 3 (Dead Man's Switch monitoring, weather + TSI refresh, destination news rotation) |
-| **Real-time events** | 11 distinct Socket.IO event types |
+| **Real-time events** | 24 distinct Socket.IO event types |
 | **SOS incident categories** | 7 (medical, lost, trapped, disaster, missing, crime, other) |
+| **Rescuer types** | 2 (official rescue teams, govt-verified citizen volunteers) — one assignable pool |
 
 ---
 
@@ -287,7 +378,7 @@ Aaraksha/
 │   │   ├── cron/                    DMS, weather+TSI, destination-news rotation jobs
 │   │   ├── data/                    curated destination news bank
 │   │   ├── database/                connection pool, transaction helper
-│   │   └── migrations/              node-pg-migrate schema — 19 tables across 6 migrations
+│   │   └── migrations/              node-pg-migrate schema — 22 tables across 10 migrations
 │   ├── scripts/
 │   │   ├── preflight.js             env/DB connectivity check before setup
 │   │   ├── seed.js                  idempotent demo data (--reset flag available)
@@ -304,10 +395,14 @@ Aaraksha/
     │                                 safety (SOS/check-in/checkpoint pass), community,
     │                                 advisory, profile
     ├── govt/                        Government Command Center — :5174
-    │   └── src/pages/               login, dashboard, SOS management, live map,
-    │                                 risk overview, analytics, checkpoint scan
-    └── guardian/                    Guardian Portal — :5175
-        └── src/pages/               tracking page (token in URL, no auth)
+    │   └── src/pages/               login, dashboard, SOS management, volunteers,
+    │                                 live map, risk overview, analytics, checkpoint scan
+    ├── guardian/                    Guardian Portal — :5175
+    │   └── src/pages/               tracking page (token in URL, no auth)
+    └── volunteer/                   Rescuer App — :5176 (folder name predates the
+        │                             rebrand; app-facing copy says "Aaraksha Rescuer")
+        └── src/pages/               auth, home (availability + nearby alerts),
+                                      active job (live map + road route)
 ```
 
 ---
@@ -337,7 +432,7 @@ real random values even for local development. Twilio, Gemini, OpenWeatherMap, a
 ### 3. Set up the database
 ```bash
 npm run preflight     # verifies DATABASE_URL is reachable before anything else runs
-npm run migrate       # applies the 19-table schema
+npm run migrate       # applies the 22-table schema
 npm run seed          # idempotent demo data — safe to re-run
 ```
 Or all three in one shot: `npm run setup`.
@@ -356,15 +451,17 @@ Starts on `PORT` (default `5000`), logs `GET /health → {"status":"ok"}` once r
 Socket.IO and all three cron jobs start automatically.
 
 ### 5. Run the frontends
-Each app is a separate Vite project on a fixed port. In three more terminals:
+Each app is a separate Vite project on a fixed port. In four more terminals:
 ```bash
-cd frontend/tourist  && cp .env.example .env && npm install && npm run dev   # → :5173
+cd frontend/tourist   && cp .env.example .env && npm install && npm run dev   # → :5173
 cd frontend/govt      && cp .env.example .env && npm install && npm run dev   # → :5174
 cd frontend/guardian  && cp .env.example .env && npm install && npm run dev   # → :5175
+cd frontend/volunteer && cp .env.example .env && npm install && npm run dev   # → :5176 (Rescuer App)
 ```
 The `.env.example` defaults work out of the box against a local backend. To test from another
 device on the same network, point each `VITE_API_URL` / `VITE_SOCKET_URL` at your machine's LAN
-IP instead of `localhost` (all three dev servers already bind to `0.0.0.0`).
+IP instead of `localhost` (all four dev servers already bind to `0.0.0.0`). Road routing calls
+the free public OSRM demo server directly from the browser — no API key, nothing to configure.
 
 ---
 
@@ -376,14 +473,19 @@ Seeded by `npm run seed` — each tourist account is mid-scenario, not a blank s
 |---|---|---|
 | Aryan Demo | `9999999999` / `Demo@123` | Active trip, 1 check-in, 1 resolved SOS |
 | Priya Sharma | `9876500001` / `Demo@123` | Completed trip, passport-ready (check-ins, activities, packing list) |
-| Rahul Verma | `9876500002` / `Demo@123` | **Active trip with a live unresolved SOS + rescue team en route** |
+| Rahul Verma | `9876500002` / `Demo@123` | Active trip with a live unresolved SOS + **official rescue team** en route |
 | Sneha Das | `9876500003` / `Demo@123` | Active trip with a running Dead Man's Switch |
+| Karan Mehta | `9000055501` / `DemoPass123` | **SOS assigned to a volunteer (not a team), EN\_ROUTE with a live GPS fix** — open the Rescuer app as Priya Deka below to see it live |
 
 | Govt role | Login |
 |---|---|
 | Super Admin | `admin@aaraksha.gov.in` / `Admin@123` |
 | District Admin | `district.officer@aaraksha.gov.in` / `District@123` |
 | Checkpoint Officer | `checkpoint.officer@aaraksha.gov.in` / `Checkpoint@123` |
+
+| Rescuer App login | Scenario |
+|---|---|
+| Priya Deka — `9000055503` / `DemoPass123` | Verified volunteer, already `EN_ROUTE` to Karan Mehta above — logs straight into the live-navigation screen |
 
 The Guardian Portal needs no login — copy any tourist's guardian token (visible on their Profile
 page) into `/track/:token` on the guardian app.
@@ -392,7 +494,7 @@ page) into `/track/:token` on the guardian app.
 
 ## API surface
 
-66 REST endpoints across 13 route groups, all under `/api`:
+78 REST endpoints across 13 route groups, all under `/api`:
 
 | Prefix | Covers |
 |---|---|
@@ -406,7 +508,8 @@ page) into `/track/:token` on the guardian app.
 | `/scam-reports` | Community-reported safety incidents |
 | `/packing` | AI-generated packing checklists |
 | `/journey-passport` | PDF trip summary generation |
-| `/govt` | Dashboard, live tourists, risk overview, SOS assignment/resolution, rescue teams, checkpoint scan, analytics + PDF export, destination news posting |
+| `/govt` | Dashboard, live tourists, risk overview, SOS assignment/resolution to a team *or* volunteer, nearby-rescuer search, rescue teams, volunteer provisioning/verification/roster, checkpoint scan, analytics + PDF export, destination news posting |
+| `/volunteers` | Volunteer register/login, status + live location updates, active-assignment lookup, EN\_ROUTE/ARRIVED self-status |
 | `/webhooks` | Twilio inbound SMS (offline SOS) |
 | `/push` | Web push subscribe/unsubscribe, VAPID public key |
 
@@ -423,7 +526,10 @@ cd backend
 npm test
 ```
 Covers pure logic (TSI scoring, crypto utilities) and integration flows against
-`DATABASE_TEST_URL`.
+`DATABASE_TEST_URL`. Each of the four frontends also carries its own vitest suite (91 tests
+total across tourist/govt/guardian/volunteer) — `cd frontend/<app> && npm test`. CI
+(`.github/workflows/test.yml`) runs the backend suite against a real ephemeral Postgres and
+matrixes the frontend suite across all four apps on every push and pull request.
 
 **API contract tests (Postman/Newman)**
 ```bash
@@ -431,10 +537,10 @@ cd backend
 npx newman run postman/aaraksha-collection.json -e postman/aaraksha-environment.json
 ```
 Covers the core auth/trip/SOS/DMS/govt surface. The community reviews, news rotation, group
-trips, and push-notification endpoints were added after this collection and have instead been
-verified through live, real-network end-to-end testing across all three running portals
-(Playwright-driven — real logins, real form submissions, real network requests inspected, real
-DB rows confirmed) rather than through Postman assertions yet.
+trips, push-notification, and unified-rescuer endpoints were added after this collection and
+have instead been verified through live, real-network end-to-end testing across all four running
+portals (Playwright-driven — real logins, real form submissions, real network requests inspected,
+real DB rows confirmed) rather than through Postman assertions yet.
 
 ---
 
@@ -472,7 +578,7 @@ real source code, are in
 | [`Architecture.md`](./Architecture.md) | You're making a stack, naming, or directory-structure decision |
 | [`API_GUIDE.md`](./API_GUIDE.md) | You're calling or adding an endpoint |
 | [`DB_GUIDE.md`](./DB_GUIDE.md) | You're writing a query or touching the schema |
-| [`UI_GUIDE.md`](./UI_GUIDE.md) | You're building one of the three frontends |
+| [`UI_GUIDE.md`](./UI_GUIDE.md) | You're building one of the four frontends |
 | [`PRODUCTION_READINESS_REPORT.html`](./PRODUCTION_READINESS_REPORT.html) | You want architecture diagrams + adversarial-testing evidence |
 
 ---
@@ -481,14 +587,13 @@ real source code, are in
 
 Everything above is built and working end-to-end. What's next:
 
-- [ ] **Volunteer SOS network** — a dual-channel alert that pings nearby verified local
-      volunteers alongside official rescue teams, with a points/reputation system to encourage
-      participation. Scoped, feasible, deliberately not built yet — pitched as the natural next
-      expansion of the safety network beyond government response.
-- [ ] Automated frontend test suite (current automated coverage is backend-only; frontends are
-      verified through live end-to-end browser testing, not a checked-in test suite)
-- [ ] PWA service worker for full offline app-shell support (today's offline story is IndexedDB
-      data sync + SMS fallback, not an installable offline-first shell)
+- [ ] **Live rescuer marker on the govt ops map** — `SOSManagementPage` already shows a rescuer's
+      name and `EN_ROUTE`/`ARRIVED` status live; the govt Live Map itself still renders only
+      tourist markers, not the rescuer's moving position and road route the Rescuer/Guardian/
+      tourist apps already show. Same `RESCUER_LOCATION_UPDATE` event, just not consumed there yet.
+- [ ] Postman collection coverage for the unified-rescuer endpoints (`/govt/volunteers/*`,
+      `/govt/sos/:id/nearby-rescuers`, `/volunteers/me/*`) — currently verified live, not via
+      checked-in Postman assertions (see [Testing](#testing))
 - [ ] Real Twilio/Gemini/OpenWeatherMap/VAPID credentials wired in for the live demo environment
 
 ---
