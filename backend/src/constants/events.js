@@ -14,6 +14,10 @@ const SOCKET_EVENTS = Object.freeze({
   // A volunteer moved a dispatch forward (RESPONDED/COMPLETED/DECLINED) —
   // lets operators see volunteer activity alongside official rescue teams.
   VOLUNTEER_ASSIGNMENT_UPDATED: 'VOLUNTEER_ASSIGNMENT_UPDATED',
+  // A rescuer's live GPS position while en route on an assignment — same
+  // event name emitted into three different rooms (tourist/guardian/govt)
+  // by emitRescuerLocationUpdate, not room-specific like the others here.
+  RESCUER_LOCATION_UPDATE: 'RESCUER_LOCATION_UPDATE',
 
   // Server → Tourist room (tourist:{touristId})
   TSI_UPDATED:         'TSI_UPDATED',
@@ -32,6 +36,10 @@ const SOCKET_EVENTS = Object.freeze({
 
   // Server → Volunteer room (volunteer:{volunteerId})
   VOLUNTEER_SOS_ALERT:        'VOLUNTEER_SOS_ALERT',
+  // A govt operator manually assigned this specific volunteer to an SOS —
+  // distinct from VOLUNTEER_SOS_ALERT (a broadcast to many nearby
+  // volunteers, no one yet officially assigned).
+  VOLUNTEER_ASSIGNED:         'VOLUNTEER_ASSIGNED',
 
   // Client → Server (from govt dashboard)
   GOVT_JOIN_DISTRICT: 'GOVT_JOIN_DISTRICT',

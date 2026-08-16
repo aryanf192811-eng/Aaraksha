@@ -57,7 +57,12 @@ const UpdateDispatchStatusSchema = z.object({
   ]),
 })
 
+const UpdateLocationSchema = z.object({
+  latitude:  LatitudeSchema,
+  longitude: LongitudeSchema,
+})
+
 module.exports = {
   RegisterVolunteerSchema, LoginVolunteerSchema,
-  UpdateVolunteerStatusSchema, UpdateDispatchStatusSchema,
+  UpdateVolunteerStatusSchema, UpdateDispatchStatusSchema, UpdateLocationSchema,
 }

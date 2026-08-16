@@ -57,6 +57,8 @@ const ERRORS = Object.freeze({
   VOLUNTEER_INACTIVE:      'Volunteer account is deactivated',
   DISPATCH_NOT_FOUND:      'Dispatch not found or access denied',
   DISPATCH_ALREADY_CLOSED: 'This dispatch is already resolved',
+  VOLUNTEER_NOT_AVAILABLE: 'Volunteer is not available — status must be AVAILABLE to assign',
+  ASSIGNMENT_NOT_FOUND:    'Assignment not found or access denied',
 
   // Generic
   NOT_FOUND:           'Resource not found',

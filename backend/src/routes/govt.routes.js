@@ -10,9 +10,16 @@ const { validate } = require('../middleware/validate')
 const { z } = require('zod')
 const { TEAM_STATUSES } = require('../constants/enums')
 
+// Exactly one of teamId/volunteerId — matches the DB-level
+// rescue_assignments_one_assignee CHECK constraint (migration 010), so a
+// malformed request is rejected here rather than surfacing as a raw
+// constraint-violation 500 further down.
 const AssignRescueSchema = z.object({
-  teamId: z.string().uuid(),
-  notes:  z.string().max(1000).optional().nullable(),
+  teamId:      z.string().uuid().optional(),
+  volunteerId: z.string().uuid().optional(),
+  notes:       z.string().max(1000).optional().nullable(),
+}).refine(d => !!d.teamId !== !!d.volunteerId, {
+  message: 'Provide exactly one of teamId or volunteerId', path: ['teamId'],
 })
 const ResolveSOSSchema = z.object({
   resolutionNotes: z.string().min(3).max(1000).optional(),
@@ -42,6 +49,7 @@ router.get('/risk-overview',       requireGovtRole(...COMMAND_CENTER_ROLES), ctr
 router.get('/analytics',           requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getAnalytics)
 router.get('/analytics/export',    requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.exportAnalyticsReport)
 router.get('/sos/active',          requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getActiveSOS)
+router.get('/sos/:id/nearby-rescuers', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getNearbyRescuers)
 router.patch('/sos/:id/assign',    requireGovtRole(...COMMAND_CENTER_ROLES), validate(AssignRescueSchema),     ctrl.assignRescue)
 router.patch('/sos/:id/resolve',   requireGovtRole(...COMMAND_CENTER_ROLES), validate(ResolveSOSSchema),       ctrl.resolveSOS)
 router.get('/rescue-teams',        requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getRescueTeams)

@@ -10,8 +10,8 @@ const { DestinationRepository } = require('../repositories/destination.repositor
 const { TripRepository } = require('../repositories/trip.repository')
 const { TouristRepository } = require('../repositories/tourist.repository')
 const { VolunteerRepository } = require('../repositories/volunteer.repository')
-const { emitSOSResolved, emitRescueAssigned, emitGuardianRescueAssigned } = require('../socket/emitters')
-const { SOS_STATUSES, TEAM_STATUSES } = require('../constants/enums')
+const { emitSOSResolved, emitRescueAssigned, emitGuardianRescueAssigned, emitVolunteerAssigned } = require('../socket/emitters')
+const { SOS_STATUSES, TEAM_STATUSES, VOLUNTEER_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const logger = require('../utils/logger')
 
@@ -43,9 +43,17 @@ async function getActiveSOS(filters) {
   return new SOSRepository().findActive(filters)
 }
 
-async function assignRescue(sosId, govtUserId, teamId, notes) {
-  const sosRepo    = new SOSRepository()
-  const rescueRepo = new RescueRepository()
+// Assigns either an official rescue team OR a volunteer to an SOS —
+// exactly one of teamId/volunteerId is provided (validated by
+// AssignRescueSchema's .refine() in govt.routes.js). Both paths share one
+// transaction shape and one set of emitters (see normalizeRescuer in
+// emitters.js), so a volunteer assignment is a first-class citizen here,
+// not a bolted-on special case.
+async function assignRescue(sosId, govtUserId, { teamId, volunteerId }, notes) {
+  const sosRepo       = new SOSRepository()
+  const rescueRepo    = new RescueRepository()
+  const volunteerRepo = new VolunteerRepository()
+  const rescuerKind   = volunteerId ? 'VOLUNTEER' : 'TEAM'
 
   const sos  = await sosRepo.findById(sosId)
   if (!sos)  throw Object.assign(new Error(ERRORS.SOS_NOT_FOUND), { statusCode: 404 })
@@ -53,35 +61,66 @@ async function assignRescue(sosId, govtUserId, teamId, notes) {
     throw Object.assign(new Error('SOS is not open for assignment'), { statusCode: 400 })
   }
 
-  const team = await rescueRepo.findTeamById(teamId)
-  if (!team) throw Object.assign(new Error(ERRORS.TEAM_NOT_FOUND), { statusCode: 404 })
-  if (team.status !== TEAM_STATUSES.AVAILABLE) {
-    throw Object.assign(new Error(ERRORS.TEAM_NOT_AVAILABLE), { statusCode: 400 })
+  let rescuer
+  if (rescuerKind === 'VOLUNTEER') {
+    rescuer = await volunteerRepo.findById(volunteerId)
+    if (!rescuer) throw Object.assign(new Error(ERRORS.VOLUNTEER_NOT_FOUND), { statusCode: 404 })
+    if (!rescuer.is_verified) throw Object.assign(new Error(ERRORS.VOLUNTEER_NOT_VERIFIED), { statusCode: 400 })
+    if (rescuer.status !== VOLUNTEER_STATUSES.AVAILABLE) {
+      throw Object.assign(new Error(ERRORS.VOLUNTEER_NOT_AVAILABLE), { statusCode: 400 })
+    }
+  } else {
+    rescuer = await rescueRepo.findTeamById(teamId)
+    if (!rescuer) throw Object.assign(new Error(ERRORS.TEAM_NOT_FOUND), { statusCode: 404 })
+    if (rescuer.status !== TEAM_STATUSES.AVAILABLE) {
+      throw Object.assign(new Error(ERRORS.TEAM_NOT_AVAILABLE), { statusCode: 400 })
+    }
   }
 
   const { assignment } = await withTransaction(async (client) => {
-    const sosRepo_t    = new SOSRepository(client)
-    const rescueRepo_t = new RescueRepository(client)
+    const sosRepo_t       = new SOSRepository(client)
+    const rescueRepo_t    = new RescueRepository(client)
+    const volunteerRepo_t = new VolunteerRepository(client)
 
     const assignment = await rescueRepo_t.createAssignment({
-      sosEventId: sosId, teamId, assignedBy: govtUserId, notes
+      sosEventId: sosId, teamId: rescuerKind === 'TEAM' ? teamId : null,
+      volunteerId: rescuerKind === 'VOLUNTEER' ? volunteerId : null,
+      assignedBy: govtUserId, notes,
     })
     await sosRepo_t.updateStatus(sosId, SOS_STATUSES.ASSIGNED)
-    await rescueRepo_t.updateTeamStatus(teamId, TEAM_STATUSES.DEPLOYED)
+    if (rescuerKind === 'TEAM') {
+      await rescueRepo_t.updateTeamStatus(teamId, TEAM_STATUSES.DEPLOYED)
+    } else {
+      await volunteerRepo_t.updateStatus(volunteerId, VOLUNTEER_STATUSES.DEPLOYED)
+    }
     return { assignment }
   })
 
-  emitRescueAssigned(assignment, sos, team)
+  emitRescueAssigned(assignment, sos, rescuer, rescuerKind)
   if (sos.tourist_id) {
-    // Best-effort: the guardian push is a nice-to-have live update, not a
-    // step the assignment itself depends on — a lookup failure here must
-    // never undo an already-committed rescue dispatch.
+    // Best-effort: a lookup failure here must never undo an already-
+    // committed rescue dispatch. One lookup feeds both the volunteer's own
+    // "you've been assigned" push (wants the tourist's first name) and the
+    // guardian's live ETA update.
     new TouristRepository().findById(sos.tourist_id)
-      .then(tourist => { if (tourist?.guardian_token) emitGuardianRescueAssigned(tourist.guardian_token, sos, team) })
-      .catch(err => logger.error({ err: { message: err.message }, sosId }, 'Guardian rescue-assigned push failed'))
+      .then(tourist => {
+        if (rescuerKind === 'VOLUNTEER') emitVolunteerAssigned(volunteerId, assignment, sos, tourist)
+        if (tourist?.guardian_token) emitGuardianRescueAssigned(tourist.guardian_token, sos, rescuer, rescuerKind)
+      })
+      .catch(err => logger.error({ err: { message: err.message }, sosId }, 'Post-assignment push failed'))
+  } else if (rescuerKind === 'VOLUNTEER') {
+    emitVolunteerAssigned(volunteerId, assignment, sos, null)
   }
-  logger.info({ sosId, teamId, assignmentId: assignment.id }, 'Rescue assigned')
-  return { assignment, sosStatus: SOS_STATUSES.ASSIGNED, teamStatus: TEAM_STATUSES.DEPLOYED }
+  logger.info({ sosId, rescuerKind, rescuerId: rescuer.id, assignmentId: assignment.id }, 'Rescue assigned')
+  return { assignment, sosStatus: SOS_STATUSES.ASSIGNED, rescuerKind }
+}
+
+// Powers the govt "who's near this SOS" panel before assigning — teams and
+// volunteers in one distance-sorted list.
+async function getNearbyRescuers(sosId) {
+  const sos = await new SOSRepository().findById(sosId)
+  if (!sos) throw Object.assign(new Error(ERRORS.SOS_NOT_FOUND), { statusCode: 404 })
+  return new RescueRepository().findNearbyAvailableRescuers(sos.latitude, sos.longitude)
 }
 
 async function resolveSOS(sosId, resolutionNotes) {
@@ -102,6 +141,9 @@ async function resolveSOS(sosId, resolutionNotes) {
     const assignment = await rescueRepo_t.resolveAssignment(sosId)
     if (assignment?.team_id) {
       await rescueRepo_t.updateTeamStatus(assignment.team_id, TEAM_STATUSES.AVAILABLE)
+    } else if (assignment?.volunteer_id) {
+      const volunteerRepo_t = new VolunteerRepository(client)
+      await volunteerRepo_t.updateStatus(assignment.volunteer_id, VOLUNTEER_STATUSES.AVAILABLE)
     }
     return { resolved }
   })
@@ -213,7 +255,7 @@ async function verifyVolunteer(volunteerId) {
 }
 
 module.exports = {
-  getDashboard, getActiveSOS, assignRescue, resolveSOS,
+  getDashboard, getActiveSOS, assignRescue, resolveSOS, getNearbyRescuers,
   getLiveTourists, getRiskOverview, getRescueTeams, updateTeamStatus, getAnalytics,
   getPendingVolunteers, verifyVolunteer,
 }

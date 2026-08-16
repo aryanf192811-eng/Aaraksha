@@ -3,9 +3,10 @@
 
 const { VolunteerRepository } = require('../repositories/volunteer.repository')
 const { VolunteerDispatchRepository } = require('../repositories/volunteerDispatch.repository')
+const { RescueRepository } = require('../repositories/rescue.repository')
 const { hashPassword, verifyPassword, hashGovtId, normalizePhone, extractSuffix } = require('../utils/crypto')
 const { generateJWT } = require('./auth.service')
-const { emitVolunteerAssignmentUpdated } = require('../socket/emitters')
+const { emitVolunteerAssignmentUpdated, emitRescuerLocationUpdate } = require('../socket/emitters')
 const { VOLUNTEER_DISPATCH_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const logger = require('../utils/logger')
@@ -99,6 +100,32 @@ async function updateDispatchStatus(dispatchId, volunteerId, status) {
   return dispatch
 }
 
+// The Rescuer app's "active job" screen — the one rescue_assignments row
+// (not volunteer_dispatches — that's the broadcast, this is "you are the
+// one officially assigned") this volunteer is currently on, if any.
+async function getActiveAssignment(volunteerId) {
+  return new RescueRepository().findActiveAssignmentByVolunteerId(volunteerId)
+}
+
+// Called every ~8-10s by the Rescuer app while en route — writes the
+// rescuer's current position onto their active assignment and fans it out
+// live to whoever's watching (tourist, guardian, govt dashboard), the same
+// three rooms assignRescue's own post-assignment push already targets.
+async function updateRescuerLocation(volunteerId, latitude, longitude) {
+  const rescueRepo = new RescueRepository()
+  const assignment = await rescueRepo.findActiveAssignmentByVolunteerId(volunteerId)
+  if (!assignment) throw Object.assign(new Error(ERRORS.ASSIGNMENT_NOT_FOUND), { statusCode: 404 })
+
+  await rescueRepo.updateAssignmentRescuerLocation(assignment.id, latitude, longitude)
+  emitRescuerLocationUpdate(
+    { id: assignment.sos_event_id, tourist_id: assignment.tourist_id },
+    assignment.guardian_token,
+    latitude, longitude
+  )
+  return { assignmentId: assignment.id, latitude, longitude }
+}
+
 module.exports = {
   registerVolunteer, loginVolunteer, updateStatus, getMyDispatches, updateDispatchStatus,
+  getActiveAssignment, updateRescuerLocation,
 }

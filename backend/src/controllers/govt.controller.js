@@ -34,9 +34,14 @@ const getActiveSOS = async (req, res, next) => {
 
 const assignRescue = async (req, res, next) => {
   try {
-    const result = await govtService.assignRescue(req.params.id, req.govtUser.id, req.validatedBody.teamId, req.validatedBody.notes)
-    sendSuccess(res, result, 'Rescue team assigned')
+    const { teamId, volunteerId, notes } = req.validatedBody
+    const result = await govtService.assignRescue(req.params.id, req.govtUser.id, { teamId, volunteerId }, notes)
+    sendSuccess(res, result, volunteerId ? 'Volunteer assigned' : 'Rescue team assigned')
   } catch (err) { next(err) }
+}
+
+const getNearbyRescuers = async (req, res, next) => {
+  try { sendSuccess(res, await govtService.getNearbyRescuers(req.params.id)) } catch (err) { next(err) }
 }
 
 const resolveSOS = async (req, res, next) => {
@@ -87,6 +92,6 @@ const verifyVolunteer = async (req, res, next) => {
 }
 
 module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRescueTeams,
-  getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, resolveSOS, updateTeamStatus,
+  getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, getNearbyRescuers, resolveSOS, updateTeamStatus,
   scanCheckpoint, getRecentCheckpointScans, postDestinationNews,
   getPendingVolunteers, verifyVolunteer }

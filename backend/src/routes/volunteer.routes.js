@@ -9,7 +9,7 @@ const { createAuthLimiter } = require('../middleware/rateLimiter')
 const { UUIDParamSchema } = require('../validators/common.validator')
 const {
   RegisterVolunteerSchema, LoginVolunteerSchema,
-  UpdateVolunteerStatusSchema, UpdateDispatchStatusSchema,
+  UpdateVolunteerStatusSchema, UpdateDispatchStatusSchema, UpdateLocationSchema,
 } = require('../validators/volunteer.validator')
 
 const registerLimiter = createAuthLimiter(20)
@@ -23,6 +23,8 @@ router.use(authenticateVolunteer)
 router.get('/me',                  ctrl.getProfile)
 router.patch('/me/status',         validate(UpdateVolunteerStatusSchema), ctrl.updateStatus)
 router.get('/me/dispatches',       ctrl.getMyDispatches)
+router.get('/me/active-assignment',ctrl.getActiveAssignment)
+router.patch('/me/location',       validate(UpdateLocationSchema), ctrl.updateLocation)
 router.patch('/dispatches/:id/status',
   validate(UUIDParamSchema, 'params'), validate(UpdateDispatchStatusSchema), ctrl.updateDispatchStatus)
 

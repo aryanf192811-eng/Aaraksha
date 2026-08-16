@@ -60,30 +60,43 @@ function emitSOSResolved(sosEvent, resolutionNotes) {
   }
 }
 
+// A rescue_assignments row's assignee is either a rescue_teams row or a
+// volunteers row (see migration 010_unify_rescuers) — the two have
+// different column names for the same concept, so every emitter that
+// touches an assignment normalizes through this instead of duplicating
+// the same ternary in each function.
+function normalizeRescuer(rescuer, rescuerKind) {
+  return rescuerKind === 'VOLUNTEER'
+    ? { name: rescuer.full_name, type: 'VOLUNTEER', phone: rescuer.phone, latitude: rescuer.latitude, longitude: rescuer.longitude }
+    : { name: rescuer.name, type: rescuer.type, phone: rescuer.contact_phone, latitude: rescuer.latitude, longitude: rescuer.longitude }
+}
+
 // Govt dashboard + the reporting tourist's own room: rescue assigned to SOS.
 // The tourist side needs to know help is on the way — without this they had
-// no way to find out an SOS they sent was actually being acted on.
-function emitRescueAssigned(assignment, sosEvent, team) {
+// no way to find out an SOS they sent was actually being acted on. Works
+// identically whether the assignee is an official team or a volunteer.
+function emitRescueAssigned(assignment, sosEvent, rescuer, rescuerKind = 'TEAM') {
+  const r = normalizeRescuer(rescuer, rescuerKind)
   safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.RESCUE_ASSIGNED, {
     assignmentId: assignment.id,
     sosId:        sosEvent.id,
-    teamId:       team.id,
-    teamName:     team.name,
-    teamType:     team.type,
-    district:     team.district,
+    rescuerId:    rescuer.id,
+    rescuerKind,
+    teamName:     r.name,
+    teamType:     r.type,
     status:       assignment.status,
     assignedAt:   assignment.assigned_at,
   })
   if (sosEvent.tourist_id) {
-    const eta = estimateRescueEtaMinutes(team.latitude, team.longitude, sosEvent.latitude, sosEvent.longitude)
+    const eta = estimateRescueEtaMinutes(r.latitude, r.longitude, sosEvent.latitude, sosEvent.longitude)
     safeEmit(SOCKET_ROOMS.tourist(sosEvent.tourist_id), SOCKET_EVENTS.SOS_STATUS_UPDATED, {
-      sosId: sosEvent.id, status: 'ASSIGNED', teamName: team.name, teamType: team.type,
-      teamPhone: team.contact_phone, teamLat: team.latitude, teamLng: team.longitude,
+      sosId: sosEvent.id, status: 'ASSIGNED', teamName: r.name, teamType: r.type,
+      teamPhone: r.phone, teamLat: r.latitude, teamLng: r.longitude,
       distanceKm: eta?.distanceKm ?? null, etaMinutes: eta?.etaMinutes ?? null,
     })
     sendPushToTourist(sosEvent.tourist_id, {
       title: 'Aaraksha — Rescue Dispatched',
-      body: `${team.name} is on the way${eta?.etaMinutes ? ` — ETA ${eta.etaMinutes} min` : ''}.`,
+      body: `${r.name} is on the way${eta?.etaMinutes ? ` — ETA ${eta.etaMinutes} min` : ''}.`,
       url: '/sos',
     })
   }
@@ -234,20 +247,52 @@ function emitGuardianSOSAlert(guardianToken, sosEvent, tourist) {
   })
 }
 
-// Guardian room: a rescue team was dispatched to this tourist's SOS — the
-// guardian sees the same "help is on the way" state the tourist does,
-// instead of just a static red SOS banner until their next 30s poll.
-function emitGuardianRescueAssigned(guardianToken, sosEvent, team) {
+// Guardian room: a rescuer (official team or volunteer) was dispatched to
+// this tourist's SOS — the guardian sees the same "help is on the way"
+// state the tourist does, instead of just a static red SOS banner until
+// their next 30s poll.
+function emitGuardianRescueAssigned(guardianToken, sosEvent, rescuer, rescuerKind = 'TEAM') {
   if (!guardianToken) return
-  const eta = estimateRescueEtaMinutes(team.latitude, team.longitude, sosEvent.latitude, sosEvent.longitude)
+  const r = normalizeRescuer(rescuer, rescuerKind)
+  const eta = estimateRescueEtaMinutes(r.latitude, r.longitude, sosEvent.latitude, sosEvent.longitude)
   safeEmit(SOCKET_ROOMS.guardian(guardianToken), SOCKET_EVENTS.GUARDIAN_ETA_UPDATE, {
     sosId:      sosEvent.id,
     status:     'ASSIGNED',
-    teamName:   team.name,
-    teamType:   team.type,
+    teamName:   r.name,
+    teamType:   r.type,
     distanceKm: eta?.distanceKm ?? null,
     etaMinutes: eta?.etaMinutes ?? null,
   })
+}
+
+// Volunteer room: a govt operator manually assigned this specific
+// volunteer to an SOS — distinct from emitVolunteerSOSAlert (a broadcast
+// to many nearby volunteers where no one is yet officially assigned).
+function emitVolunteerAssigned(volunteerId, assignment, sosEvent, tourist) {
+  safeEmit(SOCKET_ROOMS.volunteer(volunteerId), SOCKET_EVENTS.VOLUNTEER_ASSIGNED, {
+    assignmentId: assignment.id,
+    sosId:        sosEvent.id,
+    category:     sosEvent.category,
+    latitude:     sosEvent.latitude,
+    longitude:    sosEvent.longitude,
+    touristFirstName: tourist?.full_name?.split(' ')[0] ?? null,
+    assignedAt:   assignment.assigned_at,
+  })
+}
+
+// Tourist room + Guardian room + Govt dashboard: a rescuer's live GPS
+// position while en route on an assignment — this is what actually moves
+// the marker on the map, as opposed to the one-time ETA estimate computed
+// at assignment time (emitRescueAssigned/emitGuardianRescueAssigned).
+function emitRescuerLocationUpdate(sosEvent, guardianToken, latitude, longitude) {
+  const payload = { sosId: sosEvent.id, latitude, longitude, updatedAt: new Date().toISOString() }
+  if (sosEvent.tourist_id) {
+    safeEmit(SOCKET_ROOMS.tourist(sosEvent.tourist_id), SOCKET_EVENTS.RESCUER_LOCATION_UPDATE, payload)
+  }
+  if (guardianToken) {
+    safeEmit(SOCKET_ROOMS.guardian(guardianToken), SOCKET_EVENTS.RESCUER_LOCATION_UPDATE, payload)
+  }
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.RESCUER_LOCATION_UPDATE, payload)
 }
 
 module.exports = {
@@ -255,4 +300,5 @@ module.exports = {
   emitTSIUpdated, emitCheckinUpdate, emitGuardianSOSAlert, emitGuardianRescueAssigned,
   emitWeatherRiskIncreased, emitGroupSOSAlert, emitDestinationNewsCritical,
   emitVolunteerSOSAlert, emitVolunteerAssignmentUpdated,
+  emitVolunteerAssigned, emitRescuerLocationUpdate,
 }

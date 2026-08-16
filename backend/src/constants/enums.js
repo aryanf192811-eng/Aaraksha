@@ -166,12 +166,24 @@ const NOTIFICATION_TIERS = Object.freeze({
   TIER_2: 2,  // Notify after 60 seconds
 })
 
-// Mirrors rescue_teams.status (AVAILABLE/DEPLOYED/OFF_DUTY) — a volunteer
-// on OFF_DUTY is excluded from proximity matching the same way a deployed
-// team is, without needing a separate is_active toggle for "not right now."
+// Matches rescue_teams.status exactly (AVAILABLE/DEPLOYED/OFF_DUTY) now that
+// a volunteer can be manually assigned to an SOS the same way a team is —
+// DEPLOYED keeps an assigned rescuer from being shown as available for a
+// second SOS, or matched by the automatic proximity broadcast, while
+// they're already out on one.
 const VOLUNTEER_STATUSES = Object.freeze({
   AVAILABLE: 'AVAILABLE',
+  DEPLOYED: 'DEPLOYED',
   OFF_DUTY: 'OFF_DUTY',
+})
+
+// A volunteers row can represent either a self-registered citizen or an
+// individual member of an official govt rescue team (linked via
+// volunteers.team_id) — same login, same app, same dispatch/assignment
+// machinery either way. See migration 010_unify_rescuers.
+const RESCUER_TYPES = Object.freeze({
+  VOLUNTEER: 'VOLUNTEER',
+  OFFICIAL: 'OFFICIAL',
 })
 
 // Mirrors rescue_assignments.status (ASSIGNED/EN_ROUTE/ARRIVED/RESOLVED),
@@ -190,5 +202,5 @@ module.exports = {
   DMS_STATUSES, CHECKIN_TYPES, GOVT_ROLES, GOVT_ID_TYPES, CONNECTIVITY, DIFFICULTY,
   ZONE_TYPES, WEATHER_CONDITIONS, WEATHER_RISK, TEAM_TYPES, TEAM_STATUSES,
   ASSIGNMENT_STATUSES, SCAM_CATEGORIES, ACTIVITY_TYPES, PACKING_CATEGORIES,
-  NOTIFICATION_TIERS, VOLUNTEER_STATUSES, VOLUNTEER_DISPATCH_STATUSES,
+  NOTIFICATION_TIERS, VOLUNTEER_STATUSES, VOLUNTEER_DISPATCH_STATUSES, RESCUER_TYPES,
 }

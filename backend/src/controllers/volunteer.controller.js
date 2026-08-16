@@ -52,4 +52,24 @@ const updateDispatchStatus = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
-module.exports = { register, login, getProfile, updateStatus, getMyDispatches, updateDispatchStatus }
+// GET /api/volunteers/me/active-assignment
+const getActiveAssignment = async (req, res, next) => {
+  try {
+    const assignment = await volunteerService.getActiveAssignment(req.volunteer.id)
+    sendSuccess(res, assignment)
+  } catch (err) { next(err) }
+}
+
+// PATCH /api/volunteers/me/location
+const updateLocation = async (req, res, next) => {
+  try {
+    const { latitude, longitude } = req.validatedBody
+    const result = await volunteerService.updateRescuerLocation(req.volunteer.id, latitude, longitude)
+    sendSuccess(res, result)
+  } catch (err) { next(err) }
+}
+
+module.exports = {
+  register, login, getProfile, updateStatus, getMyDispatches, updateDispatchStatus,
+  getActiveAssignment, updateLocation,
+}
