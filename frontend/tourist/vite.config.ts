@@ -32,6 +32,12 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Falls back to the cached shell for any non-precached route on a
+        // fully offline cold load (e.g. deep-linking into /trips/:id while
+        // offline) — without this a route Workbox hasn't precached the HTML
+        // for can fail outright instead of rendering the app at all.
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*openstreetmap\.org\/.*/i,
@@ -42,6 +48,22 @@ export default defineConfig({
             urlPattern: /\/api\/(trips|destinations|dms\/active)/i,
             handler: 'NetworkFirst',
             options: { cacheName: 'api-cache', networkTimeoutSeconds: 5, expiration: { maxEntries: 100, maxAgeSeconds: 5 * 60 } },
+          },
+          {
+            // A POST /api/sos that fails while offline gets queued by
+            // Workbox's own Background Sync (via the browser's Background
+            // Sync API) and automatically retried the moment the OS reports
+            // real connectivity — even if the tab was closed in the
+            // meantime. This is the real, achievable version of "send
+            // automatically once back online"; useOfflineSync's 'online'
+            // event listener stays as a same-tab fallback for browsers
+            // without Background Sync support (e.g. Safari).
+            urlPattern: /\/api\/sos$/i,
+            method: 'POST',
+            handler: 'NetworkOnly',
+            options: {
+              backgroundSync: { name: 'sos-post-queue', options: { maxRetentionTime: 24 * 60 } },
+            },
           },
         ],
       },
