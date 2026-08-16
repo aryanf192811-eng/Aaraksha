@@ -27,18 +27,24 @@ class SOSRepository extends BaseRepository {
   }
 
   // Powers the tourist-facing "rescue is on the way" view — the most
-  // recent SOS that's still open, with full rescue team detail (not just
-  // the name, like findByTouristId's history list has) so the client can
-  // show contact info and compute an ETA.
+  // recent SOS that's still open, with full rescuer detail (not just the
+  // name, like findByTouristId's history list has) so the client can show
+  // contact info, compute an ETA, and — for a volunteer rescuer — plot
+  // their last-reported live position (rescue_assignments.rescuer_*,
+  // written by volunteer.service.js#updateRescuerLocation).
   async findActiveWithRescueInfo(touristId) {
     return this.queryOne(`
       SELECT se.id, se.category, se.status, se.latitude, se.longitude, se.created_at,
         ra.id as assignment_id, ra.status as assignment_status, ra.assigned_at,
+        ra.rescuer_latitude, ra.rescuer_longitude, ra.rescuer_location_updated_at,
         rt.id as team_id, rt.name as team_name, rt.type as team_type,
-        rt.contact_phone as team_phone, rt.latitude as team_lat, rt.longitude as team_lng
+        rt.contact_phone as team_phone, rt.latitude as team_lat, rt.longitude as team_lng,
+        v.id as volunteer_id, v.full_name as volunteer_name, v.phone as volunteer_phone,
+        v.latitude as volunteer_base_lat, v.longitude as volunteer_base_lng
       FROM sos_events se
       LEFT JOIN rescue_assignments ra ON ra.sos_event_id = se.id AND ra.status != 'RESOLVED'
       LEFT JOIN rescue_teams rt ON rt.id = ra.team_id
+      LEFT JOIN volunteers v ON v.id = ra.volunteer_id
       WHERE se.tourist_id = $1 AND se.status IN ('ACTIVE', 'ASSIGNED')
       ORDER BY se.created_at DESC
       LIMIT 1`,
@@ -91,13 +97,18 @@ class SOSRepository extends BaseRepository {
         t.emergency_contacts, t.govt_id_suffix,
         tl.battery_pct as last_battery, tl.updated_at as last_location_update,
         ra.id as assignment_id, ra.status as assignment_status,
-        rt.name as rescue_team_name, rt.type as rescue_team_type,
-        rt.contact_phone as team_phone
+        -- Unified rescuer display name/type — a volunteer assignment has no
+        -- rescue_teams row, so COALESCE onto the volunteer join instead of
+        -- leaving the govt dashboard's row subtitle silently blank for it.
+        COALESCE(rt.name, v.full_name) as rescue_team_name,
+        COALESCE(rt.type, 'VOLUNTEER') as rescue_team_type,
+        COALESCE(rt.contact_phone, v.phone) as team_phone
       FROM sos_events se
       LEFT JOIN tourists t ON t.id = se.tourist_id
       LEFT JOIN tourist_locations tl ON tl.tourist_id = se.tourist_id
       LEFT JOIN rescue_assignments ra ON ra.sos_event_id = se.id AND ra.status != 'RESOLVED'
       LEFT JOIN rescue_teams rt ON rt.id = ra.team_id
+      LEFT JOIN volunteers v ON v.id = ra.volunteer_id
       WHERE ${conditions.join(' AND ')}
       ORDER BY se.created_at DESC
       LIMIT $${idx} OFFSET $${idx+1}`,

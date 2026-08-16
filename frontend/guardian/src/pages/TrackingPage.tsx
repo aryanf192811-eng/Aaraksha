@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off, LocateFixed, Truck } from 'lucide-react'
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import touristApi from '../api/tourist.api'
 import { connectSocket, disconnectSocket } from '../lib/socket'
 import { getErrorMessage } from '../api/client'
+import { getRoute, type Route } from '../lib/osrm'
 import type { GuardianView } from '../types/api.types'
 
 // Fix Leaflet's default marker icon — its bundled asset paths break under
@@ -103,12 +104,24 @@ function getStatus(view: GuardianView | null): StatusType {
   return 'SAFE'
 }
 
+// divIcon marker-badge factory for the rescuer — same pattern as the
+// checkpoint scanner / Rescuer app, a colored circular badge instead of
+// the default pin, distinct from the tourist's own default-icon marker.
+const RESCUER_ICON = L.divIcon({
+  className: '',
+  html: `<div style="background:#0f766e;width:30px;height:30px;border-radius:9999px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.35);border:2px solid white"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></div>`,
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+})
+
 export default function TrackingPage() {
   const { token } = useParams<{ token: string }>()
   const [view, setView] = useState<GuardianView | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState(new Date())
+  const [rescuerLivePos, setRescuerLivePos] = useState<[number, number] | null>(null)
+  const [route, setRoute] = useState<Route | null>(null)
 
   const fetchTracking = async () => {
     if (!token) return
@@ -144,7 +157,7 @@ export default function TrackingPage() {
       setLastRefresh(new Date())
     })
     socket.on('GUARDIAN_SOS_ALERT', (data) => {
-      setView(prev => prev ? { ...prev, activeSOS: { id: data.sosId, category: data.category, status: 'ACTIVE', createdAt: data.createdAt, rescueTeam: null } } : prev)
+      setView(prev => prev ? { ...prev, activeSOS: { id: data.sosId, category: data.category, status: 'ACTIVE', createdAt: data.createdAt, rescueTeam: null, rescuer: null } } : prev)
     })
     socket.on('GUARDIAN_ETA_UPDATE', (data) => {
       setView(prev => (prev && prev.activeSOS) ? {
@@ -156,8 +169,31 @@ export default function TrackingPage() {
         },
       } : prev)
     })
+    // Fans out from the same event volunteer.service.js#updateRescuerLocation
+    // writes to (see ActiveJobPage.tsx on the Rescuer app side) — drives the
+    // marker live between the 30s polls instead of waiting on a refetch.
+    socket.on('RESCUER_LOCATION_UPDATE', (data: { latitude: number; longitude: number }) => {
+      setRescuerLivePos([data.latitude, data.longitude])
+    })
     return () => { disconnectSocket() }
   }, [token])
+
+  const rescuer = view?.activeSOS?.rescuer
+  const rescuerPos: [number, number] | null = rescuer
+    ? (rescuerLivePos ?? [rescuer.latitude, rescuer.longitude])
+    : null
+  const touristPos: [number, number] | null = view?.location
+    ? [view.location.latitude, view.location.longitude]
+    : null
+
+  // Real road route — refetched whenever the rescuer's position moves.
+  // Falls back to no route line (still shows both markers) if OSRM is
+  // unreachable, matching every other portal's degrade-not-break pattern.
+  useEffect(() => {
+    if (!rescuerPos || !touristPos) { setRoute(null); return }
+    getRoute(rescuerPos[0], rescuerPos[1], touristPos[0], touristPos[1]).then(setRoute)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rescuerPos?.[0], rescuerPos?.[1], touristPos?.[0], touristPos?.[1]])
 
   const status = getStatus(view)
   const statusConfig = STATUS_CONFIG[status]
@@ -226,11 +262,12 @@ export default function TrackingPage() {
           <div className="mt-3 bg-amber-600 rounded-xl px-4 py-2">
             <p className="text-white text-sm font-bold flex items-center gap-1.5">
               <Truck className="w-4 h-4 flex-shrink-0" />
-              {view.activeSOS.rescueTeam?.name ?? 'Rescue team'} dispatched
+              {rescuer?.name ?? view.activeSOS.rescueTeam?.name ?? 'Rescue team'} dispatched
             </p>
             <p className="text-amber-100 text-xs">
-              {view.activeSOS.rescueTeam?.type ? `${view.activeSOS.rescueTeam.type} · ` : ''}
-              {view.activeSOS.rescueTeam?.etaMinutes != null ? `ETA ~${formatEta(view.activeSOS.rescueTeam.etaMinutes)}` : 'On the way'}
+              {rescuer?.kind === 'VOLUNTEER' ? 'Local Volunteer · ' : view.activeSOS.rescueTeam?.type ? `${view.activeSOS.rescueTeam.type} · ` : ''}
+              {route ? `ETA ~${formatEta(Math.round(route.durationMin))}`
+                : view.activeSOS.rescueTeam?.etaMinutes != null ? `ETA ~${formatEta(view.activeSOS.rescueTeam.etaMinutes)}` : 'On the way'}
             </p>
           </div>
         )}
@@ -267,6 +304,22 @@ export default function TrackingPage() {
                 </div>
               </Popup>
             </Marker>
+            {isAssigned && rescuerPos && (
+              <>
+                <Polyline
+                  positions={route?.coordinates ?? [rescuerPos, [view.location.latitude, view.location.longitude]]}
+                  pathOptions={route ? { color: '#0f766e', weight: 4, opacity: 0.9 } : { color: '#0f766e', weight: 3, opacity: 0.7, dashArray: '8 8' }}
+                />
+                <Marker position={rescuerPos} icon={RESCUER_ICON}>
+                  <Popup>
+                    <div className="text-center">
+                      <p className="font-bold">{rescuer?.name}</p>
+                      <p className="text-xs text-on-surface-variant">{rescuer?.isLive ? 'Live position' : 'Dispatch base'}</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              </>
+            )}
             <RecenterControl center={[view.location.latitude, view.location.longitude]} />
           </MapContainer>
           {/* Map overlay: Google Maps link */}

@@ -67,6 +67,20 @@ export interface RecentCheckpointScan {
   scanned_by: string | null
 }
 
+// Unifies official rescue teams and govt-verified volunteers into one
+// distance-sorted candidate list — see rescue.repository.js#findNearbyAvailableRescuers.
+export interface NearbyRescuer {
+  id: string
+  name: string
+  kind: 'TEAM' | 'VOLUNTEER'
+  type: string
+  district: string
+  phone: string
+  latitude: string
+  longitude: string
+  distanceKm: number
+}
+
 export interface PostNewsPayload {
   category: 'WEATHER' | 'ROAD_CLOSURE' | 'EVENT' | 'ADVISORY' | 'FESTIVAL' | 'OTHER'
   severity: 'INFO' | 'WARNING' | 'CRITICAL'
@@ -82,10 +96,13 @@ const govtApi = {
   getActiveSOS: (params?: { status?: string; category?: string; page?: number; limit?: number }) =>
     api.get<PaginatedResponse<SOSWithDetails>>('/govt/sos/active', { params }),
 
-  assignRescue: (sosId: string, data: { teamId: string; notes?: string }) =>
-    api.patch<APIResponse<{ assignment: unknown; sosStatus: string; teamStatus: string }>>(
+  assignRescue: (sosId: string, data: { teamId?: string; volunteerId?: string; notes?: string }) =>
+    api.patch<APIResponse<{ assignment: unknown; sosStatus: string; rescuerKind: 'TEAM' | 'VOLUNTEER' }>>(
       `/govt/sos/${sosId}/assign`, data
     ),
+
+  getNearbyRescuers: (sosId: string) =>
+    api.get<APIResponse<NearbyRescuer[]>>(`/govt/sos/${sosId}/nearby-rescuers`),
 
   resolveSOS: (sosId: string, data: { resolutionNotes?: string }) =>
     api.patch<APIResponse<SOSWithDetails>>(`/govt/sos/${sosId}/resolve`, data),

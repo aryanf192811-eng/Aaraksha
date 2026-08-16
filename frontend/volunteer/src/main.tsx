@@ -8,6 +8,7 @@ import { useAuthStore } from './store/auth.store'
 import './index.css'
 import AuthPage from './pages/AuthPage'
 import HomePage from './pages/HomePage'
+import ActiveJobPage from './pages/ActiveJobPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -22,6 +23,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Routes>
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/" element={<PrivateRoute><HomePage /></PrivateRoute>} />
+          <Route path="/active-job" element={<PrivateRoute><ActiveJobPage /></PrivateRoute>} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
         <Toaster richColors position="top-center" />

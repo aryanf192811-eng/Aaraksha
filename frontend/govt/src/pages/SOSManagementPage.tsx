@@ -1,14 +1,13 @@
 // src/pages/SOSManagementPage.tsx — real-time SOS feed with assignment modal
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Battery, CheckCircle2, Send } from 'lucide-react'
+import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Battery, CheckCircle2, Send, ShieldCheck, HeartHandshake } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
-import govtApi from '../api/govt.api'
+import govtApi, { type NearbyRescuer } from '../api/govt.api'
 import { queryClient } from '../lib/queryClient'
 import { formatTimeAgo, cn } from '../lib/utils'
-import type { SOSWithDetails, RescueTeam } from '../types/api.types'
+import type { SOSWithDetails } from '../types/api.types'
 import { useSOSSocket } from '../hooks/useSOSSocket'
 
 const STATUS_STYLE: Record<string, string> = {
@@ -20,7 +19,7 @@ const STATUS_STYLE: Record<string, string> = {
 
 export default function SOSManagementPage() {
   const [selectedSOS, setSelectedSOS] = useState<SOSWithDetails | null>(null)
-  const [assignTeamId, setAssignTeamId] = useState('')
+  const [selectedRescuer, setSelectedRescuer] = useState<NearbyRescuer | null>(null)
   const [resolutionNotes, setResolutionNotes] = useState('')
   useSOSSocket() // subscribes to real-time events; invalidates the queries below
 
@@ -30,19 +29,23 @@ export default function SOSManagementPage() {
     refetchInterval: 15_000,
   })
 
-  const { data: teamsData } = useQuery({
-    queryKey: ['govt', 'teams'],
-    queryFn: () => govtApi.getRescueTeams().then(r => r.data.data),
+  // Distance-sorted list mixing official teams and govt-verified volunteers
+  // — only fetched while the assign panel for an ACTIVE SOS is open, since
+  // it depends on that specific SOS's coordinates.
+  const { data: nearbyRescuers, isLoading: loadingRescuers } = useQuery({
+    queryKey: ['govt', 'nearby-rescuers', selectedSOS?.id],
+    queryFn: () => govtApi.getNearbyRescuers(selectedSOS!.id).then(r => r.data.data),
+    enabled: !!selectedSOS && selectedSOS.status === 'ACTIVE',
   })
 
   const { mutate: assignRescue, isPending: assigning } = useMutation({
-    mutationFn: ({ sosId, teamId }: { sosId: string; teamId: string }) =>
-      govtApi.assignRescue(sosId, { teamId }),
-    onSuccess: () => {
-      toast.success('Rescue team assigned')
+    mutationFn: ({ sosId, rescuer }: { sosId: string; rescuer: NearbyRescuer }) =>
+      govtApi.assignRescue(sosId, rescuer.kind === 'TEAM' ? { teamId: rescuer.id } : { volunteerId: rescuer.id }),
+    onSuccess: (_res, { rescuer }) => {
+      toast.success(`${rescuer.kind === 'TEAM' ? 'Rescue team' : 'Volunteer'} assigned`)
       queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
       setSelectedSOS(null)
-      setAssignTeamId('')
+      setSelectedRescuer(null)
     },
   })
 
@@ -61,8 +64,6 @@ export default function SOSManagementPage() {
   })
 
   const sosList = sosData?.data || []
-  const teams = teamsData || []
-  const availableTeams = teams.filter((t: RescueTeam) => t.status === 'AVAILABLE')
 
   return (
     <div className="p-4 sm:p-6 max-w-full overflow-x-hidden">
@@ -89,7 +90,7 @@ export default function SOSManagementPage() {
         {sosList.map((sos: SOSWithDetails) => (
           <div key={sos.id}
             className={cn('rounded-xl p-5 shadow-sm cursor-pointer hover:shadow-md transition-all', STATUS_STYLE[sos.status] || STATUS_STYLE.RESOLVED)}
-            onClick={() => setSelectedSOS(sos)}>
+            onClick={() => { setSelectedSOS(sos); setSelectedRescuer(null) }}>
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
@@ -148,7 +149,7 @@ export default function SOSManagementPage() {
           <div className="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-outline-variant flex items-center justify-between">
               <h2 className="text-xl font-black text-on-surface">SOS Details</h2>
-              <button onClick={() => setSelectedSOS(null)}><X className="w-6 h-6 text-on-surface-variant" /></button>
+              <button onClick={() => { setSelectedSOS(null); setSelectedRescuer(null) }}><X className="w-6 h-6 text-on-surface-variant" /></button>
             </div>
             <div className="p-6 space-y-5">
               <div className="grid grid-cols-2 gap-4">
@@ -184,23 +185,54 @@ export default function SOSManagementPage() {
 
               {selectedSOS.status === 'ACTIVE' && (
                 <div className="space-y-3 pt-4 border-t border-outline-variant">
-                  <p className="font-bold text-on-surface">Assign Rescue Team</p>
-                  <Select onValueChange={setAssignTeamId}>
-                    <SelectTrigger className="h-11 rounded-xl">
-                      <SelectValue placeholder={`${availableTeams.length} teams available`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableTeams.map((team: RescueTeam) => (
-                        <SelectItem key={team.id} value={team.id}>
-                          {team.name} · {team.type} · {team.district}
-                        </SelectItem>
+                  <p className="font-bold text-on-surface">Assign Rescuer</p>
+
+                  {loadingRescuers && (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                    </div>
+                  )}
+
+                  {!loadingRescuers && (nearbyRescuers?.length ?? 0) === 0 && (
+                    <p className="text-sm text-on-surface-variant text-center py-4">No teams or verified volunteers available nearby</p>
+                  )}
+
+                  {!loadingRescuers && nearbyRescuers && nearbyRescuers.length > 0 && (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {nearbyRescuers.map((r) => (
+                        <button
+                          key={`${r.kind}-${r.id}`}
+                          onClick={() => setSelectedRescuer(r)}
+                          className={cn(
+                            'w-full text-left rounded-xl border-2 px-3 py-2.5 flex items-center gap-3 transition-colors',
+                            selectedRescuer?.id === r.id && selectedRescuer.kind === r.kind
+                              ? 'border-primary-dark bg-primary-dark/5'
+                              : 'border-outline-variant hover:border-outline'
+                          )}
+                        >
+                          <div className={cn('w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0',
+                            r.kind === 'TEAM' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700')}>
+                            {r.kind === 'TEAM' ? <ShieldCheck className="w-4.5 h-4.5" /> : <HeartHandshake className="w-4.5 h-4.5" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-on-surface truncate">{r.name}</p>
+                              <span className={cn('text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full flex-shrink-0',
+                                r.kind === 'TEAM' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700')}>
+                                {r.kind === 'TEAM' ? 'Official' : 'Volunteer'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-on-surface-variant">{r.type} · {r.district} · {r.distanceKm.toFixed(1)} km away</p>
+                          </div>
+                        </button>
                       ))}
-                    </SelectContent>
-                  </Select>
-                  <Button disabled={!assignTeamId || assigning}
-                    onClick={() => assignRescue({ sosId: selectedSOS.id, teamId: assignTeamId })}
+                    </div>
+                  )}
+
+                  <Button disabled={!selectedRescuer || assigning}
+                    onClick={() => selectedRescuer && assignRescue({ sosId: selectedSOS.id, rescuer: selectedRescuer })}
                     className="w-full h-11 bg-primary-dark hover:bg-primary-dark text-white rounded-full font-bold flex items-center justify-center gap-2">
-                    {assigning ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-4 h-4" /> Assign Rescue Team</>}
+                    {assigning ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-4 h-4" /> Assign Rescuer</>}
                   </Button>
                 </div>
               )}

@@ -277,6 +277,16 @@ export interface GuardianView {
       type: string
       etaMinutes: number | null
     } | null
+    // Live rescuer marker — see tourist.service.js#getGuardianView. isLive
+    // distinguishes a volunteer's real GPS fix from a still-at-base guess
+    // (official teams have no live feed, so theirs is always false).
+    rescuer: {
+      kind: 'TEAM' | 'VOLUNTEER'
+      name: string
+      latitude: number
+      longitude: number
+      isLive: boolean
+    } | null
   } | null
   activeTripCity: string | null
   tsiScore: number | null

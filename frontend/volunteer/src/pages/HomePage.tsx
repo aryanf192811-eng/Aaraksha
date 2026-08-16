@@ -3,13 +3,13 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ShieldCheck, LogOut, Award, MapPin, Clock, CheckCircle2, XCircle, Siren, ShieldAlert } from 'lucide-react'
+import { ShieldCheck, LogOut, Award, MapPin, Clock, CheckCircle2, XCircle, Siren, ShieldAlert, Truck } from 'lucide-react'
 import volunteerApi from '../api/volunteer.api'
 import { connectSocket, disconnectSocket } from '../lib/socket'
 import { queryClient } from '../lib/queryClient'
 import { useAuthStore } from '../store/auth.store'
 import { cn, formatTimeAgo } from '../lib/utils'
-import type { Dispatch, VolunteerSOSAlertPayload } from '../types/api.types'
+import type { Dispatch, VolunteerSOSAlertPayload, VolunteerAssignedPayload } from '../types/api.types'
 
 const CATEGORY_LABELS: Record<string, string> = {
   MEDICAL: 'Medical', LOST: 'Lost', TRAPPED: 'Trapped',
@@ -30,6 +30,18 @@ export default function HomePage() {
     refetchInterval: 15_000,
   })
 
+  // A govt operator may have manually assigned this volunteer before the
+  // app was even open (e.g. it was closed) — check on mount, not just via
+  // the live socket push below, so reopening the app lands on the job too.
+  const { data: activeAssignment } = useQuery({
+    queryKey: ['volunteer', 'active-assignment'],
+    queryFn: () => volunteerApi.getActiveAssignment().then((r) => r.data.data),
+  })
+
+  useEffect(() => {
+    if (activeAssignment) navigate('/active-job')
+  }, [activeAssignment, navigate])
+
   useEffect(() => {
     if (!token) return
     const socket = connectSocket(token)
@@ -40,8 +52,21 @@ export default function HomePage() {
       })
       queryClient.invalidateQueries({ queryKey: ['volunteer', 'dispatches'] })
     }
+    const onAssigned = (payload: VolunteerAssignedPayload) => {
+      toast.success(`You've been assigned — ${CATEGORY_LABELS[payload.category] || payload.category}`, {
+        description: payload.touristFirstName ? `${payload.touristFirstName} needs help` : undefined,
+        icon: <Truck className="w-4 h-4" />,
+      })
+      queryClient.invalidateQueries({ queryKey: ['volunteer', 'active-assignment'] })
+      navigate('/active-job')
+    }
     socket.on('VOLUNTEER_SOS_ALERT', onAlert)
-    return () => { socket.off('VOLUNTEER_SOS_ALERT', onAlert); disconnectSocket() }
+    socket.on('VOLUNTEER_ASSIGNED', onAssigned)
+    return () => {
+      socket.off('VOLUNTEER_SOS_ALERT', onAlert)
+      socket.off('VOLUNTEER_ASSIGNED', onAssigned)
+      disconnectSocket()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
@@ -98,7 +123,7 @@ export default function HomePage() {
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5" />
-            <p className="font-display font-black">Aaraksha Volunteer</p>
+            <p className="font-display font-black">Aaraksha Rescuer</p>
           </div>
           <button onClick={handleLogout} aria-label="Log out" className="p-1.5 opacity-90 hover:opacity-100">
             <LogOut className="w-4.5 h-4.5" />

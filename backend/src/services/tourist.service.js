@@ -104,8 +104,13 @@ async function getGuardianView(token) {
   // guardian can see "help is on the way" instead of just a static "SOS
   // active" — the same detail the tourist's own app already gets.
   const activeSOS = location ? await sosRepo.findActiveWithRescueInfo(tourist.id) : null
-  const rescueEta = activeSOS?.team_id
-    ? estimateRescueEtaMinutes(activeSOS.team_lat, activeSOS.team_lng, activeSOS.latitude, activeSOS.longitude)
+  const hasVolunteer = !!activeSOS?.volunteer_id
+  const rescuerBaseLat = activeSOS?.team_id ? activeSOS.team_lat : activeSOS?.volunteer_base_lat
+  const rescuerBaseLng = activeSOS?.team_id ? activeSOS.team_lng : activeSOS?.volunteer_base_lng
+  const rescuerLat = activeSOS?.rescuer_latitude ?? rescuerBaseLat
+  const rescuerLng = activeSOS?.rescuer_longitude ?? rescuerBaseLng
+  const rescueEta = (activeSOS?.team_id || hasVolunteer)
+    ? estimateRescueEtaMinutes(rescuerLat, rescuerLng, activeSOS.latitude, activeSOS.longitude)
     : null
 
   // node-postgres auto-parses JSONB columns into real JS values, so `stops`
@@ -132,6 +137,17 @@ async function getGuardianView(token) {
       rescueTeam: activeSOS.team_id ? {
         name: activeSOS.team_name, type: activeSOS.team_type,
         etaMinutes: rescueEta?.etaMinutes ?? null,
+      } : null,
+      // Live rescuer marker — only populated once a rescuer (volunteer or
+      // team) is assigned. latitude/longitude tracks the rescuer's last
+      // reported GPS fix (falls back to their registered base if they
+      // haven't sent one yet); isLive tells the client which it's showing.
+      rescuer: (activeSOS.team_id || hasVolunteer) ? {
+        kind: activeSOS.team_id ? 'TEAM' : 'VOLUNTEER',
+        name: activeSOS.team_id ? activeSOS.team_name : activeSOS.volunteer_name,
+        latitude: rescuerLat,
+        longitude: rescuerLng,
+        isLive: activeSOS.rescuer_latitude != null,
       } : null,
     } : null,
     activeTripCity: activeStops[0]?.city ?? null,

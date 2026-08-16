@@ -81,7 +81,7 @@ export default function AuthPage() {
           </div>
           <div>
             <p className="font-display font-black text-on-surface leading-tight">Aaraksha</p>
-            <p className="text-xs text-on-surface-variant leading-tight">Volunteer</p>
+            <p className="text-xs text-on-surface-variant leading-tight">Rescuer</p>
           </div>
         </div>
 

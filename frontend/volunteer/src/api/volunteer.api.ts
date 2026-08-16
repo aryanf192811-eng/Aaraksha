@@ -2,7 +2,7 @@
 // FIELD NAMES: verified against backend src/validators/volunteer.validator.js
 // and src/routes/volunteer.routes.js
 import api from './client'
-import type { APIResponse, Volunteer, VolunteerAuthResponse, Dispatch } from '../types/api.types'
+import type { APIResponse, Volunteer, VolunteerAuthResponse, Dispatch, ActiveAssignment } from '../types/api.types'
 
 export interface RegisterVolunteerPayload {
   fullName: string
@@ -39,6 +39,15 @@ const volunteerApi = {
 
   updateDispatchStatus: (dispatchId: string, status: 'RESPONDED' | 'COMPLETED' | 'DECLINED') =>
     api.patch<APIResponse<Dispatch>>(`/volunteers/dispatches/${dispatchId}/status`, { status }),
+
+  getActiveAssignment: () =>
+    api.get<APIResponse<ActiveAssignment | null>>('/volunteers/me/active-assignment'),
+
+  updateLocation: (latitude: number, longitude: number) =>
+    api.patch<APIResponse<{ assignmentId: string; latitude: number; longitude: number }>>('/volunteers/me/location', { latitude, longitude }),
+
+  updateAssignmentStatus: (status: 'EN_ROUTE' | 'ARRIVED') =>
+    api.patch<APIResponse<ActiveAssignment>>('/volunteers/me/assignment/status', { status }),
 }
 
 export default volunteerApi

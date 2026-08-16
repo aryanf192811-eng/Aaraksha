@@ -109,8 +109,16 @@ async function getActiveRescueInfo(touristId) {
   if (!row) return null
 
   const hasTeam = !!row.team_id
-  const eta = hasTeam
-    ? estimateRescueEtaMinutes(row.team_lat, row.team_lng, row.latitude, row.longitude)
+  const hasVolunteer = !!row.volunteer_id
+  // A volunteer's live GPS (once they've sent at least one /me/location
+  // update) is a truer "where are they right now" than their registered
+  // base — an official team has no live feed, so it always shows base.
+  const baseLat = hasTeam ? row.team_lat : row.volunteer_base_lat
+  const baseLng = hasTeam ? row.team_lng : row.volunteer_base_lng
+  const rescuerLat = row.rescuer_latitude ?? baseLat
+  const rescuerLng = row.rescuer_longitude ?? baseLng
+  const eta = (hasTeam || hasVolunteer)
+    ? estimateRescueEtaMinutes(rescuerLat, rescuerLng, row.latitude, row.longitude)
     : null
 
   return {
@@ -120,13 +128,16 @@ async function getActiveRescueInfo(touristId) {
     createdAt:  row.created_at,
     latitude:   row.latitude,
     longitude:  row.longitude,
-    team: hasTeam ? {
-      id:          row.team_id,
-      name:        row.team_name,
-      type:        row.team_type,
-      phone:       row.team_phone,
-      latitude:    row.team_lat,
-      longitude:   row.team_lng,
+    rescuer: (hasTeam || hasVolunteer) ? {
+      kind:        hasTeam ? 'TEAM' : 'VOLUNTEER',
+      id:          hasTeam ? row.team_id : row.volunteer_id,
+      name:        hasTeam ? row.team_name : row.volunteer_name,
+      type:        hasTeam ? row.team_type : 'VOLUNTEER',
+      phone:       hasTeam ? row.team_phone : row.volunteer_phone,
+      latitude:    rescuerLat,
+      longitude:   rescuerLng,
+      isLive:      row.rescuer_latitude != null,
+      liveUpdatedAt: row.rescuer_location_updated_at,
       status:      row.assignment_status,
       assignedAt:  row.assigned_at,
       distanceKm:  eta?.distanceKm ?? null,

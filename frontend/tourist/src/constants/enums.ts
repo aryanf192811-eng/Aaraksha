@@ -215,6 +215,10 @@ export const SOCKET_EVENTS = {
   WEATHER_RISK_INCREASED: 'WEATHER_RISK_INCREASED',
   GROUP_SOS_ALERT:    'GROUP_SOS_ALERT',
   DESTINATION_NEWS_CRITICAL: 'DESTINATION_NEWS_CRITICAL',
+  // Also fans out to the guardian + govt rooms — same event name, three
+  // rooms (see backend/src/socket/emitters.js#emitRescuerLocationUpdate).
+  RESCUER_LOCATION_UPDATE: 'RESCUER_LOCATION_UPDATE',
+  RESCUER_STATUS_UPDATE:   'RESCUER_STATUS_UPDATE',
 
   // Server -> Guardian room (guardian:{guardianToken})
   GUARDIAN_STATUS_CHANGE:   'GUARDIAN_STATUS_CHANGE',

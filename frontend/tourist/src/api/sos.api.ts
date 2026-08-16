@@ -14,13 +14,21 @@ export interface CreateSOSPayload {
   isStaleLocation?: boolean
 }
 
-export interface ActiveRescueTeam {
+// Unifies an official rescue team and a govt-assigned volunteer into one
+// shape — see backend/src/services/sos.service.js#getActiveRescueInfo.
+// `latitude`/`longitude` is the rescuer's last-known position: their live
+// GPS fix once they've sent one (isLive: true), their registered base
+// until then. Official teams have no live feed, so isLive is always false.
+export interface ActiveRescuer {
+  kind: 'TEAM' | 'VOLUNTEER'
   id: string
   name: string
   type: string
   phone: string
   latitude: string
   longitude: string
+  isLive: boolean
+  liveUpdatedAt: string | null
   status: string
   assignedAt: string
   distanceKm: number | null
@@ -34,7 +42,7 @@ export interface ActiveRescueInfo {
   createdAt: string
   latitude: string
   longitude: string
-  team: ActiveRescueTeam | null
+  rescuer: ActiveRescuer | null
 }
 
 const sosApi = {

@@ -67,3 +67,44 @@ export interface VolunteerSOSAlertPayload {
   createdAt: string
   emittedAt: string
 }
+
+// rescue.repository.js#findActiveAssignmentByVolunteerId — `ra.*` (rescue_assignments
+// columns) plus a joined SOS/tourist snapshot for the Rescuer app's "active job" screen.
+export interface ActiveAssignment {
+  id: string
+  sos_event_id: string
+  team_id: string | null
+  volunteer_id: string | null
+  assigned_by: string | null
+  status: 'ASSIGNED' | 'EN_ROUTE' | 'ARRIVED' | 'RESOLVED'
+  notes: string | null
+  assigned_at: string
+  resolved_at: string | null
+  rescuer_latitude: number | null
+  rescuer_longitude: number | null
+  rescuer_location_updated_at: string | null
+  category: string
+  sos_latitude: number
+  sos_longitude: number
+  tourist_id: string
+  tourist_name: string | null
+  guardian_token: string | null
+}
+
+// Socket payload for VOLUNTEER_ASSIGNED — see socket/emitters.js#emitVolunteerAssigned
+export interface VolunteerAssignedPayload {
+  assignmentId: string
+  sosId: string
+  category: string
+  latitude: number
+  longitude: number
+  touristFirstName: string | null
+  assignedAt: string
+}
+
+// Socket payload for RESCUER_STATUS_UPDATE — see socket/emitters.js#emitRescuerStatusUpdate
+export interface RescuerStatusUpdatePayload {
+  sosId: string
+  status: 'EN_ROUTE' | 'ARRIVED'
+  updatedAt: string
+}
