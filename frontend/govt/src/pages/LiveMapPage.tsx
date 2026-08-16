@@ -1,11 +1,12 @@
 // src/pages/LiveMapPage.tsx — real-time ops map with tourist status markers
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { AlertTriangle, Battery, LocateFixed } from 'lucide-react'
+import { AlertTriangle, Battery, LocateFixed, Navigation2 } from 'lucide-react'
 import govtApi from '../api/govt.api'
+import { getRoute, type Route } from '../lib/osrm'
 import { cn, formatTimeAgo } from '../lib/utils'
 import type { LiveTourist } from '../types/api.types'
 import { useSOSSocket } from '../hooks/useSOSSocket'
@@ -24,6 +25,16 @@ const SAFE_ICON    = createMarkerIcon('#10b981', '&#9679;')
 const SOS_ICON     = createMarkerIcon('#ef4444', '!')
 const WARNING_ICON = createMarkerIcon('#f59e0b', '&#9650;')
 
+// Same navigation-arrow badge as the Rescuer app's own map and Guardian's
+// rescuer marker — one visual language for "this is a rescuer" everywhere
+// it shows up.
+const RESCUER_ICON = L.divIcon({
+  className: '',
+  html: `<div style="background:#0f766e;width:28px;height:28px;border-radius:9999px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.35);border:2px solid white"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+})
+
 // Recenter control — after panning around the ops map to inspect an
 // incident, one click returns to the full Northeast India overview.
 function RecenterControl({ center, zoom }: { center: [number, number]; zoom: number }) {
@@ -38,6 +49,7 @@ function RecenterControl({ center, zoom }: { center: [number, number]; zoom: num
 
 export default function LiveMapPage() {
   const [selectedTourist, setSelectedTourist] = useState<LiveTourist | null>(null)
+  const [routes, setRoutes] = useState<Record<string, Route | null>>({})
   // Pushes an instant refetch on SOS/DMS/location events instead of waiting
   // for the next poll tick; the interval below stays as a safety net.
   useSOSSocket()
@@ -47,6 +59,36 @@ export default function LiveMapPage() {
     queryFn: () => govtApi.getLiveTourists().then(r => r.data.data),
     refetchInterval: 15_000,
   })
+
+  // Every rescuer (team or volunteer) currently working an SOS — moves live
+  // on RESCUER_LOCATION_UPDATE via useSOSSocket's invalidation, same event
+  // the Rescuer app, Guardian, and tourist maps already consume.
+  const { data: activeRescuers } = useQuery({
+    queryKey: ['govt', 'active-rescuers'],
+    queryFn: () => govtApi.getActiveRescuers().then(r => r.data.data),
+    refetchInterval: 15_000,
+  })
+  const rescuers = activeRescuers || []
+
+  // Real OSRM road route per rescuer, refetched whenever a position moves —
+  // keyed by assignment so multiple concurrent rescuers don't clobber each
+  // other's route. Falls back to a straight line (route stays undefined)
+  // if OSRM is unreachable, same degrade-not-break pattern as every other
+  // portal's live-route map.
+  const routeKey = rescuers.map(r => `${r.assignment_id}:${r.latitude}:${r.longitude}`).join('|')
+  useEffect(() => {
+    let cancelled = false
+    Promise.all(rescuers.map(async (r) => {
+      const lat = Number(r.latitude), lng = Number(r.longitude)
+      const sosLat = Number(r.sos_latitude), sosLng = Number(r.sos_longitude)
+      if (![lat, lng, sosLat, sosLng].every(Number.isFinite)) return [r.assignment_id, null] as const
+      return [r.assignment_id, await getRoute(lat, lng, sosLat, sosLng)] as const
+    })).then((entries) => {
+      if (!cancelled) setRoutes(Object.fromEntries(entries))
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey])
 
   const getMarkerIcon = (t: LiveTourist) => {
     if (t.active_sos_count > 0) return SOS_ICON
@@ -74,6 +116,12 @@ export default function LiveMapPage() {
             <div className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0" />
             <span className="text-on-surface-variant font-medium whitespace-nowrap">{liveTourists.length} tracked</span>
           </div>
+          {rescuers.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Navigation2 className="w-3 h-3 text-primary flex-shrink-0" />
+              <span className="text-on-surface-variant font-medium whitespace-nowrap">{rescuers.length} rescuer{rescuers.length === 1 ? '' : 's'} en route</span>
+            </div>
+          )}
           <div className="hidden sm:flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
             <span className="text-xs text-on-surface-variant whitespace-nowrap">Live · updates every 15s</span>
@@ -119,6 +167,32 @@ export default function LiveMapPage() {
                 )}
               </div>
             ))}
+            {rescuers.map((r) => {
+              const lat = Number(r.latitude), lng = Number(r.longitude)
+              const sosLat = Number(r.sos_latitude), sosLng = Number(r.sos_longitude)
+              if (![lat, lng, sosLat, sosLng].every(Number.isFinite)) return null
+              const route = routes[r.assignment_id]
+              return (
+                <div key={r.assignment_id}>
+                  <Polyline
+                    positions={route?.coordinates ?? [[lat, lng], [sosLat, sosLng]]}
+                    pathOptions={route ? { color: '#0f766e', weight: 4, opacity: 0.85 } : { color: '#0f766e', weight: 3, opacity: 0.6, dashArray: '6 8' }}
+                  />
+                  <Marker position={[lat, lng]} icon={RESCUER_ICON}>
+                    <Popup>
+                      <div className="p-1 min-w-[170px]">
+                        <p className="font-bold text-on-surface">{r.rescuer_name}</p>
+                        <p className="text-xs text-on-surface-variant">
+                          {r.rescuer_kind === 'TEAM' ? 'Official team' : 'Volunteer'} · {r.status.replace('_', ' ')}
+                        </p>
+                        <p className="text-xs text-on-surface-variant mt-1">→ {r.tourist_name} ({r.category})</p>
+                        {!r.is_live && <p className="text-[10px] text-on-surface-variant mt-1 italic">Registered base — no live GPS yet</p>}
+                      </div>
+                    </Popup>
+                  </Marker>
+                </div>
+              )
+            })}
             <RecenterControl center={mapCenter} zoom={7} />
           </MapContainer>
 

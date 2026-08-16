@@ -52,6 +52,8 @@ export function useSOSSocket() {
       toast.success('SOS resolved')
       queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
       queryClient.invalidateQueries({ queryKey: ['govt', 'dashboard'] })
+      // A resolved SOS's assignment drops out of the Live Map's rescuer list.
+      queryClient.invalidateQueries({ queryKey: ['govt', 'active-rescuers'] })
     }
 
     const onDMSTriggered = (data: DMSTriggeredPayload) => {
@@ -64,19 +66,22 @@ export function useSOSSocket() {
       queryClient.invalidateQueries({ queryKey: ['govt', 'tourists', 'live'] })
     }
 
-    // Another operator assigned a rescue team — reflect it immediately
-    // instead of waiting for the next poll tick.
+    // Another operator assigned a rescue team or volunteer — reflect it
+    // immediately instead of waiting for the next poll tick. A fresh
+    // assignment is a new marker on the Live Map too.
     const onRescueAssigned = () => {
       queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
       queryClient.invalidateQueries({ queryKey: ['govt', 'dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['govt', 'active-rescuers'] })
     }
 
     // A rescuer (team or volunteer) pushed a live position or self-reported
-    // EN_ROUTE/ARRIVED — refresh the SOS list so operators see progress
-    // without waiting on the 15s poll (see ActiveJobPage.tsx on the
-    // Rescuer app side, which is what actually sends these).
+    // EN_ROUTE/ARRIVED — refresh the SOS list and the Live Map's rescuer
+    // markers so operators see progress without waiting on the next poll
+    // (see ActiveJobPage.tsx on the Rescuer app side, which sends these).
     const onRescuerUpdate = () => {
       queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
+      queryClient.invalidateQueries({ queryKey: ['govt', 'active-rescuers'] })
     }
 
     socket.on(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)

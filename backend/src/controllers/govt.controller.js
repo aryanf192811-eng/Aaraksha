@@ -44,6 +44,10 @@ const getNearbyRescuers = async (req, res, next) => {
   try { sendSuccess(res, await govtService.getNearbyRescuers(req.params.id)) } catch (err) { next(err) }
 }
 
+const getActiveRescuers = async (req, res, next) => {
+  try { sendSuccess(res, await govtService.getActiveRescuers()) } catch (err) { next(err) }
+}
+
 const resolveSOS = async (req, res, next) => {
   try {
     const sos = await govtService.resolveSOS(req.params.id, req.validatedBody.resolutionNotes)
@@ -103,6 +107,7 @@ const verifyVolunteer = async (req, res, next) => {
 }
 
 module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRescueTeams,
-  getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, getNearbyRescuers, resolveSOS, updateTeamStatus,
+  getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, getNearbyRescuers, getActiveRescuers,
+  resolveSOS, updateTeamStatus,
   scanCheckpoint, getRecentCheckpointScans, postDestinationNews,
   getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer }

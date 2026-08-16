@@ -51,6 +51,7 @@ router.get('/analytics',           requireGovtRole(...COMMAND_CENTER_ROLES), ctr
 router.get('/analytics/export',    requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.exportAnalyticsReport)
 router.get('/sos/active',          requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getActiveSOS)
 router.get('/sos/:id/nearby-rescuers', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getNearbyRescuers)
+router.get('/active-rescuers',     requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getActiveRescuers)
 router.patch('/sos/:id/assign',    requireGovtRole(...COMMAND_CENTER_ROLES), validate(AssignRescueSchema),     ctrl.assignRescue)
 router.patch('/sos/:id/resolve',   requireGovtRole(...COMMAND_CENTER_ROLES), validate(ResolveSOSSchema),       ctrl.resolveSOS)
 router.get('/rescue-teams',        requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getRescueTeams)

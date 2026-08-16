@@ -81,6 +81,25 @@ export interface NearbyRescuer {
   distanceKm: number
 }
 
+// One row per in-progress assignment — powers the Live Map's rescuer
+// markers. See rescue.repository.js#findActiveAssignmentsWithPositions.
+// `latitude`/`longitude` prefers the rescuer's live GPS fix (is_live: true)
+// and falls back to their registered base, same as the tourist/Guardian views.
+export interface ActiveRescuer {
+  assignment_id: string
+  status: 'ASSIGNED' | 'EN_ROUTE' | 'ARRIVED'
+  sos_event_id: string
+  sos_latitude: string
+  sos_longitude: string
+  category: string
+  tourist_name: string
+  rescuer_kind: 'TEAM' | 'VOLUNTEER'
+  rescuer_name: string
+  latitude: string
+  longitude: string
+  is_live: boolean
+}
+
 export interface CreateVolunteerPayload {
   fullName: string
   phone: string
@@ -114,6 +133,9 @@ const govtApi = {
 
   getNearbyRescuers: (sosId: string) =>
     api.get<APIResponse<NearbyRescuer[]>>(`/govt/sos/${sosId}/nearby-rescuers`),
+
+  getActiveRescuers: () =>
+    api.get<APIResponse<ActiveRescuer[]>>('/govt/active-rescuers'),
 
   resolveSOS: (sosId: string, data: { resolutionNotes?: string }) =>
     api.patch<APIResponse<SOSWithDetails>>(`/govt/sos/${sosId}/resolve`, data),

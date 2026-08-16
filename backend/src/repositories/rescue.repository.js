@@ -83,6 +83,34 @@ class RescueRepository extends BaseRepository {
     )
   }
 
+  // Powers the govt Live Map's rescuer markers — every non-RESOLVED
+  // assignment (team or volunteer), unified the same way findNearbyAvailableRescuers
+  // is, plus the SOS location to draw a route between. `latitude`/`longitude`
+  // prefers the rescuer's live GPS fix (rescuer_latitude/longitude, written by
+  // volunteer.service.js#updateRescuerLocation) and falls back to their
+  // registered base — same fallback tourist.service.js#getGuardianView and
+  // sos.service.js#getActiveRescueInfo already use, kept consistent here.
+  async findActiveAssignmentsWithPositions() {
+    return this.query(`
+      SELECT
+        ra.id AS assignment_id, ra.status, ra.sos_event_id,
+        se.latitude AS sos_latitude, se.longitude AS sos_longitude, se.category,
+        t.full_name AS tourist_name,
+        CASE WHEN ra.team_id IS NOT NULL THEN 'TEAM' ELSE 'VOLUNTEER' END AS rescuer_kind,
+        COALESCE(rt.name, v.full_name) AS rescuer_name,
+        COALESCE(ra.rescuer_latitude, rt.latitude, v.latitude) AS latitude,
+        COALESCE(ra.rescuer_longitude, rt.longitude, v.longitude) AS longitude,
+        (ra.rescuer_latitude IS NOT NULL) AS is_live
+      FROM rescue_assignments ra
+      JOIN sos_events se ON se.id = ra.sos_event_id
+      JOIN tourists t ON t.id = se.tourist_id
+      LEFT JOIN rescue_teams rt ON rt.id = ra.team_id
+      LEFT JOIN volunteers v ON v.id = ra.volunteer_id
+      WHERE ra.status != 'RESOLVED'
+      ORDER BY ra.assigned_at DESC`
+    )
+  }
+
   async updateAssignmentRescuerLocation(assignmentId, latitude, longitude) {
     return this.queryOne(`
       UPDATE rescue_assignments

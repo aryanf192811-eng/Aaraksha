@@ -124,6 +124,16 @@ async function getNearbyRescuers(sosId) {
   return new RescueRepository().findNearbyAvailableRescuers(sos.latitude, sos.longitude)
 }
 
+// Powers the govt Live Map's rescuer markers — every rescuer (team or
+// volunteer) currently working an SOS, with the position to plot and the
+// SOS location to route to. The frontend re-polls this on the same
+// RESCUER_LOCATION_UPDATE/RESCUER_STATUS_UPDATE events that already move
+// the marker on the tourist/Guardian/Rescuer-app maps, so all four views
+// end up moving off the same GPS ticks.
+async function getActiveRescuers() {
+  return new RescueRepository().findActiveAssignmentsWithPositions()
+}
+
 async function resolveSOS(sosId, resolutionNotes) {
   const { resolved } = await withTransaction(async (client) => {
     const sosRepo_t    = new SOSRepository(client)
@@ -293,7 +303,7 @@ async function verifyVolunteer(volunteerId) {
 }
 
 module.exports = {
-  getDashboard, getActiveSOS, assignRescue, resolveSOS, getNearbyRescuers,
+  getDashboard, getActiveSOS, assignRescue, resolveSOS, getNearbyRescuers, getActiveRescuers,
   getLiveTourists, getRiskOverview, getRescueTeams, updateTeamStatus, getAnalytics,
   getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer,
 }
