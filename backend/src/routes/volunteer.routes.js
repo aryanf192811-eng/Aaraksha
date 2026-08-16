@@ -10,6 +10,7 @@ const { UUIDParamSchema } = require('../validators/common.validator')
 const {
   RegisterVolunteerSchema, LoginVolunteerSchema,
   UpdateVolunteerStatusSchema, UpdateDispatchStatusSchema, UpdateLocationSchema,
+  UpdateAssignmentStatusSchema,
 } = require('../validators/volunteer.validator')
 
 const registerLimiter = createAuthLimiter(20)
@@ -25,6 +26,7 @@ router.patch('/me/status',         validate(UpdateVolunteerStatusSchema), ctrl.u
 router.get('/me/dispatches',       ctrl.getMyDispatches)
 router.get('/me/active-assignment',ctrl.getActiveAssignment)
 router.patch('/me/location',       validate(UpdateLocationSchema), ctrl.updateLocation)
+router.patch('/me/assignment/status', validate(UpdateAssignmentStatusSchema), ctrl.updateAssignmentStatus)
 router.patch('/dispatches/:id/status',
   validate(UUIDParamSchema, 'params'), validate(UpdateDispatchStatusSchema), ctrl.updateDispatchStatus)
 

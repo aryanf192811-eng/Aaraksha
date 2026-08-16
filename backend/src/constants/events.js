@@ -18,6 +18,9 @@ const SOCKET_EVENTS = Object.freeze({
   // event name emitted into three different rooms (tourist/guardian/govt)
   // by emitRescuerLocationUpdate, not room-specific like the others here.
   RESCUER_LOCATION_UPDATE: 'RESCUER_LOCATION_UPDATE',
+  // The rescuer self-reported progress (EN_ROUTE/ARRIVED) — same 3-room
+  // fan-out shape as RESCUER_LOCATION_UPDATE.
+  RESCUER_STATUS_UPDATE: 'RESCUER_STATUS_UPDATE',
 
   // Server → Tourist room (tourist:{touristId})
   TSI_UPDATED:         'TSI_UPDATED',

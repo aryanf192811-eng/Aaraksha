@@ -295,10 +295,26 @@ function emitRescuerLocationUpdate(sosEvent, guardianToken, latitude, longitude)
   safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.RESCUER_LOCATION_UPDATE, payload)
 }
 
+// Tourist room + Guardian room + Govt dashboard: the rescuer self-reported
+// progress (EN_ROUTE/ARRIVED) on their assignment. Same 3-room shape as
+// emitRescuerLocationUpdate, kept as a separate function since a status
+// change and a position tick are conceptually different events even
+// though they reach the same audience.
+function emitRescuerStatusUpdate(sosEvent, guardianToken, status) {
+  const payload = { sosId: sosEvent.id, status, updatedAt: new Date().toISOString() }
+  if (sosEvent.tourist_id) {
+    safeEmit(SOCKET_ROOMS.tourist(sosEvent.tourist_id), SOCKET_EVENTS.RESCUER_STATUS_UPDATE, payload)
+  }
+  if (guardianToken) {
+    safeEmit(SOCKET_ROOMS.guardian(guardianToken), SOCKET_EVENTS.RESCUER_STATUS_UPDATE, payload)
+  }
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.RESCUER_STATUS_UPDATE, payload)
+}
+
 module.exports = {
   emitSOSReceived, emitSOSResolved, emitRescueAssigned, emitDMSTriggered,
   emitTSIUpdated, emitCheckinUpdate, emitGuardianSOSAlert, emitGuardianRescueAssigned,
   emitWeatherRiskIncreased, emitGroupSOSAlert, emitDestinationNewsCritical,
   emitVolunteerSOSAlert, emitVolunteerAssignmentUpdated,
-  emitVolunteerAssigned, emitRescuerLocationUpdate,
+  emitVolunteerAssigned, emitRescuerLocationUpdate, emitRescuerStatusUpdate,
 }

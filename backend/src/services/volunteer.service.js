@@ -6,7 +6,7 @@ const { VolunteerDispatchRepository } = require('../repositories/volunteerDispat
 const { RescueRepository } = require('../repositories/rescue.repository')
 const { hashPassword, verifyPassword, hashGovtId, normalizePhone, extractSuffix } = require('../utils/crypto')
 const { generateJWT } = require('./auth.service')
-const { emitVolunteerAssignmentUpdated, emitRescuerLocationUpdate } = require('../socket/emitters')
+const { emitVolunteerAssignmentUpdated, emitRescuerLocationUpdate, emitRescuerStatusUpdate } = require('../socket/emitters')
 const { VOLUNTEER_DISPATCH_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const logger = require('../utils/logger')
@@ -125,7 +125,24 @@ async function updateRescuerLocation(volunteerId, latitude, longitude) {
   return { assignmentId: assignment.id, latitude, longitude }
 }
 
+async function updateAssignmentStatus(volunteerId, status) {
+  const rescueRepo = new RescueRepository()
+  const current = await rescueRepo.findActiveAssignmentByVolunteerId(volunteerId)
+  if (!current) throw Object.assign(new Error(ERRORS.ASSIGNMENT_NOT_FOUND), { statusCode: 404 })
+
+  const updated = await rescueRepo.updateAssignmentStatus(current.id, volunteerId, status)
+  if (!updated) throw Object.assign(new Error(ERRORS.ASSIGNMENT_NOT_FOUND), { statusCode: 404 })
+
+  emitRescuerStatusUpdate(
+    { id: current.sos_event_id, tourist_id: current.tourist_id },
+    current.guardian_token,
+    status
+  )
+  logger.info({ volunteerId, assignmentId: current.id, status }, 'Rescuer status updated')
+  return updated
+}
+
 module.exports = {
   registerVolunteer, loginVolunteer, updateStatus, getMyDispatches, updateDispatchStatus,
-  getActiveAssignment, updateRescuerLocation,
+  getActiveAssignment, updateRescuerLocation, updateAssignmentStatus,
 }

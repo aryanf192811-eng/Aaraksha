@@ -62,7 +62,14 @@ const UpdateLocationSchema = z.object({
   longitude: LongitudeSchema,
 })
 
+// Deliberately excludes RESOLVED — closing an SOS stays a govt-operator
+// action (see the comment on RescueRepository#updateAssignmentStatus).
+const UpdateAssignmentStatusSchema = z.object({
+  status: z.enum(['EN_ROUTE', 'ARRIVED']),
+})
+
 module.exports = {
   RegisterVolunteerSchema, LoginVolunteerSchema,
   UpdateVolunteerStatusSchema, UpdateDispatchStatusSchema, UpdateLocationSchema,
+  UpdateAssignmentStatusSchema,
 }

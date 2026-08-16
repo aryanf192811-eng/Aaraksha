@@ -69,7 +69,15 @@ const updateLocation = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+// PATCH /api/volunteers/me/assignment/status
+const updateAssignmentStatus = async (req, res, next) => {
+  try {
+    const updated = await volunteerService.updateAssignmentStatus(req.volunteer.id, req.validatedBody.status)
+    sendSuccess(res, updated, `Status updated to ${req.validatedBody.status}`)
+  } catch (err) { next(err) }
+}
+
 module.exports = {
   register, login, getProfile, updateStatus, getMyDispatches, updateDispatchStatus,
-  getActiveAssignment, updateLocation,
+  getActiveAssignment, updateLocation, updateAssignmentStatus,
 }

@@ -41,6 +41,21 @@ class RescueRepository extends BaseRepository {
     )
   }
 
+  // Self-service progress updates from the rescuer (ASSIGNED → EN_ROUTE →
+  // ARRIVED) — deliberately does NOT accept RESOLVED. Closing an SOS stays
+  // a govt-operator action (resolveAssignment above, driven from
+  // govt.service.js#resolveSOS) since this is emergency response, not a
+  // ride-hail trip a driver can unilaterally end. Scoped to
+  // (id AND volunteer_id) — same ownership-in-the-WHERE-clause pattern as
+  // volunteerDispatch.repository.js's updateStatus.
+  async updateAssignmentStatus(assignmentId, volunteerId, status) {
+    return this.queryOne(
+      `UPDATE rescue_assignments SET status=$3
+       WHERE id=$1 AND volunteer_id=$2 AND status NOT IN ('RESOLVED') RETURNING *`,
+      [assignmentId, volunteerId, status]
+    )
+  }
+
   async resolveAssignment(sosEventId) {
     return this.queryOne(`
       UPDATE rescue_assignments SET status='RESOLVED', resolved_at=NOW()
