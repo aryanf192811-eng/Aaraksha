@@ -18,7 +18,8 @@ function initSocket(server) {
   _io = new Server(server, {
     cors: {
       origin: [config.cors.touristUrl, config.cors.govtUrl, config.cors.guardianUrl,
-               'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+               ...(config.cors.volunteerUrl ? [config.cors.volunteerUrl] : []),
+               'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'],
       methods: ['GET', 'POST'],
       credentials: true,
     },

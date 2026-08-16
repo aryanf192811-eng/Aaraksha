@@ -132,9 +132,12 @@ aaraksha/
 │   │       ├── components/
 │   │       ├── types/
 │   │       └── api/
-│   └── guardian/              ← Public token-based, status-focused
+│   ├── guardian/              ← Public token-based, status-focused
+│   │   └── src/
+│   │       └── pages/             ← TrackingPage (status + map + timeline + ETA)
+│   └── volunteer/             ← Govt-verified local responders, teal theme
 │       └── src/
-│           └── pages/             ← TrackingPage (status + map + timeline + ETA)
+│           └── pages/             ← AuthPage · HomePage (status toggle + live alerts + points)
 ```
 
 ---

@@ -1,7 +1,7 @@
 {
   "name": "aaraksha-backend",
   "version": "1.0.0",
-  "description": "Aaraksha — Smart Tourism Safety Platform | Three-Portal Backend",
+  "description": "Aaraksha — Smart Tourism Safety Platform | Four-Portal Backend",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

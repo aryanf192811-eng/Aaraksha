@@ -33,11 +33,14 @@ const config = {
     connectionTimeoutMs:parseInt(optionalEnv('DATABASE_CONNECTION_TIMEOUT_MS', '2000'), 10),
   },
 
-  // CORS — three frontend origins
+  // CORS — frontend origins. volunteerUrl is optional (not required) so an
+  // existing .env from before the volunteer portal existed doesn't fail
+  // startup — falls back to the dev localhost allowlist in cors.js.
   cors: {
-    touristUrl:  requireEnv('TOURIST_FRONTEND_URL'),
-    govtUrl:     requireEnv('GOVT_FRONTEND_URL'),
-    guardianUrl: requireEnv('GUARDIAN_FRONTEND_URL'),
+    touristUrl:   requireEnv('TOURIST_FRONTEND_URL'),
+    govtUrl:      requireEnv('GOVT_FRONTEND_URL'),
+    guardianUrl:  requireEnv('GUARDIAN_FRONTEND_URL'),
+    volunteerUrl: optionalEnv('VOLUNTEER_FRONTEND_URL'),
   },
 
   // JWT

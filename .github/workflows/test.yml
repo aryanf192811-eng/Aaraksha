@@ -45,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        portal: [tourist, govt, guardian]
+        portal: [tourist, govt, guardian, volunteer]
     defaults:
       run:
         working-directory: frontend/${{ matrix.portal }}
