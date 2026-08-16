@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Aaraksha Backend — Full API Test Suite",
-    "description": "Complete automated test suite for the Aaraksha Session 1 backend. 88 tests across 18 folders (+ cleanup) covering all 42 endpoints, auth flows, security guards, validation, and edge cases. Run against http://localhost:5000.",
+    "description": "Complete automated test suite for the Aaraksha backend. 119 tests across 21 folders (+ cleanup) covering the core API surface, auth flows, security guards, validation, edge cases, and the unified Rescuer network (volunteer registration/verification/provisioning, combined team-or-volunteer SOS assignment, live rescuer location/status). Run against http://localhost:5000.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -3358,7 +3358,12 @@
                       "pm.test('Status 200', () => pm.response.to.have.status(200));",
                       "pm.test('Assignment created', () => { pm.expect(pm.response.json().data).to.have.property('assignment'); });",
                       "pm.test('SOS status updated to ASSIGNED', () => { pm.expect(pm.response.json().data.sosStatus).to.equal('ASSIGNED'); });",
-                      "pm.test('Team status updated to DEPLOYED', () => { pm.expect(pm.response.json().data.teamStatus).to.equal('DEPLOYED'); });"
+                      "pm.test('Rescuer kind is TEAM', () => { pm.expect(pm.response.json().data.rescuerKind).to.equal('TEAM'); });",
+                      "pm.test('Assignment has team_id, not volunteer_id', () => {",
+                      "  const a = pm.response.json().data.assignment;",
+                      "  pm.expect(a.team_id).to.equal(pm.environment.get('RESCUE_TEAM_ID_AVAILABLE'));",
+                      "  pm.expect(a.volunteer_id).to.be.null;",
+                      "});"
                     ]
                   }
                 }
@@ -4133,6 +4138,1371 @@
                     "exec": [
                       "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));",
                       "pm.test('No body returned', () => { pm.expect(pm.response.text()).to.equal(''); });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "19 - Volunteer Registration & Auth",
+          "item": [
+            {
+              "name": "Test 89: Register Volunteer — Valid",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/register",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Meera Test Volunteer\",\n  \"phone\": \"{{VOLUNTEER_PHONE}}\",\n  \"password\": \"Volunteer@1234\",\n  \"govtIdType\": \"AADHAAR\",\n  \"govtIdNumber\": \"567890123456\",\n  \"district\": \"Kamrup Metropolitan\",\n  \"state\": \"Assam\",\n  \"latitude\": 26.1445,\n  \"longitude\": 91.7362\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.environment.set('VOLUNTEER_TOKEN', body.data.token);",
+                      "  pm.environment.set('VOLUNTEER_ID', body.data.volunteer.id);",
+                      "}",
+                      "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                      "pm.test('JWT token returned', () => { pm.expect(pm.response.json().data.token).to.be.a('string').with.length.above(50); });",
+                      "pm.test('Volunteer starts unverified', () => { pm.expect(pm.response.json().data.volunteer.is_verified).to.equal(false); });",
+                      "pm.test('Volunteer starts AVAILABLE', () => { pm.expect(pm.response.json().data.volunteer.status).to.equal('AVAILABLE'); });",
+                      "pm.test('Password hash NOT exposed', () => { pm.expect(pm.response.json().data.volunteer).to.not.have.property('password_hash'); });",
+                      "pm.test('Govt ID hash NOT exposed', () => { pm.expect(pm.response.json().data.volunteer).to.not.have.property('govt_id_hash'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 90: Register Volunteer — Duplicate Phone (409)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/register",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Duplicate Test\",\n  \"phone\": \"{{VOLUNTEER_PHONE}}\",\n  \"password\": \"Volunteer@1234\",\n  \"govtIdType\": \"AADHAAR\",\n  \"govtIdNumber\": \"678901234567\",\n  \"district\": \"Kamrup Metropolitan\",\n  \"state\": \"Assam\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));",
+                      "pm.test('Error message mentions phone', () => { pm.expect(pm.response.json().message.toLowerCase()).to.include('phone'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 91: Register Volunteer — Invalid Aadhaar Format (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/register",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Bad ID Test\",\n  \"phone\": \"{{VOLUNTEER_PHONE_2}}\",\n  \"password\": \"Volunteer@1234\",\n  \"govtIdType\": \"AADHAAR\",\n  \"govtIdNumber\": \"123\",\n  \"district\": \"Kamrup Metropolitan\",\n  \"state\": \"Assam\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 92: Login Volunteer — Valid",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/login",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"{{VOLUNTEER_PHONE}}\",\n  \"password\": \"Volunteer@1234\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) { pm.environment.set('VOLUNTEER_TOKEN', pm.response.json().data.token); }",
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('JWT token returned', () => { pm.expect(pm.response.json().data.token).to.be.a('string').with.length.above(50); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 93: Login Volunteer — Wrong Password (401)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/login",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"{{VOLUNTEER_PHONE}}\",\n  \"password\": \"WrongPassword999\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 401 Unauthorized', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 94: Get Volunteer Profile — Pending Verification",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{VOLUNTEER_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/me",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "me"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Profile is not yet verified', () => { pm.expect(pm.response.json().data.is_verified).to.equal(false); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 95: Update Volunteer Status — Available + Location",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{VOLUNTEER_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/me/status",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "me",
+                    "status"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"AVAILABLE\",\n  \"latitude\": 26.1445,\n  \"longitude\": 91.7362\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Location stored', () => { pm.expect(parseFloat(pm.response.json().data.latitude)).to.be.closeTo(26.1445, 0.001); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 96: Get My Dispatches — Empty",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{VOLUNTEER_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/me/dispatches",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "me",
+                    "dispatches"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Dispatches is an array', () => { pm.expect(pm.response.json().data).to.be.an('array'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 97: Get Active Assignment — None Yet",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{VOLUNTEER_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/me/active-assignment",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "me",
+                    "active-assignment"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('No active assignment', () => { pm.expect(pm.response.json().data).to.be.null; });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 98: Update Location — Without Active Assignment (404)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{VOLUNTEER_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/me/location",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "me",
+                    "location"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 26.15,\n  \"longitude\": 91.77\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "20 - Govt Volunteer Management",
+          "item": [
+            {
+              "name": "Test 99: Get Pending Volunteers — Includes New Registration",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/volunteers/pending",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "volunteers",
+                    "pending"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Pending list includes our test volunteer', () => {",
+                      "  const ids = pm.response.json().data.map(v => v.id);",
+                      "  pm.expect(ids).to.include(pm.environment.get('VOLUNTEER_ID'));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 100: Verify Volunteer",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/volunteers/{{VOLUNTEER_ID}}/verify",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "volunteers",
+                    "{{VOLUNTEER_ID}}",
+                    "verify"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Volunteer now verified', () => { pm.expect(pm.response.json().data.is_verified).to.equal(true); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 101: Verify Volunteer — Not Found (404)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/volunteers/00000000-0000-0000-0000-000000000000/verify",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "volunteers",
+                    "00000000-0000-0000-0000-000000000000",
+                    "verify"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 102: Get All Volunteers — Includes Verified",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/volunteers",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "volunteers"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Roster includes our now-verified volunteer', () => {",
+                      "  const v = pm.response.json().data.find(x => x.id === pm.environment.get('VOLUNTEER_ID'));",
+                      "  pm.expect(v).to.exist;",
+                      "  pm.expect(v.is_verified).to.equal(true);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 103: Create Volunteer — Govt Provisioned",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/volunteers",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "volunteers"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Provisioned Test Volunteer\",\n  \"phone\": \"{{PROVISIONED_VOLUNTEER_PHONE}}\",\n  \"govtIdType\": \"AADHAAR\",\n  \"govtIdNumber\": \"789012345678\",\n  \"district\": \"Kamrup Metropolitan\",\n  \"state\": \"Assam\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) { pm.environment.set('PROVISIONED_VOLUNTEER_ID', pm.response.json().data.volunteer.id); }",
+                      "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                      "pm.test('Account is pre-verified', () => { pm.expect(pm.response.json().data.volunteer.is_verified).to.equal(true); });",
+                      "pm.test('One-time password returned', () => { pm.expect(pm.response.json().data.temporaryPassword).to.be.a('string').with.length.at.least(8); });",
+                      "pm.test('Password hash NOT exposed', () => { pm.expect(pm.response.json().data.volunteer).to.not.have.property('password_hash'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 104: Create Volunteer — Duplicate Phone (409)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/volunteers",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "volunteers"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Dup Provision Test\",\n  \"phone\": \"{{PROVISIONED_VOLUNTEER_PHONE}}\",\n  \"govtIdType\": \"AADHAAR\",\n  \"govtIdNumber\": \"890123456789\",\n  \"district\": \"Kamrup Metropolitan\",\n  \"state\": \"Assam\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 105: Create Volunteer — Invalid Govt ID Format (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/volunteers",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "volunteers"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Bad ID Provision Test\",\n  \"phone\": \"{{VOLUNTEER_PHONE_2}}\",\n  \"govtIdType\": \"AADHAAR\",\n  \"govtIdNumber\": \"1\",\n  \"district\": \"Kamrup Metropolitan\",\n  \"state\": \"Assam\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 Bad Request', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "21 - Unified Rescuer Assignment",
+          "item": [
+            {
+              "name": "Test 106: Setup — Volunteer Sets Available + Location",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{VOLUNTEER_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/me/status",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "me",
+                    "status"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"AVAILABLE\",\n  \"latitude\": 26.1445,\n  \"longitude\": 91.7362\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 107: Setup — Create SOS Near Volunteer",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/sos",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "sos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 26.145,\n  \"longitude\": 91.737,\n  \"category\": \"TRAPPED\",\n  \"message\": \"Postman test SOS for unified-rescuer assignment\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) { pm.environment.set('RESCUER_TEST_SOS_ID', pm.response.json().data.id); }",
+                      "pm.test('Status 201 Created', () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 108: Get Nearby Rescuers — Includes Volunteer",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/sos/{{RESCUER_TEST_SOS_ID}}/nearby-rescuers",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "sos",
+                    "{{RESCUER_TEST_SOS_ID}}",
+                    "nearby-rescuers"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Candidate list includes our verified volunteer', () => {",
+                      "  const v = pm.response.json().data.find(r => r.id === pm.environment.get('VOLUNTEER_ID') && r.kind === 'VOLUNTEER');",
+                      "  pm.expect(v).to.exist;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 109: Assign — Both teamId and volunteerId (400)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/sos/{{RESCUER_TEST_SOS_ID}}/assign",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "sos",
+                    "{{RESCUER_TEST_SOS_ID}}",
+                    "assign"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"teamId\": \"{{RESCUE_TEAM_ID_AVAILABLE}}\",\n  \"volunteerId\": \"{{VOLUNTEER_ID}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 — exactly one of teamId/volunteerId', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 110: Assign — Neither teamId nor volunteerId (400)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/sos/{{RESCUER_TEST_SOS_ID}}/assign",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "sos",
+                    "{{RESCUER_TEST_SOS_ID}}",
+                    "assign"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"notes\": \"Missing both assignee fields\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 — exactly one of teamId/volunteerId', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 111: Assign Volunteer to SOS",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/sos/{{RESCUER_TEST_SOS_ID}}/assign",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "sos",
+                    "{{RESCUER_TEST_SOS_ID}}",
+                    "assign"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"volunteerId\": \"{{VOLUNTEER_ID}}\",\n  \"notes\": \"Postman test — nearest verified volunteer\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) { pm.environment.set('RESCUER_TEST_ASSIGNMENT_ID', pm.response.json().data.assignment.id); }",
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Rescuer kind is VOLUNTEER', () => { pm.expect(pm.response.json().data.rescuerKind).to.equal('VOLUNTEER'); });",
+                      "pm.test('SOS status is ASSIGNED', () => { pm.expect(pm.response.json().data.sosStatus).to.equal('ASSIGNED'); });",
+                      "pm.test('Assignment has volunteer_id, not team_id', () => {",
+                      "  const a = pm.response.json().data.assignment;",
+                      "  pm.expect(a.volunteer_id).to.equal(pm.environment.get('VOLUNTEER_ID'));",
+                      "  pm.expect(a.team_id).to.be.null;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 112: Get Active Rescuers — Includes New Assignment",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/active-rescuers",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "active-rescuers"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Live Map feed includes our new assignment', () => {",
+                      "  const a = pm.response.json().data.find(x => x.assignment_id === pm.environment.get('RESCUER_TEST_ASSIGNMENT_ID'));",
+                      "  pm.expect(a).to.exist;",
+                      "  pm.expect(a.rescuer_kind).to.equal('VOLUNTEER');",
+                      "  pm.expect(a.rescuer_name).to.equal('Meera Test Volunteer');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 113: Volunteer — Get Active Assignment",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{VOLUNTEER_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/me/active-assignment",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "me",
+                    "active-assignment"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Assignment is present and ASSIGNED', () => {",
+                      "  pm.expect(pm.response.json().data).to.not.be.null;",
+                      "  pm.expect(pm.response.json().data.status).to.equal('ASSIGNED');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 114: Volunteer — Update Location",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{VOLUNTEER_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/me/location",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "me",
+                    "location"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": 26.146,\n  \"longitude\": 91.738\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Location echoed back', () => { pm.expect(pm.response.json().data.latitude).to.equal(26.146); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 115: Volunteer — Update Assignment Status — EN_ROUTE",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{VOLUNTEER_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/me/assignment/status",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "me",
+                    "assignment",
+                    "status"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"EN_ROUTE\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Assignment status updated', () => { pm.expect(pm.response.json().data.status).to.equal('EN_ROUTE'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 116: Volunteer — Update Assignment Status — ARRIVED",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{VOLUNTEER_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/me/assignment/status",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "me",
+                    "assignment",
+                    "status"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"ARRIVED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Assignment status updated', () => { pm.expect(pm.response.json().data.status).to.equal('ARRIVED'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 117: Volunteer — RESOLVED Self-Status Rejected (400)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{VOLUNTEER_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/me/assignment/status",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "me",
+                    "assignment",
+                    "status"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"RESOLVED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 — RESOLVED is govt-only, not self-service', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 118: Govt — Resolve SOS",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/sos/{{RESCUER_TEST_SOS_ID}}/resolve",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "sos",
+                    "{{RESCUER_TEST_SOS_ID}}",
+                    "resolve"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"resolutionNotes\": \"Postman test — resolved after volunteer arrived\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('SOS status RESOLVED', () => { pm.expect(pm.response.json().data.status).to.equal('RESOLVED'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 119: Volunteer — Get Active Assignment After Resolve",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{VOLUNTEER_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/volunteers/me/active-assignment",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "volunteers",
+                    "me",
+                    "active-assignment"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('No active assignment — volunteer freed up', () => { pm.expect(pm.response.json().data).to.be.null; });"
                     ]
                   }
                 }

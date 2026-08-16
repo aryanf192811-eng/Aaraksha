@@ -171,7 +171,7 @@ slides.
 - **Self-service status, govt-owned resolution** — a rescuer reports their own `EN_ROUTE`/`ARRIVED` progress; closing the incident stays an exclusive govt-operator action, matching how a real emergency response chain of custody works
 
 ### 🖥️ Government Operations
-- **Live ops map** (Leaflet + Socket.IO) — every active tourist, every open SOS, updating in real time, no refresh
+- **Live ops map** (Leaflet + Socket.IO) — every active tourist, every open SOS, and every rescuer currently en route with their real OSRM road route, all updating in real time, no refresh
 - **SOS triage & rescue assignment** — dispatch to the nearest available team *or* volunteer, status tracked live through `EN_ROUTE → ARRIVED → RESOLVED`
 - **Volunteer verification & roster** — a pending-review queue with full identity detail before granting dispatch access, plus a live roster showing every volunteer's status and reputation points
 - **District risk overview** — per-destination live tourist counts, weather, TSI distribution, and a direct "Post News / Alert" action that fans out to every tourist with that destination on an active itinerary
@@ -526,7 +526,7 @@ cd backend
 npm test
 ```
 Covers pure logic (TSI scoring, crypto utilities) and integration flows against
-`DATABASE_TEST_URL`. Each of the four frontends also carries its own vitest suite (91 tests
+`DATABASE_TEST_URL`. Each of the four frontends also carries its own vitest suite (95 tests
 total across tourist/govt/guardian/volunteer) — `cd frontend/<app> && npm test`. CI
 (`.github/workflows/test.yml`) runs the backend suite against a real ephemeral Postgres and
 matrixes the frontend suite across all four apps on every push and pull request.
@@ -536,11 +536,14 @@ matrixes the frontend suite across all four apps on every push and pull request.
 cd backend
 npx newman run postman/aaraksha-collection.json -e postman/aaraksha-environment.json
 ```
-Covers the core auth/trip/SOS/DMS/govt surface. The community reviews, news rotation, group
-trips, push-notification, and unified-rescuer endpoints were added after this collection and
-have instead been verified through live, real-network end-to-end testing across all four running
-portals (Playwright-driven — real logins, real form submissions, real network requests inspected,
-real DB rows confirmed) rather than through Postman assertions yet.
+119 tests across 21 folders, run against a fresh `DATABASE_TEST_URL` — auth, trips, SOS, DMS,
+govt ops, security guards, validation, edge cases, and the full unified-rescuer flow (volunteer
+self-registration and govt provisioning, identity verification, combined team-or-volunteer SOS
+assignment, live location/status updates, the govt-only resolve boundary). The community
+reviews, news rotation, group trips, and push-notification endpoints were added after this
+collection and have instead been verified through live, real-network end-to-end testing across
+all four running portals (Playwright-driven — real logins, real form submissions, real network
+requests inspected, real DB rows confirmed) rather than through Postman assertions yet.
 
 ---
 
@@ -585,15 +588,10 @@ real source code, are in
 
 ## Roadmap
 
-Everything above is built and working end-to-end. What's next:
+Everything above is built and working end-to-end — including live rescuer markers on the govt
+ops map and full Postman coverage of the unified-rescuer flow, both closed out since the last
+pass. What's next:
 
-- [ ] **Live rescuer marker on the govt ops map** — `SOSManagementPage` already shows a rescuer's
-      name and `EN_ROUTE`/`ARRIVED` status live; the govt Live Map itself still renders only
-      tourist markers, not the rescuer's moving position and road route the Rescuer/Guardian/
-      tourist apps already show. Same `RESCUER_LOCATION_UPDATE` event, just not consumed there yet.
-- [ ] Postman collection coverage for the unified-rescuer endpoints (`/govt/volunteers/*`,
-      `/govt/sos/:id/nearby-rescuers`, `/volunteers/me/*`) — currently verified live, not via
-      checked-in Postman assertions (see [Testing](#testing))
 - [ ] Real Twilio/Gemini/OpenWeatherMap/VAPID credentials wired in for the live demo environment
 
 ---

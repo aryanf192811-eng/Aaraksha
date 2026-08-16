@@ -27,6 +27,14 @@
     { "key": "TEST_PHONE_2", "value": "8200000002", "type": "default", "enabled": true },
     { "key": "GOVT_EMAIL", "value": "admin@aaraksha.gov.in", "type": "default", "enabled": true },
     { "key": "GOVT_PASSWORD", "value": "Admin@123", "type": "secret", "enabled": true },
-    { "key": "TIMESTAMP", "value": "", "type": "default", "enabled": true }
+    { "key": "TIMESTAMP", "value": "", "type": "default", "enabled": true },
+    { "key": "VOLUNTEER_TOKEN", "value": "", "type": "secret", "enabled": true },
+    { "key": "VOLUNTEER_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "VOLUNTEER_PHONE", "value": "8300000001", "type": "default", "enabled": true },
+    { "key": "VOLUNTEER_PHONE_2", "value": "8300000002", "type": "default", "enabled": true },
+    { "key": "PROVISIONED_VOLUNTEER_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "PROVISIONED_VOLUNTEER_PHONE", "value": "8300000003", "type": "default", "enabled": true },
+    { "key": "RESCUER_TEST_SOS_ID", "value": "", "type": "default", "enabled": true },
+    { "key": "RESCUER_TEST_ASSIGNMENT_ID", "value": "", "type": "default", "enabled": true }
   ]
 }
