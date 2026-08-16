@@ -9,6 +9,7 @@ const { LocationRepository } = require('../repositories/location.repository')
 const { DestinationRepository } = require('../repositories/destination.repository')
 const { TripRepository } = require('../repositories/trip.repository')
 const { TouristRepository } = require('../repositories/tourist.repository')
+const { VolunteerRepository } = require('../repositories/volunteer.repository')
 const { emitSOSResolved, emitRescueAssigned, emitGuardianRescueAssigned } = require('../socket/emitters')
 const { SOS_STATUSES, TEAM_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
@@ -200,7 +201,19 @@ async function getAnalytics(period = '30d') {
   return { perDay, byCategory, totals: totals[0], avgResponseMinutes: avgResponse }
 }
 
+async function getPendingVolunteers() {
+  return new VolunteerRepository().findPendingVerification()
+}
+
+async function verifyVolunteer(volunteerId) {
+  const volunteer = await new VolunteerRepository().verify(volunteerId)
+  if (!volunteer) throw Object.assign(new Error(ERRORS.VOLUNTEER_NOT_FOUND), { statusCode: 404 })
+  logger.info({ volunteerId }, 'Volunteer verified')
+  return volunteer
+}
+
 module.exports = {
   getDashboard, getActiveSOS, assignRescue, resolveSOS,
   getLiveTourists, getRiskOverview, getRescueTeams, updateTeamStatus, getAnalytics,
+  getPendingVolunteers, verifyVolunteer,
 }

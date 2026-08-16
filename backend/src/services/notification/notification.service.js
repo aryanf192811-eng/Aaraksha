@@ -71,6 +71,29 @@ async function notifyDMSWarning(tourist, dms) {
   logger.info({ touristId: tourist.id, dmsId: dms.id, minutesLeft }, 'DMS warning SMS sent')
 }
 
+// Volunteer SOS broadcast — no tiering (unlike emergency contacts, every
+// volunteer alerted gets the same message at the same time; the "who
+// responds" part is left to them, not a tier order).
+function buildVolunteerAlertMessage(tourist, sos, distanceKm) {
+  const category = sos.category || 'EMERGENCY'
+  return [
+    `🆘 AARAKSHA — Nearby SOS (${distanceKm.toFixed(1)} km away)`,
+    `${tourist.full_name?.split(' ')[0] || 'A tourist'} needs help — ${category}`,
+    `Location: https://maps.google.com/?q=${sos.latitude},${sos.longitude}`,
+    `Open the Volunteer app to respond.`,
+  ].join('\n')
+}
+
+async function notifyVolunteersOnSOS(volunteers, tourist, sos) {
+  const notified = []
+  for (const volunteer of volunteers) {
+    const message = buildVolunteerAlertMessage(tourist, sos, volunteer.distanceKm)
+    const result = await sendSMS(volunteer.phone, message)
+    notified.push({ volunteerId: volunteer.id, method: result.sent ? 'SMS' : 'FAILED' })
+  }
+  return notified
+}
+
 async function notifyETAExceeded(contact, tourist, stop) {
   const message = [
     `⚠️ AARAKSHA: Late arrival alert`,
@@ -83,4 +106,4 @@ async function notifyETAExceeded(contact, tourist, stop) {
   await sendSMS(contact.phone, message)
 }
 
-module.exports = { notifyOnSOS, notifyDMSWarning, notifyETAExceeded }
+module.exports = { notifyOnSOS, notifyDMSWarning, notifyETAExceeded, notifyVolunteersOnSOS }

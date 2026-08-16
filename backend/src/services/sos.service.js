@@ -7,12 +7,19 @@ const { SOSRepository } = require('../repositories/sos.repository')
 const { LocationRepository } = require('../repositories/location.repository')
 const { TouristRepository } = require('../repositories/tourist.repository')
 const { TripMemberRepository } = require('../repositories/tripMember.repository')
-const { notifyOnSOS } = require('./notification/notification.service')
-const { emitSOSReceived, emitSOSResolved, emitGroupSOSAlert, emitGuardianSOSAlert } = require('../socket/emitters')
+const { VolunteerRepository } = require('../repositories/volunteer.repository')
+const { VolunteerDispatchRepository } = require('../repositories/volunteerDispatch.repository')
+const { notifyOnSOS, notifyVolunteersOnSOS } = require('./notification/notification.service')
+const { emitSOSReceived, emitSOSResolved, emitGroupSOSAlert, emitGuardianSOSAlert, emitVolunteerSOSAlert } = require('../socket/emitters')
 const { SOS_TRIGGER_TYPES, SOS_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const { estimateRescueEtaMinutes } = require('../utils/geo')
 const logger = require('../utils/logger')
+
+// How far a verified volunteer can be and still get alerted. Wide enough to
+// be useful in the sparser parts of Northeast India without paging someone
+// an hour away for a nearby-sounding emergency.
+const VOLUNTEER_ALERT_RADIUS_KM = 15
 
 async function createSOS(touristId, data) {
   // 1. Run DB writes in a transaction
@@ -61,6 +68,18 @@ async function createSOS(touristId, data) {
       })
       .catch(err => logger.error({ err: { message: err.message }, sosId: sosEvent.id }, 'Group SOS fan-out failed'))
   }
+
+  // Volunteer network fan-out: alert nearby verified volunteers alongside
+  // official channels. Best-effort, same shape as the group SOS fan-out
+  // above — a matching/notify failure must never affect the SOS itself.
+  new VolunteerRepository().findVerifiedNearby(sosEvent.latitude, sosEvent.longitude, VOLUNTEER_ALERT_RADIUS_KM)
+    .then(async (volunteers) => {
+      if (volunteers.length === 0) return
+      emitVolunteerSOSAlert(volunteers, sosEvent, tourist)
+      await notifyVolunteersOnSOS(volunteers, tourist, sosEvent)
+      await new VolunteerDispatchRepository().createMany(sosEvent.id, volunteers.map(v => v.id))
+    })
+    .catch(err => logger.error({ err: { message: err.message }, sosId: sosEvent.id }, 'Volunteer SOS fan-out failed'))
 
   // Fire and forget — never await, never throw to caller
   notifyOnSOS(tourist, sosEvent)

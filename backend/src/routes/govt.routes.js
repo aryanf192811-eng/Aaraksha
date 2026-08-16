@@ -57,5 +57,7 @@ router.post('/checkpoint/scan',
   validate(ScanCheckpointSchema), ctrl.scanCheckpoint)
 router.get('/checkpoint/recent',   ctrl.getRecentCheckpointScans)
 router.post('/destinations/:id/news', requireGovtRole(...COMMAND_CENTER_ROLES), validate(PostNewsSchema), ctrl.postDestinationNews)
+router.get('/volunteers/pending',      requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getPendingVolunteers)
+router.patch('/volunteers/:id/verify', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.verifyVolunteer)
 
 module.exports = router

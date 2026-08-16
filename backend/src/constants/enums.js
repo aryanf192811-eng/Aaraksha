@@ -166,10 +166,29 @@ const NOTIFICATION_TIERS = Object.freeze({
   TIER_2: 2,  // Notify after 60 seconds
 })
 
+// Mirrors rescue_teams.status (AVAILABLE/DEPLOYED/OFF_DUTY) — a volunteer
+// on OFF_DUTY is excluded from proximity matching the same way a deployed
+// team is, without needing a separate is_active toggle for "not right now."
+const VOLUNTEER_STATUSES = Object.freeze({
+  AVAILABLE: 'AVAILABLE',
+  OFF_DUTY: 'OFF_DUTY',
+})
+
+// Mirrors rescue_assignments.status (ASSIGNED/EN_ROUTE/ARRIVED/RESOLVED),
+// with DECLINED added — unlike an official team, a volunteer alert is a
+// broadcast to many people at once, so "this one isn't coming" is a real,
+// expected outcome, not an edge case.
+const VOLUNTEER_DISPATCH_STATUSES = Object.freeze({
+  ALERTED: 'ALERTED',
+  RESPONDED: 'RESPONDED',
+  COMPLETED: 'COMPLETED',
+  DECLINED: 'DECLINED',
+})
+
 module.exports = {
   TRAVEL_TYPES, TRIP_STATUSES, SOS_CATEGORIES, SOS_STATUSES, SOS_TRIGGER_TYPES,
   DMS_STATUSES, CHECKIN_TYPES, GOVT_ROLES, GOVT_ID_TYPES, CONNECTIVITY, DIFFICULTY,
   ZONE_TYPES, WEATHER_CONDITIONS, WEATHER_RISK, TEAM_TYPES, TEAM_STATUSES,
   ASSIGNMENT_STATUSES, SCAM_CATEGORIES, ACTIVITY_TYPES, PACKING_CATEGORIES,
-  NOTIFICATION_TIERS,
+  NOTIFICATION_TIERS, VOLUNTEER_STATUSES, VOLUNTEER_DISPATCH_STATUSES,
 }

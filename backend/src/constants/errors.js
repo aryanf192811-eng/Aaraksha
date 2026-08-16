@@ -49,6 +49,15 @@ const ERRORS = Object.freeze({
   // Guardian
   GUARDIAN_TOKEN_INVALID: 'Tracking link not found or expired',
 
+  // Volunteer
+  VOLUNTEER_PHONE_TAKEN:   'Phone number already registered as a volunteer',
+  VOLUNTEER_GOVTID_TAKEN:  'A volunteer is already registered with this government ID',
+  VOLUNTEER_NOT_FOUND:     'Volunteer not found',
+  VOLUNTEER_NOT_VERIFIED:  'Your account is pending verification — you\'ll be notified once approved',
+  VOLUNTEER_INACTIVE:      'Volunteer account is deactivated',
+  DISPATCH_NOT_FOUND:      'Dispatch not found or access denied',
+  DISPATCH_ALREADY_CLOSED: 'This dispatch is already resolved',
+
   // Generic
   NOT_FOUND:           'Resource not found',
   VALIDATION_FAILED:   'Validation failed',

@@ -75,6 +75,18 @@ const postDestinationNews = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+const getPendingVolunteers = async (req, res, next) => {
+  try { sendSuccess(res, await govtService.getPendingVolunteers()) } catch (err) { next(err) }
+}
+
+const verifyVolunteer = async (req, res, next) => {
+  try {
+    const volunteer = await govtService.verifyVolunteer(req.params.id)
+    sendSuccess(res, volunteer, 'Volunteer verified')
+  } catch (err) { next(err) }
+}
+
 module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRescueTeams,
   getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, resolveSOS, updateTeamStatus,
-  scanCheckpoint, getRecentCheckpointScans, postDestinationNews }
+  scanCheckpoint, getRecentCheckpointScans, postDestinationNews,
+  getPendingVolunteers, verifyVolunteer }

@@ -43,8 +43,9 @@ function initSocket(server) {
       try {
         const payload = jwt.verify(token, config.jwt.secret)
         socket.data.role = payload.role
-        if (payload.role === 'tourist') socket.data.touristId   = payload.id
-        if (payload.role === 'govt')    socket.data.govtUserId  = payload.id
+        if (payload.role === 'tourist')   socket.data.touristId   = payload.id
+        if (payload.role === 'govt')      socket.data.govtUserId  = payload.id
+        if (payload.role === 'volunteer') socket.data.volunteerId = payload.id
         return next()
       } catch (err) {
         logger.debug({ err: err.message }, 'Socket auth failed — connecting without auth')
@@ -58,7 +59,7 @@ function initSocket(server) {
   })
 
   _io.on('connection', (socket) => {
-    const { role, touristId, govtUserId, guardianToken } = socket.data
+    const { role, touristId, govtUserId, guardianToken, volunteerId } = socket.data
 
     logger.debug({ socketId: socket.id, role }, 'Socket connected')
 
@@ -78,6 +79,9 @@ function initSocket(server) {
         break
       case 'guardian':
         if (guardianToken) socket.join(SOCKET_ROOMS.guardian(guardianToken))
+        break
+      case 'volunteer':
+        if (volunteerId) socket.join(SOCKET_ROOMS.volunteer(volunteerId))
         break
     }
 

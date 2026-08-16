@@ -162,6 +162,38 @@ function emitGroupSOSAlert(touristIds, sosEvent, tourist) {
   }
 }
 
+// Volunteer room (one per nearby verified volunteer): a new SOS landed
+// within alert radius. Mirrors emitGroupSOSAlert's loop-based fan-out
+// shape. distanceKm travels with each volunteer's own emit — not a shared
+// broadcast — since it differs per recipient.
+function emitVolunteerSOSAlert(volunteers, sosEvent, tourist) {
+  for (const volunteer of volunteers) {
+    safeEmit(SOCKET_ROOMS.volunteer(volunteer.id), SOCKET_EVENTS.VOLUNTEER_SOS_ALERT, {
+      sosId: sosEvent.id,
+      category: sosEvent.category,
+      latitude: sosEvent.latitude,
+      longitude: sosEvent.longitude,
+      distanceKm: volunteer.distanceKm,
+      touristFirstName: tourist?.full_name?.split(' ')[0],
+      createdAt: sosEvent.created_at,
+    })
+  }
+}
+
+// Govt dashboard: a volunteer moved their own dispatch forward
+// (RESPONDED/COMPLETED/DECLINED) — lets operators see volunteer activity
+// on an SOS alongside official rescue team status.
+function emitVolunteerAssignmentUpdated(dispatch, volunteer) {
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.VOLUNTEER_ASSIGNMENT_UPDATED, {
+    dispatchId: dispatch.id,
+    sosId: dispatch.sos_event_id,
+    volunteerId: dispatch.volunteer_id,
+    volunteerName: volunteer?.full_name,
+    status: dispatch.status,
+    pointsAwarded: dispatch.points_awarded,
+  })
+}
+
 // Tourist room: a govt-authored CRITICAL news item was posted for a
 // destination on this tourist's active trip. INFO/WARNING items don't push
 // — only CRITICAL is urgent enough to interrupt, everything else is
@@ -222,4 +254,5 @@ module.exports = {
   emitSOSReceived, emitSOSResolved, emitRescueAssigned, emitDMSTriggered,
   emitTSIUpdated, emitCheckinUpdate, emitGuardianSOSAlert, emitGuardianRescueAssigned,
   emitWeatherRiskIncreased, emitGroupSOSAlert, emitDestinationNewsCritical,
+  emitVolunteerSOSAlert, emitVolunteerAssignmentUpdated,
 }

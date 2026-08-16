@@ -11,6 +11,9 @@ const SOCKET_EVENTS = Object.freeze({
   DMS_TRIGGERED:       'DMS_TRIGGERED',
   TSI_BULK_UPDATE:     'TSI_BULK_UPDATE',
   LIVE_MAP_UPDATE:     'LIVE_MAP_UPDATE',
+  // A volunteer moved a dispatch forward (RESPONDED/COMPLETED/DECLINED) —
+  // lets operators see volunteer activity alongside official rescue teams.
+  VOLUNTEER_ASSIGNMENT_UPDATED: 'VOLUNTEER_ASSIGNMENT_UPDATED',
 
   // Server → Tourist room (tourist:{touristId})
   TSI_UPDATED:         'TSI_UPDATED',
@@ -27,6 +30,9 @@ const SOCKET_EVENTS = Object.freeze({
   GUARDIAN_SOS_ALERT:        'GUARDIAN_SOS_ALERT',
   GUARDIAN_ETA_UPDATE:       'GUARDIAN_ETA_UPDATE',
 
+  // Server → Volunteer room (volunteer:{volunteerId})
+  VOLUNTEER_SOS_ALERT:        'VOLUNTEER_SOS_ALERT',
+
   // Client → Server (from govt dashboard)
   GOVT_JOIN_DISTRICT: 'GOVT_JOIN_DISTRICT',
 })
@@ -36,6 +42,7 @@ const SOCKET_ROOMS = Object.freeze({
   govtDistrict: (district) => `govt:district:${district}`,
   tourist:       (touristId) => `tourist:${touristId}`,
   guardian:      (guardianToken) => `guardian:${guardianToken}`,
+  volunteer:     (volunteerId) => `volunteer:${volunteerId}`,
 })
 
 module.exports = { SOCKET_EVENTS, SOCKET_ROOMS }
