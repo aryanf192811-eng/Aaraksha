@@ -1,6 +1,6 @@
 // src/services/tsi.service.js
 // TSI = Travel Safety Index (0–100, higher = safer)
-// Rules: worst stop drives the penalty, not average.
+// Rules: worst stop drives the trip-level penalty, not average.
 'use strict'
 
 const TRAVEL_TYPE_DELTA = {
@@ -10,6 +10,59 @@ const CONNECTIVITY_PENALTY = { NONE: 20, POOR: 10, MODERATE: 4, GOOD: 0, EXCELLE
 const DIFFICULTY_PENALTY = { EASY: 0, MODERATE: 5, HARD: 15, EXTREME: 25 }
 const ZONE_PENALTY = { SAFE: 0, CAUTION: 5, ILP_REQUIRED: 10, HIGH_RISK: 20, RESTRICTED: 25 }
 const WEATHER_PENALTY = { CLEAR: 0, CLOUDY: 0, FOG: 5, RAIN: 5, HEAVY_RAIN: 15, SNOW: 10, STORM: 20 }
+
+function scoreLabel(score) {
+  return score >= 80 ? 'Low Risk' : score >= 60 ? 'Moderate Risk' : score >= 40 ? 'High Risk' : 'Extreme Risk'
+}
+
+// One risk breakdown per stop — the trip-level TSI only ever surfaced the
+// worst stop's *total* penalty (factors.worstStop), never which stop or
+// why. This is the same per-stop math, just kept instead of collapsed, so
+// the Journey Risk Graph and the tourist-facing "why is this stop risky"
+// view can both read real numbers instead of the client re-deriving them.
+function calculateStopRisk(stop, weatherCacheMap) {
+  const factors = {}
+
+  const connectivityPenalty = CONNECTIVITY_PENALTY[stop.connectivity] || 0
+  factors.connectivity = -connectivityPenalty
+
+  const hKm = parseFloat(stop.hospital_km) || 0
+  const medicalPenalty = hKm > 50 ? 15 : hKm > 20 ? 8 : hKm < 5 ? -5 : 0
+  factors.medicalAccess = -medicalPenalty
+
+  const alt = parseInt(stop.altitude_m) || 0
+  const terrainPenalty = alt > 4000 ? 20 : alt > 3000 ? 10 : alt > 2000 ? 4 : 0
+  factors.terrain = -terrainPenalty
+
+  const zonePenalty = ZONE_PENALTY[stop.zone_type] || 0
+  factors.restrictedZone = -zonePenalty
+
+  const difficultyPenalty = DIFFICULTY_PENALTY[stop.difficulty] || 0
+  factors.difficulty = -difficultyPenalty
+
+  const destId = stop.destinationId || stop.destination_id
+  const weatherEntry = destId && weatherCacheMap[destId]
+  const weatherPenalty = weatherEntry ? (WEATHER_PENALTY[weatherEntry.condition] || 0) : 0
+  factors.weather = -weatherPenalty
+
+  const totalPenalty = connectivityPenalty + medicalPenalty + terrainPenalty + zonePenalty + difficultyPenalty + weatherPenalty
+  const score = Math.max(10, Math.min(100, Math.round(100 - totalPenalty)))
+
+  return {
+    city: stop.city,
+    destinationId: destId || null,
+    score,
+    label: scoreLabel(score),
+    penalty: totalPenalty,
+    factors,
+    connectivity: stop.connectivity || null,
+    altitudeM: alt || null,
+    hospitalKm: hKm || null,
+    zoneType: stop.zone_type || null,
+    difficulty: stop.difficulty || null,
+    weatherCondition: weatherEntry?.condition || null,
+  }
+}
 
 function calculateTSI(trip, weatherCacheMap = {}) {
   let score = 100
@@ -29,40 +82,29 @@ function calculateTSI(trip, weatherCacheMap = {}) {
   factors.season = [6, 7, 8, 9].includes(startMonth) ? -10 : 0
   score += factors.season
 
-  // 4. Per-stop analysis — WORST stop drives the penalty
+  // 4. Per-stop analysis — WORST stop drives the trip-level penalty, but
+  // every stop's own breakdown is kept (stopRisks) instead of thrown away,
+  // for the Journey Risk Graph.
   const stops = Array.isArray(trip.stops) ? trip.stops : (JSON.parse(trip.stops || '[]'))
-  let worstPenalty = 0
-
-  for (const stop of stops) {
-    let penalty = 0
-    penalty += CONNECTIVITY_PENALTY[stop.connectivity] || 0
-    const hKm = parseFloat(stop.hospital_km) || 0
-    penalty += hKm > 50 ? 15 : hKm > 20 ? 8 : hKm < 5 ? -5 : 0
-    const alt = parseInt(stop.altitude_m) || 0
-    penalty += alt > 4000 ? 20 : alt > 3000 ? 10 : alt > 2000 ? 4 : 0
-    penalty += ZONE_PENALTY[stop.zone_type] || 0
-    penalty += DIFFICULTY_PENALTY[stop.difficulty] || 0
-
-    // Weather from cache (by destinationId)
-    const destId = stop.destinationId || stop.destination_id
-    const weatherEntry = destId && weatherCacheMap[destId]
-    if (weatherEntry) {
-      penalty += WEATHER_PENALTY[weatherEntry.condition] || 0
-      factors.weather = -(WEATHER_PENALTY[weatherEntry.condition] || 0)
-    }
-
-    if (penalty > worstPenalty) worstPenalty = penalty
-  }
+  const stopRisks = stops.map((stop) => calculateStopRisk(stop, weatherCacheMap))
+  const worstStop = stopRisks.reduce((worst, s) => (s.penalty > (worst?.penalty ?? -Infinity) ? s : worst), null)
+  const worstPenalty = worstStop?.penalty ?? 0
 
   factors.worstStop = -worstPenalty
+  // Trip-level weather factor mirrors whichever stop drove the worst
+  // penalty — keeps the existing top-level "factors" shape (already typed
+  // and rendered on the frontend) exactly as it was before stopRisks existed.
+  if (worstStop?.weatherCondition) factors.weather = worstStop.factors.weather
   score -= worstPenalty
+
+  // Nested inside `factors`, not a sibling return key — callers (trip.service.js)
+  // only ever persist `.factors` into the tsi_factors column, so this is the
+  // only path that actually reaches storage and the frontend.
+  factors.stopRisks = stopRisks
 
   // 5. Clamp to [10, 100]
   const finalScore = Math.max(10, Math.min(100, Math.round(score)))
-  const label =
-    finalScore >= 80 ? 'Low Risk'      :
-    finalScore >= 60 ? 'Moderate Risk' :
-    finalScore >= 40 ? 'High Risk'     : 'Extreme Risk'
+  const label = scoreLabel(finalScore)
 
   return {
     score: finalScore,
@@ -87,7 +129,10 @@ function generateRecommendations(score, trip, stops) {
   return recs
 }
 
-// Rescue Readiness Score: 6-item checklist → percentage
+// Rescue Readiness Score: 6-item checklist → percentage. Returns the full
+// item breakdown (not just the score) so the UI can show a real checklist
+// instead of a bare progress bar — the computation already did this work,
+// it just wasn't being returned to callers that only kept `.score`.
 function computeRescueReadiness(tourist, trip, hasDMSActive = false) {
   const contacts = tourist.emergency_contacts
   const hasContacts = Array.isArray(contacts) ? contacts.length > 0 : false

@@ -63,6 +63,36 @@ describe('TSI Service — calculateTSI', () => {
     expect(extreme.score).toBeLessThanOrEqual(100)
   })
 
+  it('returns a per-stop risk breakdown alongside the trip-level score', () => {
+    const result = calculateTSI({
+      ...baseTrip,
+      stops: [
+        { city: 'Guwahati', connectivity: 'GOOD', altitude_m: 55, zone_type: 'SAFE', difficulty: 'EASY', hospital_km: 2 },
+        { city: 'Tawang', connectivity: 'NONE', altitude_m: 3048, zone_type: 'ILP_REQUIRED', difficulty: 'HARD', hospital_km: 62 },
+      ],
+    }, {})
+    expect(result.factors.stopRisks).toHaveLength(2)
+    expect(result.factors.stopRisks[0].city).toBe('Guwahati')
+    expect(result.factors.stopRisks[1].city).toBe('Tawang')
+    // The riskier stop scores lower and carries the visible reasons why.
+    expect(result.factors.stopRisks[1].score).toBeLessThan(result.factors.stopRisks[0].score)
+    expect(result.factors.stopRisks[1].factors.connectivity).toBeLessThan(0)
+    expect(result.factors.stopRisks[1].factors.medicalAccess).toBeLessThan(0)
+    expect(result.factors.stopRisks[1].hospitalKm).toBe(62)
+  })
+
+  it('trip-level worstStop factor matches the worst stopRisks entry', () => {
+    const result = calculateTSI({
+      ...baseTrip,
+      stops: [
+        { city: 'Safe Stop', connectivity: 'EXCELLENT', altitude_m: 50, zone_type: 'SAFE', difficulty: 'EASY', hospital_km: 1 },
+        { city: 'Risky Stop', connectivity: 'NONE', altitude_m: 4500, zone_type: 'RESTRICTED', difficulty: 'EXTREME', hospital_km: 60 },
+      ],
+    }, {})
+    const worst = result.factors.stopRisks.reduce((w, s) => (s.penalty > w.penalty ? s : w))
+    expect(result.factors.worstStop).toBe(-worst.penalty)
+  })
+
   it('applies weather penalty from cache', () => {
     const destId  = 'test-dest-uuid'
     const noWeather = calculateTSI({ ...baseTrip, stops: [{ destinationId: destId, connectivity: 'GOOD', altitude_m: 0, zone_type: 'SAFE', difficulty: 'EASY', hospital_km: 5 }] }, {})

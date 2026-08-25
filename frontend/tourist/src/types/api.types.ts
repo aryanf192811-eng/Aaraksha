@@ -112,6 +112,41 @@ export interface Stop {
   eta_minutes: number | null
 }
 
+// One entry per trip stop — see tsi.service.js#calculateStopRisk. Powers
+// both the "why this score" TSI breakdown and the Journey Risk Graph; the
+// trip-level tsi_factors.worstStop is just -1 * whichever entry here has
+// the highest `penalty`.
+export interface StopRisk {
+  city: string
+  destinationId: string | null
+  score: number
+  label: string
+  penalty: number
+  factors: {
+    connectivity: number
+    medicalAccess: number
+    terrain: number
+    restrictedZone: number
+    difficulty: number
+    weather: number
+  }
+  connectivity: string | null
+  altitudeM: number | null
+  hospitalKm: number | null
+  zoneType: string | null
+  difficulty: string | null
+  weatherCondition: string | null
+}
+
+export interface TSIFactors {
+  travelType?: number
+  duration?: number
+  season?: number
+  worstStop?: number
+  weather?: number
+  stopRisks?: StopRisk[]
+}
+
 export interface PackingItem {
   id: string
   item: string
@@ -138,7 +173,7 @@ export interface Trip {
   public_token: string | null
   tsi_score: number | null
   tsi_label: string | null
-  tsi_factors: Record<string, number>
+  tsi_factors: TSIFactors
   tsi_recommendations: string[]
   tsi_updated_at: string | null
   rescue_readiness: Record<string, boolean>

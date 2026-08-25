@@ -8,14 +8,14 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   ArrowLeft, Share2, Download, Map, List, Package, FileText, AlertTriangle,
   Rocket, Sparkles, RefreshCw, Loader2, Check, Lightbulb, HeartPulse, Backpack, LocateFixed,
-  Users, Copy, LogOut, Clock, Newspaper,
+  Users, Copy, LogOut, Clock, Newspaper, ChevronDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Button } from '../../components/ui/button'
-import { TSIBadge, EmptyState, PageSkeleton, NewsFeed } from '../../components/shared'
+import { TSIBadge, EmptyState, PageSkeleton, NewsFeed, TSIBreakdown, JourneyRiskGraph } from '../../components/shared'
 import tripApi from '../../api/trip.api'
 import packingApi from '../../api/packing.api'
 import passportApi from '../../api/passport.api'
@@ -61,6 +61,7 @@ export default function TripDetailPage() {
   const navigate = useNavigate()
   const tourist = useAuthStore((s) => s.tourist)
   const [tab, setTab] = useState<TabType>('itinerary')
+  const [showTSIDetails, setShowTSIDetails] = useState(false)
 
   const { data: trip, isLoading } = useQuery({
     queryKey: ['trips', id],
@@ -261,6 +262,22 @@ export default function TripDetailPage() {
             {trip.tsi_recommendations.slice(0, 2).map((r, i) => (
               <p key={i} className="text-xs text-orange-600">• {r}</p>
             ))}
+          </div>
+        )}
+
+        {trip.tsi_score !== null && (
+          <div>
+            <button onClick={() => setShowTSIDetails(v => !v)}
+              className="w-full flex items-center justify-between text-xs font-bold text-on-surface-variant hover:text-on-surface py-1 transition-colors">
+              <span className="flex items-center gap-1"><Lightbulb className="w-3.5 h-3.5" /> Why this score, stop by stop</span>
+              <ChevronDown className={cn('w-4 h-4 transition-transform', showTSIDetails && 'rotate-180')} />
+            </button>
+            {showTSIDetails && (
+              <div className="space-y-3 mt-2 animate-slide-up">
+                <TSIBreakdown score={trip.tsi_score} label={trip.tsi_label || ''} factors={trip.tsi_factors} />
+                {trip.tsi_factors.stopRisks && <JourneyRiskGraph stopRisks={trip.tsi_factors.stopRisks} />}
+              </div>
+            )}
           </div>
         )}
       </div>

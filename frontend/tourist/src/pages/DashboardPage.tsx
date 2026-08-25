@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Map, Shield, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed } from '../components/shared'
+import { RescueReadinessChecklist } from '../components/shared/RescueReadinessChecklist'
 import { useAuthStore } from '../store/auth.store'
 import { useSafetyStore } from '../store/safety.store'
 import { useDMS } from '../hooks/useDMS'
@@ -178,29 +179,7 @@ export default function DashboardPage() {
       {/* ── Rescue Readiness ─────────────────────────────────────── */}
       {tourist && (
         <div className="px-5 mt-6">
-          <div className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-on-surface">Rescue Readiness</h3>
-              <span className={cn('text-sm font-bold px-2 py-0.5 rounded-full',
-                tourist.rescue_readiness_score >= 80 ? 'bg-tsi-low/15 text-tsi-low' :
-                tourist.rescue_readiness_score >= 50 ? 'bg-amber-100 text-amber-700' :
-                                                        'bg-sos-light text-sos-dark'
-              )}>
-                {tourist.rescue_readiness_score}%
-              </span>
-            </div>
-            <div className="w-full bg-surface-container-high rounded-full h-2">
-              <div className={cn('h-2 rounded-full transition-all duration-700',
-                tourist.rescue_readiness_score >= 80 ? 'bg-tsi-low' :
-                tourist.rescue_readiness_score >= 50 ? 'bg-amber-500' : 'bg-sos'
-              )} style={{ width: `${tourist.rescue_readiness_score}%` }} />
-            </div>
-            {tourist.rescue_readiness_score < 100 && (
-              <p className="text-xs text-on-surface-variant mt-2">
-                Complete your profile to improve rescue readiness → <button onClick={() => navigate('/profile')} className="text-primary font-semibold">Profile</button>
-              </p>
-            )}
-          </div>
+          <RescueReadinessChecklist tourist={tourist} activeTrip={activeTrip} dms={dms} />
         </div>
       )}
     </div>
