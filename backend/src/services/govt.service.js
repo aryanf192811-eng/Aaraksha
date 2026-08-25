@@ -245,6 +245,11 @@ async function getRiskOverview() {
       govtAdvisory:       dest?.govt_advisory ?? null,
       description:        dest?.description ?? null,
       ilpRequired:        dest?.ilp_required ?? false,
+      // Coordinates aren't shown in the RiskOverviewPage card grid this
+      // already powers, but the Live Map's risk-density layer needs them to
+      // plot each destination as a weighted circle rather than a card.
+      latitude:           dest?.latitude != null ? Number(dest.latitude) : null,
+      longitude:          dest?.longitude != null ? Number(dest.longitude) : null,
     }
   })
 }

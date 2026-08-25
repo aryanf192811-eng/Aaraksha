@@ -4,12 +4,25 @@ import { useQuery } from '@tanstack/react-query'
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { AlertTriangle, Battery, LocateFixed, Navigation2 } from 'lucide-react'
+import { AlertTriangle, Battery, LocateFixed, Navigation2, Flame } from 'lucide-react'
 import govtApi from '../api/govt.api'
 import { getRoute, type Route } from '../lib/osrm'
 import { cn, formatTimeAgo } from '../lib/utils'
 import type { LiveTourist } from '../types/api.types'
 import { useSOSSocket } from '../hooks/useSOSSocket'
+
+// Same semantic bands as lib/utils.ts#getZoneColor, in hex — Leaflet's
+// color/fillColor props take CSS color values, not Tailwind classes, so
+// that util can't be reused directly here.
+const ZONE_COLOR_HEX: Record<string, string> = {
+  SAFE: '#16a34a', CAUTION: '#d97706', HIGH_RISK: '#ea580c',
+  RESTRICTED: '#dc2626', ILP_REQUIRED: '#9333ea',
+}
+
+// Radius by tourist count, not a fixed size — sqrt rather than linear so
+// one destination with 20 tourists doesn't visually swallow the ones with
+// 2, while still reading as clearly "more" at a glance.
+const densityRadiusM = (total: number) => 9000 + Math.sqrt(total) * 6000
 
 // Plain geometric marks (not pictorial emoji) keep the divIcon HTML string
 // legible at 24px and consistent with the rest of the UI's icon language.
@@ -50,6 +63,7 @@ function RecenterControl({ center, zoom }: { center: [number, number]; zoom: num
 export default function LiveMapPage() {
   const [selectedTourist, setSelectedTourist] = useState<LiveTourist | null>(null)
   const [routes, setRoutes] = useState<Record<string, Route | null>>({})
+  const [showDensity, setShowDensity] = useState(true)
   // Pushes an instant refetch on SOS/DMS/location events instead of waiting
   // for the next poll tick; the interval below stays as a safety net.
   useSOSSocket()
@@ -69,6 +83,19 @@ export default function LiveMapPage() {
     refetchInterval: 15_000,
   })
   const rescuers = activeRescuers || []
+
+  // Risk-density layer: where active trips are concentrated, by destination
+  // (the finest grouping the data actually supports — see RiskOverviewEntry;
+  // there's no district field on destinations or tourist locations). Slower
+  // moving than tourist positions, so a minute-long staleTime is plenty.
+  const { data: riskOverview } = useQuery({
+    queryKey: ['govt', 'risk-overview'],
+    queryFn: () => govtApi.getRiskOverview().then(r => r.data.data),
+    staleTime: 60_000,
+  })
+  const densityZones = (riskOverview || []).filter(
+    (z): z is typeof z & { latitude: number; longitude: number } => Number.isFinite(z.latitude) && Number.isFinite(z.longitude)
+  )
 
   // Real OSRM road route per rescuer, refetched whenever a position moves —
   // keyed by assignment so multiple concurrent rescuers don't clobber each
@@ -126,6 +153,12 @@ export default function LiveMapPage() {
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
             <span className="text-xs text-on-surface-variant whitespace-nowrap">Live · updates every 15s</span>
           </div>
+          <button onClick={() => setShowDensity(v => !v)}
+            className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border transition-colors',
+              showDensity ? 'bg-orange-50 border-orange-200 text-orange-700' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'
+            )}>
+            <Flame className="w-3.5 h-3.5" /> Risk Density
+          </button>
         </div>
       </div>
 
@@ -136,6 +169,24 @@ export default function LiveMapPage() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution="© OpenStreetMap contributors"
             />
+            {showDensity && densityZones.map((z) => {
+              const color = ZONE_COLOR_HEX[z.zoneType] || '#64748b'
+              return (
+                <Circle key={z.destinationId || z.city}
+                  center={[z.latitude, z.longitude]}
+                  radius={densityRadiusM(z.total)}
+                  pathOptions={{ color, weight: 1.5, fillColor: color, fillOpacity: 0.22 }}
+                >
+                  <Popup>
+                    <div className="p-1 min-w-[160px]">
+                      <p className="font-bold text-on-surface">{z.city}, {z.state}</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{z.zoneType.replace('_', ' ')}</p>
+                      <p className="text-xs mt-1">{z.total} tourist{z.total === 1 ? '' : 's'} · {z.solo} solo · {z.highRisk} high-risk</p>
+                    </div>
+                  </Popup>
+                </Circle>
+              )
+            })}
             {liveTourists.map((tourist) => (
               <div key={tourist.id}>
                 <Marker
@@ -199,6 +250,19 @@ export default function LiveMapPage() {
           {isLoading && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-surface-container-lowest rounded-full px-4 py-2 shadow-md text-sm font-medium text-on-surface-variant">
               Loading live data...
+            </div>
+          )}
+
+          {showDensity && densityZones.length > 0 && (
+            <div className="absolute bottom-4 left-4 z-[1000] bg-surface-container-lowest rounded-xl px-3 py-2.5 shadow-md text-xs">
+              <p className="font-bold text-on-surface mb-1.5">Risk Density — by destination</p>
+              {Object.entries(ZONE_COLOR_HEX).map(([zone, color]) => (
+                <div key={zone} className="flex items-center gap-1.5 text-on-surface-variant">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                  {zone.replace('_', ' ')}
+                </div>
+              ))}
+              <p className="text-[10px] text-on-surface-variant/70 mt-1.5 max-w-[160px]">Circle size = active tourists at that destination</p>
             </div>
           )}
         </div>

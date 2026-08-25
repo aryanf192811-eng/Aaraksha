@@ -54,6 +54,7 @@ router.get('/sos/:id/nearby-rescuers', requireGovtRole(...COMMAND_CENTER_ROLES),
 router.get('/active-rescuers',     requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getActiveRescuers)
 router.patch('/sos/:id/assign',    requireGovtRole(...COMMAND_CENTER_ROLES), validate(AssignRescueSchema),     ctrl.assignRescue)
 router.patch('/sos/:id/resolve',   requireGovtRole(...COMMAND_CENTER_ROLES), validate(ResolveSOSSchema),       ctrl.resolveSOS)
+router.get('/sos/:id/report',      requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.downloadIncidentReport)
 router.get('/rescue-teams',        requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getRescueTeams)
 router.patch('/rescue-teams/:id/status', requireGovtRole(...COMMAND_CENTER_ROLES), validate(UpdateTeamStatusSchema), ctrl.updateTeamStatus)
 // Checkpoint scanning is a ground-level action — SUPER_ADMIN as a

@@ -1,6 +1,7 @@
 'use strict'
 const govtService = require('../services/govt.service')
 const govtReportService = require('../services/govtReport.service')
+const incidentReportService = require('../services/incidentReport.service')
 const checkpointService = require('../services/checkpoint.service')
 const newsService = require('../services/news.service')
 const { sendSuccess, sendPaginated } = require('../utils/response')
@@ -21,6 +22,16 @@ const exportAnalyticsReport = async (req, res, next) => {
     res.setHeader('Content-Disposition', `attachment; filename="aaraksha-report-${period}-${Date.now()}.pdf"`)
     pdfStream.pipe(res)
     pdfStream.on('error', err => { logger.error({ err: err.message }, 'Analytics report PDF stream error'); next(err) })
+  } catch (err) { next(err) }
+}
+
+const downloadIncidentReport = async (req, res, next) => {
+  try {
+    const pdfStream = await incidentReportService.generate(req.params.id)
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="aaraksha-incident-${req.params.id.slice(0, 8)}.pdf"`)
+    pdfStream.pipe(res)
+    pdfStream.on('error', err => { logger.error({ err: err.message }, 'Incident report PDF stream error'); next(err) })
   } catch (err) { next(err) }
 }
 
@@ -108,6 +119,6 @@ const verifyVolunteer = async (req, res, next) => {
 
 module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRescueTeams,
   getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, getNearbyRescuers, getActiveRescuers,
-  resolveSOS, updateTeamStatus,
+  resolveSOS, updateTeamStatus, downloadIncidentReport,
   scanCheckpoint, getRecentCheckpointScans, postDestinationNews,
   getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer }

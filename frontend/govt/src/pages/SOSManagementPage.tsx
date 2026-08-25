@@ -1,7 +1,7 @@
 // src/pages/SOSManagementPage.tsx — real-time SOS feed with assignment modal
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Battery, CheckCircle2, Send, ShieldCheck, HeartHandshake, Navigation, Radio, Gauge } from 'lucide-react'
+import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Battery, CheckCircle2, Send, ShieldCheck, HeartHandshake, Navigation, Radio, Gauge, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
@@ -337,6 +337,13 @@ export default function SOSManagementPage() {
                     {resolving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /> Mark as Resolved</>}
                   </Button>
                 </div>
+              )}
+
+              {(selectedSOS.status === 'RESOLVED' || selectedSOS.status === 'FALSE_ALARM') && (
+                <a href={govtApi.getIncidentReportUrl(selectedSOS.id)} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full h-11 rounded-full border-2 border-outline-variant text-on-surface font-bold hover:bg-surface-container transition-colors">
+                  <FileText className="w-4 h-4" /> Download Incident Report
+                </a>
               )}
             </div>
           </div>

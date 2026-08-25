@@ -32,6 +32,8 @@ export interface RiskOverviewEntry {
   govtAdvisory: string | null
   description: string | null
   ilpRequired: boolean
+  latitude: number | null
+  longitude: number | null
 }
 
 export interface AnalyticsResponse {
@@ -177,6 +179,13 @@ const govtApi = {
   getExportUrl: (period?: string) => {
     const token = useAuthStore.getState().token
     return `${API_URL}/govt/analytics/export?period=${period || '30d'}&token=${encodeURIComponent(token || '')}`
+  },
+
+  // Same direct-navigation reasoning as getExportUrl above — only available
+  // once the backend confirms the SOS is RESOLVED or FALSE_ALARM (400 otherwise).
+  getIncidentReportUrl: (sosId: string) => {
+    const token = useAuthStore.getState().token
+    return `${API_URL}/govt/sos/${sosId}/report?token=${encodeURIComponent(token || '')}`
   },
 
   scanCheckpoint: (data: { token: string; checkpointName: string; district?: string; latitude?: number; longitude?: number }) =>

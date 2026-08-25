@@ -26,6 +26,40 @@ class SOSRepository extends BaseRepository {
     return this.queryOne(`SELECT * FROM sos_events WHERE id = $1`, [id])
   }
 
+  // Everything the incident-report PDF needs in one round trip: tourist
+  // identity, the trip's TSI at the time, and the MOST RECENT rescue
+  // assignment (any status, not just active ones — findActive's `!=
+  // RESOLVED` filter would hide the very assignment a closed incident
+  // report needs to show) plus who dispatched it and who ultimately
+  // responded (team or volunteer, unified the same way findActive does).
+  async findByIdWithFullDetail(id) {
+    return this.queryOne(`
+      SELECT se.*,
+        t.full_name, t.phone, t.blood_group, t.medical_info,
+        t.emergency_contacts, t.govt_id_suffix,
+        trip.title as trip_title, trip.tsi_score, trip.tsi_label,
+        ra.status as assignment_status, ra.notes as assignment_notes,
+        ra.assigned_at, ra.resolved_at as assignment_resolved_at,
+        gu.name as assigned_by_name, gu.role as assigned_by_role,
+        COALESCE(rt.name, v.full_name) as rescuer_name,
+        COALESCE(rt.type, 'VOLUNTEER') as rescuer_type,
+        COALESCE(rt.contact_phone, v.phone) as rescuer_phone
+      FROM sos_events se
+      LEFT JOIN tourists t ON t.id = se.tourist_id
+      LEFT JOIN trips trip ON trip.id = se.trip_id
+      LEFT JOIN LATERAL (
+        SELECT * FROM rescue_assignments
+        WHERE sos_event_id = se.id
+        ORDER BY assigned_at DESC LIMIT 1
+      ) ra ON true
+      LEFT JOIN govt_users gu ON gu.id = ra.assigned_by
+      LEFT JOIN rescue_teams rt ON rt.id = ra.team_id
+      LEFT JOIN volunteers v ON v.id = ra.volunteer_id
+      WHERE se.id = $1`,
+      [id]
+    )
+  }
+
   // Powers the tourist-facing "rescue is on the way" view — the most
   // recent SOS that's still open, with full rescuer detail (not just the
   // name, like findByTouristId's history list has) so the client can show
