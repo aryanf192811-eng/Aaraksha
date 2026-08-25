@@ -15,7 +15,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Button } from '../../components/ui/button'
-import { TSIBadge, EmptyState, PageSkeleton, NewsFeed, TSIBreakdown, JourneyRiskGraph } from '../../components/shared'
+import { TSIBadge, EmptyState, PageSkeleton, NewsFeed, TSIBreakdown, JourneyRiskGraph, SafetyAdvisory } from '../../components/shared'
 import tripApi from '../../api/trip.api'
 import packingApi from '../../api/packing.api'
 import passportApi from '../../api/passport.api'
@@ -264,6 +264,8 @@ export default function TripDetailPage() {
             ))}
           </div>
         )}
+
+        {trip.tsi_score !== null && <SafetyAdvisory tripId={id!} />}
 
         {trip.tsi_score !== null && (
           <div>

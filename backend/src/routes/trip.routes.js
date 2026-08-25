@@ -24,6 +24,7 @@ router.post('/:id/invite', ctrl.getInviteCode)
 router.get('/:id/members', ctrl.getTripMembers)
 router.delete('/:id/leave',ctrl.leaveTrip)
 router.get('/:id/news',    ctrl.getTripNews)
+router.get('/:id/safety-advisory', ctrl.getSafetyAdvisory)
 router.delete('/:id',      ctrl.deleteTrip)
 
 module.exports = router

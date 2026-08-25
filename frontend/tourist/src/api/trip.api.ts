@@ -83,6 +83,9 @@ const tripApi = {
 
   leaveTrip: (id: string) =>
     api.delete(`/trips/${id}/leave`),
+
+  getSafetyAdvisory: (id: string) =>
+    api.get<APIResponse<{ advisory: string; source: 'GEMINI_AI' | 'OFFLINE_FALLBACK' }>>(`/trips/${id}/safety-advisory`),
 }
 
 export default tripApi

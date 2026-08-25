@@ -98,7 +98,14 @@ const getTripNews = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+const getSafetyAdvisory = async (req, res, next) => {
+  try {
+    const advisory = await tripService.getSafetyAdvisory(req.params.id, req.tourist.id)
+    sendSuccess(res, advisory)
+  } catch (err) { next(err) }
+}
+
 module.exports = {
   createTrip, getMyTrips, getTripById, updateTrip, updateTripStatus, updateChecklist, deleteTrip, getPublicTrip,
-  getInviteCode, joinTrip, getTripMembers, leaveTrip, getTripNews,
+  getInviteCode, joinTrip, getTripMembers, leaveTrip, getTripNews, getSafetyAdvisory,
 }

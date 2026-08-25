@@ -6,6 +6,21 @@ const logger = require('../utils/logger')
 const { PACKING_CATEGORIES } = require('../constants/enums')
 const { v4: uuidv4 } = require('uuid')
 
+// The Gemini SDK's own fetch has no timeout of its own — when the network
+// path to Google's API is blocked or hanging (e.g. a restricted sandbox),
+// generateContent() can take the better part of a minute to reject, which
+// is far past the frontend's 15s HTTP client timeout. That means the
+// caller sees nothing at all instead of the fast, honest fallback this is
+// supposed to guarantee. Race it against a short timeout instead.
+const GEMINI_TIMEOUT_MS = 8000
+
+function generateContentWithTimeout(model, prompt) {
+  return Promise.race([
+    model.generateContent(prompt),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Gemini request timed out')), GEMINI_TIMEOUT_MS)),
+  ])
+}
+
 const OFFLINE_FALLBACK = [
   { item: 'Government ID (original + 3 photocopies)', category: 'DOCUMENTS', essential: true },
   { item: 'Inner Line Permit (if destination requires)', category: 'DOCUMENTS', essential: true },
@@ -64,7 +79,7 @@ Each object: {"item":"string","category":"${Object.values(PACKING_CATEGORIES).jo
 Maximum 30 items. Sort essential items first, then by category.`
 
   try {
-    const result = await model.generateContent(prompt)
+    const result = await generateContentWithTimeout(model, prompt)
     const text = result.response.text()
     const clean = text.replace(/```json|```/g, '').trim()
     const parsed = JSON.parse(clean)
@@ -87,4 +102,65 @@ Maximum 30 items. Sort essential items first, then by category.`
   }
 }
 
-module.exports = { generatePackingList }
+// Safety advisory: Gemini explains an ALREADY-COMPUTED deterministic TSI
+// decision in plain language — it never scores or decides anything itself
+// (the score/factors/recommendations below all come from tsi.service.js's
+// rule-based engine). Same "AI explains, doesn't decide" boundary as
+// generatePackingList above, and the same offline-fallback discipline: a
+// missing/failing Gemini call must never leave the tourist with nothing.
+function fallbackAdvisory({ tsiScore, tsiLabel, worstStopCity, recommendations }) {
+  const lines = [
+    `This trip scores ${tsiScore}/100 (${tsiLabel}).`,
+    worstStopCity ? `${worstStopCity} is the highest-risk stop on your route and drives most of that score.` : '',
+    ...(recommendations || []).slice(0, 4).map(r => `• ${r}`),
+  ].filter(Boolean)
+  return lines.join('\n')
+}
+
+async function generateSafetyAdvisory({ tsiScore, tsiLabel, factors, travelType, recommendations, destination }) {
+  const stopRisks = Array.isArray(factors?.stopRisks) ? factors.stopRisks : []
+  const worstStop = stopRisks.reduce((w, s) => (s.penalty > (w?.penalty ?? -Infinity) ? s : w), null)
+
+  const model = getGeminiModel()
+  if (!model) {
+    logger.info('Gemini not available — using offline fallback safety advisory')
+    return { advisory: fallbackAdvisory({ tsiScore, tsiLabel, worstStopCity: worstStop?.city, recommendations }), source: 'OFFLINE_FALLBACK' }
+  }
+
+  const stopSummary = stopRisks
+    .map(s => `${s.city}: score ${s.score}/100 (${s.label}) — connectivity ${s.connectivity || 'n/a'}, altitude ${s.altitudeM ?? 'n/a'}m, nearest hospital ${s.hospitalKm ?? 'n/a'}km, zone ${s.zoneType || 'n/a'}, difficulty ${s.difficulty || 'n/a'}${s.weatherCondition ? `, weather ${s.weatherCondition}` : ''}`)
+    .join('\n')
+
+  const prompt = `You are a travel safety advisor for tourists in Northeast India. A deterministic
+risk-scoring system has ALREADY calculated the numbers below — do not invent a
+different score or contradict it. Your job is only to explain it in plain,
+reassuring but honest language and give concrete next steps.
+
+Trip: ${destination || 'Northeast India'} · Travel type: ${travelType || 'unspecified'}
+Overall Travel Safety Index: ${tsiScore}/100 (${tsiLabel})
+
+Per-stop breakdown:
+${stopSummary || '(single destination, no multi-stop breakdown)'}
+
+System-generated recommendations (reference these, don't contradict them):
+${(recommendations || []).map(r => `- ${r}`).join('\n') || '(none)'}
+
+Write a short safety briefing (120-180 words, plain text, no markdown headers)
+covering: (1) what this score means in practical terms, (2) which specific
+stop or factor is the biggest concern and why, (3) the 2-3 most important
+things this tourist should actually do about it. Speak directly to the
+tourist ("you"), be specific to the route above, not generic travel advice.`
+
+  try {
+    const result = await generateContentWithTimeout(model, prompt)
+    const advisory = result.response.text().trim()
+    if (!advisory) throw new Error('Gemini returned an empty advisory')
+    logger.info({ tsiScore, tsiLabel }, 'Gemini safety advisory generated')
+    return { advisory, source: 'GEMINI_AI' }
+  } catch (err) {
+    logger.error({ err: { message: err.message } }, 'Gemini safety advisory failed — using fallback')
+    return { advisory: fallbackAdvisory({ tsiScore, tsiLabel, worstStopCity: worstStop?.city, recommendations }), source: 'OFFLINE_FALLBACK' }
+  }
+}
+
+module.exports = { generatePackingList, generateSafetyAdvisory }

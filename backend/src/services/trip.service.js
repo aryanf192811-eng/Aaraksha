@@ -6,6 +6,7 @@ const { TripRepository } = require('../repositories/trip.repository')
 const { TripMemberRepository } = require('../repositories/tripMember.repository')
 const { DestinationRepository } = require('../repositories/destination.repository')
 const { calculateTSI, computeRescueReadiness } = require('./tsi.service')
+const { generateSafetyAdvisory } = require('./gemini.service')
 const { generatePublicToken, generateInviteCode } = require('../utils/crypto')
 const { TRIP_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
@@ -232,7 +233,25 @@ async function deleteTrip(tripId, touristId) {
   return deleted
 }
 
+// Generated on demand (not cached/persisted) — same reasoning as the packing
+// list's own "regenerate on request" behavior. Cheap enough for a hackathon
+// demo's call volume and avoids a schema change just to cache a paragraph.
+async function getSafetyAdvisory(tripId, touristId) {
+  const trip = await getTrip(tripId, touristId)
+  if (trip.tsi_score == null) throw Object.assign(new Error('Trip has no computed Travel Safety Index yet — add at least one stop first'), { statusCode: 400 })
+
+  const stops = Array.isArray(trip.stops) ? trip.stops : JSON.parse(trip.stops || '[]')
+  return generateSafetyAdvisory({
+    tsiScore:        trip.tsi_score,
+    tsiLabel:        trip.tsi_label,
+    factors:         trip.tsi_factors,
+    travelType:      trip.travel_type,
+    recommendations: trip.tsi_recommendations,
+    destination:     stops[0]?.city || null,
+  })
+}
+
 module.exports = {
   createTrip, getMyTrips, getTrip, getPublicTrip, updateTrip, updateTripStatus, updateChecklist, deleteTrip,
-  getOrCreateInviteCode, joinTripByCode, getTripMembers, leaveTrip,
+  getOrCreateInviteCode, joinTripByCode, getTripMembers, leaveTrip, getSafetyAdvisory,
 }
