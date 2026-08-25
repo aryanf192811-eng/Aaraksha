@@ -113,7 +113,7 @@ Maximum 30 items. Sort essential items first, then by category.`
 // This synthesizes the one thing that panel doesn't say: WHY, in terms of
 // the actual per-stop factors that drove the score down.
 function fallbackAdvisory({ tsiScore, tsiLabel, worstStop, hasRecommendations }) {
-  const parts = [`This trip scores ${tsiScore}/100 (${tsiLabel}).`]
+  const bullets = [`Overall score: ${tsiScore}/100 (${tsiLabel})`]
 
   if (worstStop) {
     const reasons = []
@@ -123,11 +123,11 @@ function fallbackAdvisory({ tsiScore, tsiLabel, worstStop, hasRecommendations })
     if (worstStop.factors?.restrictedZone < 0) reasons.push('zone restrictions')
     if (worstStop.factors?.difficulty < 0) reasons.push('difficult terrain')
     if (worstStop.factors?.weather < 0) reasons.push('challenging weather')
-    parts.push(`${worstStop.city} is the highest-risk stop on your route${reasons.length ? `, mainly because of ${reasons.join(' and ')}` : ''}.`)
+    bullets.push(`Highest-risk stop: ${worstStop.city}${reasons.length ? ` — ${reasons.join(', ')}` : ''}`)
   }
 
-  if (hasRecommendations) parts.push('See the safety recommendations below for the specific steps to take before you depart.')
-  return parts
+  if (hasRecommendations) bullets.push('See the safety recommendations below for the specific steps to take before you depart')
+  return bullets
 }
 
 async function generateSafetyAdvisory({ tsiScore, tsiLabel, factors, travelType, recommendations, destination }) {
@@ -160,11 +160,12 @@ shown to the tourist verbatim in a separate checklist on the same screen, so
 do NOT repeat, list, or paraphrase them as a list yourself):
 ${(recommendations || []).map(r => `- ${r}`).join('\n') || '(none)'}
 
-Write exactly 2 short paragraphs, separated by a single blank line, plain
-text, no markdown headers, no bullet points:
-Paragraph 1 (1-2 sentences): what this score means in practical terms.
-Paragraph 2 (2-3 sentences): which specific stop or factor is the biggest
-concern and why, ending with one sentence pointing the tourist to "the
+Write exactly 3-4 short bullet points, one per line, each starting with "- ",
+plain text, no markdown bold/headers, each bullet a single sentence (12-20
+words). Cover, in order: (1) what the overall score means in practical
+terms, (2) which specific stop or factor is the biggest concern and why,
+(3) one other route-specific consideration if relevant (solo travel,
+weather, connectivity), (4) end with a bullet pointing the tourist to "the
 safety recommendations below" rather than restating them. Speak directly to
 the tourist ("you"), be specific to the route above, not generic advice.`
 
@@ -172,7 +173,7 @@ the tourist ("you"), be specific to the route above, not generic advice.`
     const result = await generateContentWithTimeout(model, prompt)
     const text = result.response.text().trim()
     if (!text) throw new Error('Gemini returned an empty advisory')
-    const advisory = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
+    const advisory = text.split('\n').map(l => l.trim().replace(/^[-•*]\s*/, '')).filter(Boolean)
     logger.info({ tsiScore, tsiLabel }, 'Gemini safety advisory generated')
     return { advisory, source: 'GEMINI_AI' }
   } catch (err) {
