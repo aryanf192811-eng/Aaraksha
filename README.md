@@ -7,8 +7,8 @@
 
 [![Status](https://img.shields.io/badge/status-demo--ready-brightgreen)]()
 [![Portals](https://img.shields.io/badge/portals-4-blue)]()
-[![API](https://img.shields.io/badge/API%20endpoints-78-orange)]()
-[![Tables](https://img.shields.io/badge/DB%20tables-22-orange)]()
+[![API](https://img.shields.io/badge/API%20endpoints-84-orange)]()
+[![Tables](https://img.shields.io/badge/DB%20tables-21-orange)]()
 [![Offline SOS](https://img.shields.io/badge/offline%20SOS-2G%20capable-red)]()
 [![Track](https://img.shields.io/badge/SIH%202025-Travel%20%26%20Tourism-purple)]()
 
@@ -69,7 +69,7 @@ slides.
 | 4 | **Four portals** | [Four portals, one system](#four-portals-one-system) table + `tourist-landing.png`, `govt-dashboard.png`, `guardian-portal.png`, `rescuer-active-job.png` | One slide, four screenshots side by side — this alone shows more scope than most competing teams |
 | 5 | **Live demo / walkthrough script** | [Demo accounts](#demo-accounts) | Don't demo a blank app — log into **Rahul Verma** (`9876500002` / `Demo@123`) to show a *live SOS with a rescue team already en route*, then open his Guardian link to show the same emergency from a family member's view. For the newer unified-rescuer story, use **Karan Mehta** (`9000055501` / `DemoPass123`) — his SOS is assigned to volunteer **Priya Deka**, live-tracked on a real road route. That one flow sells the whole platform in 90 seconds |
 | 6 | **Feature highlights** | [Feature walkthrough](#feature-walkthrough) — pick 2–3 lines per pillar, don't read the whole list | Planning → Safety → Unified Rescue Network → Government Ops → Community → Offline-first. Safety and the Rescuer network are the pillars to spend the most slide time on |
-| 7 | **Numbers** | [By the numbers](#by-the-numbers) | Drop the whole table on one slide as a stat grid — 78 endpoints, 22 tables, 45 rotating news items land better as bold numbers than as prose |
+| 7 | **Numbers** | [By the numbers](#by-the-numbers) | Drop the whole table on one slide as a stat grid — 84 endpoints, 21 tables, 45 rotating news items land better as bold numbers than as prose |
 | 8 | **Why we win** | [Why this wins](#why-this-wins) comparison table | This table is already written as a "typical hackathon app vs. Aaraksha" comparison — use it verbatim as a two-column slide |
 | 9 | **Under the hood** *(for technical judges)* | [Architecture at a glance](#architecture-at-a-glance) diagram + [Production readiness](#production-readiness) | Keep this slide for a technical Q&A round — the adversarial-testing bullet points (SQLi, race conditions, forced rollbacks) are the strongest "we didn't just make a demo" evidence in the whole repo |
 | 10 | **What's next** | [Roadmap](#roadmap) | Everything on the roadmap is a deliberate, named scope decision — say so explicitly, it reads as intentional prioritization rather than unfinished work |
@@ -94,7 +94,7 @@ slides.
 
 ```
                      ┌──────────────────┐
-                     │   PostgreSQL      │  22 tables — raw pg, no ORM
+                     │   PostgreSQL      │  21 tables — raw pg, no ORM
                      │   parameterized   │  see DB_GUIDE.md
                      │   SQL only        │
                      └────────▲──────────┘
@@ -102,7 +102,7 @@ slides.
                      ┌────────┴──────────┐
                      │  Express API       │  Route → Middleware → Controller
                      │  (backend/)        │  → Service → Repository
-                     │  JWT + RBAC        │  78 endpoints · 13 route groups
+                     │  JWT + RBAC        │  84 endpoints · 14 route groups
                      └─┬───────┬───────┬──┘
               Socket.IO│       │       │  REST (JSON)
               real-time│       │       │
@@ -162,6 +162,9 @@ slides.
 - **Rescue team ETA** — once a team is dispatched, the tourist sees live status and estimated arrival, not silence
 - **Weather-triggered risk alerts** — a sudden weather-driven TSI drop pushes a real-time alert to anyone with that destination on their itinerary
 - **Web push notifications** — critical alerts reach tourists even when the app isn't open
+- **AI Safety Briefing** — Gemini explains an *already-computed* TSI score in plain, route-specific bullet points on request (never scores or decides anything itself), collapsible so it doesn't lengthen the trip page's scroll, with an offline fallback summary when the AI call fails
+- **Digital Tourist ID** — a passport-style card wrapping the same rotating, 5-minute-expiry checkpoint QR a govt officer scans, deliberately not a static ID image so it can't be screenshotted and reused
+- **Geo-fencing zone alerts** — a one-time toast when live GPS enters a HIGH\_RISK / RESTRICTED / ILP\_REQUIRED stop on an active trip
 
 ### 🚑 Unified Rescue Network
 - **One assignable rescuer pool** — official rescue teams and govt-verified citizen volunteers, distance-sorted in a single govt dispatch panel, badge-differentiated "Official" vs "Volunteer"
@@ -171,8 +174,9 @@ slides.
 - **Self-service status, govt-owned resolution** — a rescuer reports their own `EN_ROUTE`/`ARRIVED` progress; closing the incident stays an exclusive govt-operator action, matching how a real emergency response chain of custody works
 
 ### 🖥️ Government Operations
-- **Live ops map** (Leaflet + Socket.IO) — every active tourist, every open SOS, and every rescuer currently en route with their real OSRM road route, all updating in real time, no refresh
+- **Live ops map** (Leaflet + Socket.IO) — every active tourist, every open SOS, and every rescuer currently en route with their real OSRM road route, all updating in real time, no refresh — plus a toggleable **Risk Density layer**, weighted circles showing where active trips are concentrated per destination, colored by zone type
 - **SOS triage & rescue assignment** — dispatch to the nearest available team *or* volunteer, status tracked live through `EN_ROUTE → ARRIVED → RESOLVED`
+- **Auto-generated incident reports** — once an SOS is resolved or marked a false alarm, a one-click PDF pulls the full case together: tourist details, response timeline, dispatching officer, rescuer, resolution notes, and the trip's known check-in trail — an E-FIR-style record for internal filing, not a substitute for a formal FIR
 - **Volunteer verification & roster** — a pending-review queue with full identity detail before granting dispatch access, plus a live roster showing every volunteer's status and reputation points
 - **District risk overview** — per-destination live tourist counts, weather, TSI distribution, and a direct "Post News / Alert" action that fans out to every tourist with that destination on an active itinerary
 - **Checkpoint QR scanning** — camera-first scan of a tourist's rotating QR code resolves their full safety profile at a physical checkpoint (ILP posts, park entrances) in one tap, manual entry as a fallback, not the default
@@ -182,6 +186,7 @@ slides.
 ### 🌐 Community & Live Content
 - **Rich destination reviews** — ratings plus structured detail (actual cost, time spent, crowd level, felt-safe flag, transport/food/accessibility ratings, liked/disliked notes, photos) — not a star rating in a vacuum
 - **Scam / safety reports** — community-sourced, filterable per destination
+- **Community Safety Hotspots** — the destinations with the most reports in the last 90 days, surfaced above the report form itself so a tourist sees the pattern before they even file one
 - **Curated, rotating destination news** — a ~45-item hand-written bank across all 10 destinations, rotated in on a time-slot schedule so the feed visibly changes over a multi-day demo without needing a live news API key
 - **Risk overview in the tourist app too** — the same live "how many people are here right now, and how risky is it" view the government dashboard has, surfaced directly to travelers deciding where to go next
 
@@ -337,8 +342,8 @@ the [production readiness report](./PRODUCTION_READINESS_REPORT.html).
 | | |
 |---|---|
 | **Portals** | 4 (Tourist PWA, Govt Command Center, Guardian Portal, Rescuer App) |
-| **API endpoints** | 78, across 13 route groups |
-| **Database tables** | 22 |
+| **API endpoints** | 84, across 14 route groups |
+| **Database tables** | 21 |
 | **Destinations seeded** | 10, across Assam, Meghalaya, Nagaland, Arunachal Pradesh, Sikkim, Manipur — each with real altitude, connectivity, ILP, and hospital data |
 | **Curated news items** | ~45, hand-written per destination, auto-rotating |
 | **Tourist app screens** | 13+ (landing, auth, dashboard, trip planning + detail with 6 tabs, check-in, SOS, community, advisory, profile) |
@@ -368,7 +373,7 @@ Aaraksha/
 │   │   ├── server.js                HTTP server, Socket.IO init, graceful shutdown
 │   │   ├── config/                  env validation, CORS, Gemini/Twilio/push clients
 │   │   ├── constants/                enums, error messages, socket event names
-│   │   ├── routes/                  13 route modules → controllers
+│   │   ├── routes/                  14 route modules → controllers
 │   │   ├── controllers/             thin HTTP handlers
 │   │   ├── services/                business logic, transaction boundaries
 │   │   ├── repositories/            all SQL, parameterized, one per table cluster
@@ -378,7 +383,7 @@ Aaraksha/
 │   │   ├── cron/                    DMS, weather+TSI, destination-news rotation jobs
 │   │   ├── data/                    curated destination news bank
 │   │   ├── database/                connection pool, transaction helper
-│   │   └── migrations/              node-pg-migrate schema — 22 tables across 10 migrations
+│   │   └── migrations/              node-pg-migrate schema — 21 tables across 10 migrations
 │   ├── scripts/
 │   │   ├── preflight.js             env/DB connectivity check before setup
 │   │   ├── seed.js                  idempotent demo data (--reset flag available)
@@ -494,21 +499,21 @@ page) into `/track/:token` on the guardian app.
 
 ## API surface
 
-78 REST endpoints across 13 route groups, all under `/api`:
+84 REST endpoints across 14 route groups, all under `/api`:
 
 | Prefix | Covers |
 |---|---|
 | `/auth` | Tourist + govt registration/login, forgot-password OTP flow, phone verification |
 | `/tourists` | Profile, emergency-contact OTP verification, checkpoint QR code, public guardian view |
-| `/trips` | Itinerary CRUD, stops, group trips (join/invite/members/leave), per-trip news, TSI |
+| `/trips` | Itinerary CRUD, stops, group trips (join/invite/members/leave), per-trip news, TSI, AI safety-advisory briefing |
 | `/sos` | Create SOS, history, active rescue info, mark false alarm |
 | `/dms` | Dead Man's Switch create/reset/status |
 | `/checkins` | Manual check-ins |
 | `/destinations` | Catalog, weather cache, risk overview, per-destination news, reviews |
-| `/scam-reports` | Community-reported safety incidents |
+| `/scam-reports` | Community-reported safety incidents, 90-day hotspot summary |
 | `/packing` | AI-generated packing checklists |
 | `/journey-passport` | PDF trip summary generation |
-| `/govt` | Dashboard, live tourists, risk overview, SOS assignment/resolution to a team *or* volunteer, nearby-rescuer search, rescue teams, volunteer provisioning/verification/roster, checkpoint scan, analytics + PDF export, destination news posting |
+| `/govt` | Dashboard, live tourists, risk overview (with coordinates for the map's risk-density layer), SOS assignment/resolution to a team *or* volunteer, nearby-rescuer search, resolved-incident PDF report, rescue teams, volunteer provisioning/verification/roster, checkpoint scan, analytics + PDF export, destination news posting |
 | `/volunteers` | Volunteer register/login, status + live location updates, active-assignment lookup, EN\_ROUTE/ARRIVED self-status |
 | `/webhooks` | Twilio inbound SMS (offline SOS) |
 | `/push` | Web push subscribe/unsubscribe, VAPID public key |
@@ -536,14 +541,15 @@ matrixes the frontend suite across all four apps on every push and pull request.
 cd backend
 npx newman run postman/aaraksha-collection.json -e postman/aaraksha-environment.json
 ```
-119 tests across 21 folders, run against a fresh `DATABASE_TEST_URL` — auth, trips, SOS, DMS,
-govt ops, security guards, validation, edge cases, and the full unified-rescuer flow (volunteer
-self-registration and govt provisioning, identity verification, combined team-or-volunteer SOS
-assignment, live location/status updates, the govt-only resolve boundary). The community
-reviews, news rotation, group trips, and push-notification endpoints were added after this
-collection and have instead been verified through live, real-network end-to-end testing across
-all four running portals (Playwright-driven — real logins, real form submissions, real network
-requests inspected, real DB rows confirmed) rather than through Postman assertions yet.
+124 requests, 269 assertions across 22 folders, run against a fresh `DATABASE_TEST_URL` — auth,
+trips, SOS, DMS, govt ops, security guards, validation, edge cases, and the full unified-rescuer
+flow (volunteer self-registration and govt provisioning, identity verification, combined
+team-or-volunteer SOS assignment, live location/status updates, the govt-only resolve boundary).
+The community reviews, news rotation, group trips, push-notification, incident-report, and
+risk-density endpoints were added after this collection and have instead been verified through
+live, real-network end-to-end testing across all four running portals (Playwright-driven — real
+logins, real form submissions, real network requests inspected, real DB rows confirmed, real PDF
+output checked with `pdftotext`) rather than through Postman assertions yet.
 
 ---
 
