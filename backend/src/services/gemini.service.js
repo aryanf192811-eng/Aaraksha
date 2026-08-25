@@ -108,13 +108,26 @@ Maximum 30 items. Sort essential items first, then by category.`
 // rule-based engine). Same "AI explains, doesn't decide" boundary as
 // generatePackingList above, and the same offline-fallback discipline: a
 // missing/failing Gemini call must never leave the tourist with nothing.
-function fallbackAdvisory({ tsiScore, tsiLabel, worstStopCity, recommendations }) {
-  const lines = [
-    `This trip scores ${tsiScore}/100 (${tsiLabel}).`,
-    worstStopCity ? `${worstStopCity} is the highest-risk stop on your route and drives most of that score.` : '',
-    ...(recommendations || []).slice(0, 4).map(r => `• ${r}`),
-  ].filter(Boolean)
-  return lines.join('\n')
+// Deliberately does NOT repeat the recommendations list — that's already
+// shown verbatim in the trip page's own "Safety Recommendations" panel.
+// This synthesizes the one thing that panel doesn't say: WHY, in terms of
+// the actual per-stop factors that drove the score down.
+function fallbackAdvisory({ tsiScore, tsiLabel, worstStop, hasRecommendations }) {
+  const parts = [`This trip scores ${tsiScore}/100 (${tsiLabel}).`]
+
+  if (worstStop) {
+    const reasons = []
+    if (worstStop.factors?.connectivity < 0) reasons.push('poor mobile connectivity')
+    if (worstStop.factors?.medicalAccess < 0) reasons.push('a distant hospital')
+    if (worstStop.factors?.terrain < 0) reasons.push('high altitude')
+    if (worstStop.factors?.restrictedZone < 0) reasons.push('zone restrictions')
+    if (worstStop.factors?.difficulty < 0) reasons.push('difficult terrain')
+    if (worstStop.factors?.weather < 0) reasons.push('challenging weather')
+    parts.push(`${worstStop.city} is the highest-risk stop on your route${reasons.length ? `, mainly because of ${reasons.join(' and ')}` : ''}.`)
+  }
+
+  if (hasRecommendations) parts.push('See the safety recommendations below for the specific steps to take before you depart.')
+  return parts.join(' ')
 }
 
 async function generateSafetyAdvisory({ tsiScore, tsiLabel, factors, travelType, recommendations, destination }) {
@@ -124,7 +137,7 @@ async function generateSafetyAdvisory({ tsiScore, tsiLabel, factors, travelType,
   const model = getGeminiModel()
   if (!model) {
     logger.info('Gemini not available — using offline fallback safety advisory')
-    return { advisory: fallbackAdvisory({ tsiScore, tsiLabel, worstStopCity: worstStop?.city, recommendations }), source: 'OFFLINE_FALLBACK' }
+    return { advisory: fallbackAdvisory({ tsiScore, tsiLabel, worstStop, hasRecommendations: (recommendations || []).length > 0 }), source: 'OFFLINE_FALLBACK' }
   }
 
   const stopSummary = stopRisks
@@ -142,14 +155,17 @@ Overall Travel Safety Index: ${tsiScore}/100 (${tsiLabel})
 Per-stop breakdown:
 ${stopSummary || '(single destination, no multi-stop breakdown)'}
 
-System-generated recommendations (reference these, don't contradict them):
+System-generated recommendations (for your context only — these are ALREADY
+shown to the tourist verbatim in a separate checklist on the same screen, so
+do NOT repeat, list, or paraphrase them as a list yourself):
 ${(recommendations || []).map(r => `- ${r}`).join('\n') || '(none)'}
 
-Write a short safety briefing (120-180 words, plain text, no markdown headers)
-covering: (1) what this score means in practical terms, (2) which specific
-stop or factor is the biggest concern and why, (3) the 2-3 most important
-things this tourist should actually do about it. Speak directly to the
-tourist ("you"), be specific to the route above, not generic travel advice.`
+Write a short safety briefing (100-150 words, plain text, no markdown headers,
+no bullet points) covering only: (1) what this score means in practical
+terms, (2) which specific stop or factor is the biggest concern and why. End
+with one sentence pointing the tourist to "the safety recommendations below"
+rather than restating them. Speak directly to the tourist ("you"), be
+specific to the route above, not generic travel advice.`
 
   try {
     const result = await generateContentWithTimeout(model, prompt)
@@ -159,7 +175,7 @@ tourist ("you"), be specific to the route above, not generic travel advice.`
     return { advisory, source: 'GEMINI_AI' }
   } catch (err) {
     logger.error({ err: { message: err.message } }, 'Gemini safety advisory failed — using fallback')
-    return { advisory: fallbackAdvisory({ tsiScore, tsiLabel, worstStopCity: worstStop?.city, recommendations }), source: 'OFFLINE_FALLBACK' }
+    return { advisory: fallbackAdvisory({ tsiScore, tsiLabel, worstStop, hasRecommendations: (recommendations || []).length > 0 }), source: 'OFFLINE_FALLBACK' }
   }
 }
 
