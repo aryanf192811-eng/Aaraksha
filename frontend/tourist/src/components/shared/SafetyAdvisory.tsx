@@ -24,8 +24,8 @@ export function SafetyAdvisory({ tripId }: { tripId: string }) {
   }
 
   return (
-    <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-2 animate-slide-up">
-      <div className="flex items-center justify-between">
+    <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 animate-slide-up">
+      <div className="flex items-center justify-between mb-3">
         <p className="flex items-center gap-1.5 text-xs font-bold text-primary uppercase tracking-wide">
           <Sparkles className="w-3.5 h-3.5" /> AI Safety Briefing
         </p>
@@ -34,10 +34,14 @@ export function SafetyAdvisory({ tripId }: { tripId: string }) {
           {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
         </button>
       </div>
-      <p className="text-sm text-on-surface whitespace-pre-line leading-relaxed">{data.advisory}</p>
+      <div className="space-y-2.5">
+        {data.advisory.map((paragraph, i) => (
+          <p key={i} className="text-sm text-on-surface leading-relaxed">{paragraph}</p>
+        ))}
+      </div>
       {data.source === 'OFFLINE_FALLBACK' && (
-        <p className="flex items-center gap-1 text-[11px] text-on-surface-variant pt-1 border-t border-primary/10">
-          <WifiOff className="w-3 h-3" /> AI unavailable right now — showing a summary from your safety score directly
+        <p className="flex items-center gap-1 text-[11px] text-on-surface-variant mt-3 pt-2.5 border-t border-primary/10">
+          <WifiOff className="w-3 h-3 flex-shrink-0" /> AI unavailable right now — showing a summary from your safety score directly
         </p>
       )}
     </div>

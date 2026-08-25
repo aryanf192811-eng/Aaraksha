@@ -127,7 +127,7 @@ function fallbackAdvisory({ tsiScore, tsiLabel, worstStop, hasRecommendations })
   }
 
   if (hasRecommendations) parts.push('See the safety recommendations below for the specific steps to take before you depart.')
-  return parts.join(' ')
+  return parts
 }
 
 async function generateSafetyAdvisory({ tsiScore, tsiLabel, factors, travelType, recommendations, destination }) {
@@ -160,17 +160,19 @@ shown to the tourist verbatim in a separate checklist on the same screen, so
 do NOT repeat, list, or paraphrase them as a list yourself):
 ${(recommendations || []).map(r => `- ${r}`).join('\n') || '(none)'}
 
-Write a short safety briefing (100-150 words, plain text, no markdown headers,
-no bullet points) covering only: (1) what this score means in practical
-terms, (2) which specific stop or factor is the biggest concern and why. End
-with one sentence pointing the tourist to "the safety recommendations below"
-rather than restating them. Speak directly to the tourist ("you"), be
-specific to the route above, not generic travel advice.`
+Write exactly 2 short paragraphs, separated by a single blank line, plain
+text, no markdown headers, no bullet points:
+Paragraph 1 (1-2 sentences): what this score means in practical terms.
+Paragraph 2 (2-3 sentences): which specific stop or factor is the biggest
+concern and why, ending with one sentence pointing the tourist to "the
+safety recommendations below" rather than restating them. Speak directly to
+the tourist ("you"), be specific to the route above, not generic advice.`
 
   try {
     const result = await generateContentWithTimeout(model, prompt)
-    const advisory = result.response.text().trim()
-    if (!advisory) throw new Error('Gemini returned an empty advisory')
+    const text = result.response.text().trim()
+    if (!text) throw new Error('Gemini returned an empty advisory')
+    const advisory = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
     logger.info({ tsiScore, tsiLabel }, 'Gemini safety advisory generated')
     return { advisory, source: 'GEMINI_AI' }
   } catch (err) {
