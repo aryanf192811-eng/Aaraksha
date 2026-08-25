@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { SOSButton } from '../../components/shared/SOSButton'
 import { RescueTrackingCard } from '../../components/shared/RescueTrackingCard'
 import { ActiveSOSBanner } from '../../components/shared/ActiveSOSBanner'
+import { SafetyTimeline } from '../../components/shared/SafetyTimeline'
 import { useSOS } from '../../hooks/useSOS'
 import { useBattery } from '../../hooks/useBattery'
 import { useDMS } from '../../hooks/useDMS'
@@ -154,6 +155,7 @@ export default function SOSPage() {
           </div>
         </div>
 
+        <SafetyTimeline dms={dms} />
         <ActiveSOSBanner />
         <RescueTrackingCard />
 

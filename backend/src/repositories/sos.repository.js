@@ -101,16 +101,23 @@ class SOSRepository extends BaseRepository {
         t.full_name, t.phone, t.blood_group,
         t.emergency_contacts, t.govt_id_suffix,
         tl.battery_pct as last_battery, tl.updated_at as last_location_update,
-        ra.id as assignment_id, ra.status as assignment_status,
+        -- The tourist's TSI at the time of the SOS — govt sees the same risk
+        -- context the tourist saw before departing, not just a bare location pin.
+        trip.tsi_score, trip.tsi_label,
+        ra.id as assignment_id, ra.status as assignment_status, ra.assigned_at,
+        ra.rescuer_latitude, ra.rescuer_longitude, ra.rescuer_location_updated_at,
         -- Unified rescuer display name/type — a volunteer assignment has no
         -- rescue_teams row, so COALESCE onto the volunteer join instead of
         -- leaving the govt dashboard's row subtitle silently blank for it.
         COALESCE(rt.name, v.full_name) as rescue_team_name,
         COALESCE(rt.type, 'VOLUNTEER') as rescue_team_type,
-        COALESCE(rt.contact_phone, v.phone) as team_phone
+        COALESCE(rt.contact_phone, v.phone) as team_phone,
+        COALESCE(rt.latitude, v.latitude) as team_base_lat,
+        COALESCE(rt.longitude, v.longitude) as team_base_lng
       FROM sos_events se
       LEFT JOIN tourists t ON t.id = se.tourist_id
       LEFT JOIN tourist_locations tl ON tl.tourist_id = se.tourist_id
+      LEFT JOIN trips trip ON trip.id = se.trip_id
       LEFT JOIN rescue_assignments ra ON ra.sos_event_id = se.id AND ra.status != 'RESOLVED'
       LEFT JOIN rescue_teams rt ON rt.id = ra.team_id
       LEFT JOIN volunteers v ON v.id = ra.volunteer_id

@@ -1,7 +1,7 @@
 // src/pages/SOSManagementPage.tsx — real-time SOS feed with assignment modal
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Battery, CheckCircle2, Send, ShieldCheck, HeartHandshake } from 'lucide-react'
+import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Battery, CheckCircle2, Send, ShieldCheck, HeartHandshake, Navigation, Radio, Gauge } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
@@ -16,6 +16,15 @@ const STATUS_STYLE: Record<string, string> = {
   ASSIGNED:    'border-l-4 border-l-amber-500 bg-surface-container-lowest',
   RESOLVED:    'border-l-4 border-l-green-500 bg-surface-container opacity-70',
   FALSE_ALARM: 'border-l-4 border-l-slate-300 bg-surface-container opacity-70',
+}
+
+// Same score bands as the tourist app's TSI — govt sees the identical risk
+// context the tourist saw before departing, not a separately-invented scale.
+const TSI_STYLE: Record<string, string> = {
+  'Low Risk':      'bg-green-100 text-green-700',
+  'Moderate Risk': 'bg-amber-100 text-amber-700',
+  'High Risk':     'bg-orange-100 text-orange-700',
+  'Extreme Risk':  'bg-red-100 text-red-700',
 }
 
 export default function SOSManagementPage() {
@@ -100,14 +109,19 @@ export default function SOSManagementPage() {
             onClick={() => { setSelectedSOS(sos); setAssignTeamId(''); setAssignVolunteerId('') }}>
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
                   <AlertTriangle className={cn('w-4 h-4 flex-shrink-0',
                     sos.status === 'ACTIVE' ? 'text-red-500' : sos.status === 'ASSIGNED' ? 'text-amber-500' : 'text-green-500'
                   )} />
-                  <span className="font-bold text-on-surface truncate">{sos.full_name}</span>
+                  <span className="font-bold text-on-surface">{sos.full_name}</span>
                   <span className="text-xs bg-surface-container-high text-on-surface-variant px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
                     {sos.category}
                   </span>
+                  {sos.tsi_label && (
+                    <span className={cn('text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0', TSI_STYLE[sos.tsi_label] || TSI_STYLE['Moderate Risk'])}>
+                      Trip: {sos.tsi_label}
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
                   <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{sos.phone}</span>
@@ -126,9 +140,15 @@ export default function SOSManagementPage() {
                   )}
                 </div>
                 {sos.rescue_team_name && (
-                  <p className="text-xs text-amber-700 mt-1 font-medium flex items-center gap-1">
-                    <UserCheck className="w-3 h-3" />
+                  <p className="text-xs text-amber-700 mt-1 font-medium flex items-center gap-1.5">
+                    <UserCheck className="w-3 h-3 flex-shrink-0" />
                     {sos.rescue_team_name} ({sos.assignment_status})
+                    {sos.rescuer_eta_minutes != null && (
+                      <span className="flex items-center gap-1 text-amber-600">
+                        · <Navigation className="w-3 h-3" />{sos.rescuer_distance_km} km · ETA {sos.rescuer_eta_minutes} min
+                        {sos.rescuer_is_live && <Radio className="w-3 h-3 text-green-600 animate-pulse" />}
+                      </span>
+                    )}
                   </p>
                 )}
               </div>
@@ -167,6 +187,45 @@ export default function SOSManagementPage() {
                 <div><p className="text-xs font-bold text-on-surface-variant uppercase">Trigger Type</p><p className="font-bold">{selectedSOS.trigger_type}</p></div>
                 <div><p className="text-xs font-bold text-on-surface-variant uppercase">Battery</p><p className="font-bold">{selectedSOS.last_battery !== null ? `${selectedSOS.last_battery}%` : '—'}</p></div>
               </div>
+
+              {selectedSOS.tsi_label && (
+                <div className={cn('rounded-xl p-3', TSI_STYLE[selectedSOS.tsi_label] || TSI_STYLE['Moderate Risk'])}>
+                  <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide">
+                    <Gauge className="w-3.5 h-3.5" /> Trip Safety Index
+                  </span>
+                  <span className="font-black text-lg">{selectedSOS.tsi_score} — {selectedSOS.tsi_label}</span>
+                </div>
+              )}
+
+              {/* Rescuer status — the modal previously went silent once a rescuer
+                  was assigned; this is the live distance/ETA the govt operator
+                  needs to know whether to escalate further. */}
+              {selectedSOS.assignment_id && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-amber-700 uppercase tracking-wide">
+                    <UserCheck className="w-3.5 h-3.5" /> {selectedSOS.rescue_team_name}
+                    <span className="font-normal normal-case text-amber-600">({selectedSOS.rescue_team_type})</span>
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-amber-800">{selectedSOS.assignment_status}</span>
+                    {selectedSOS.rescuer_eta_minutes != null && (
+                      <span className="flex items-center gap-1.5 text-sm font-bold text-amber-800">
+                        <Navigation className="w-4 h-4" /> {selectedSOS.rescuer_distance_km} km · ETA {selectedSOS.rescuer_eta_minutes} min
+                      </span>
+                    )}
+                  </div>
+                  {selectedSOS.team_phone && (
+                    <a href={`tel:${selectedSOS.team_phone}`} className="flex items-center gap-1.5 text-xs text-amber-700 hover:underline">
+                      <Phone className="w-3 h-3" /> {selectedSOS.team_phone}
+                    </a>
+                  )}
+                  <p className="flex items-center gap-1.5 text-[11px] text-amber-600">
+                    {selectedSOS.rescuer_is_live
+                      ? <><Radio className="w-3 h-3 text-green-600 animate-pulse" /> Live position — updated {formatTimeAgo(selectedSOS.rescuer_location_updated_at ?? selectedSOS.assigned_at!)}</>
+                      : <>Base location — no live GPS reported yet</>}
+                  </p>
+                </div>
+              )}
 
               {selectedSOS.message && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">

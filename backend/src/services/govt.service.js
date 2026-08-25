@@ -14,6 +14,7 @@ const { emitSOSResolved, emitRescueAssigned, emitGuardianRescueAssigned, emitVol
 const { SOS_STATUSES, TEAM_STATUSES, VOLUNTEER_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const { hashPassword, hashGovtId, generateTempPassword, normalizePhone, extractSuffix } = require('../utils/crypto')
+const { estimateRescueEtaMinutes } = require('../utils/geo')
 const logger = require('../utils/logger')
 
 async function getDashboard() {
@@ -40,8 +41,26 @@ async function getDashboard() {
   }
 }
 
+// Same "rescuer's live GPS if reported, else registered base" fallback as
+// sos.service.js#getActiveRescueInfo — kept as a second small computation
+// rather than importing that function, since it operates on the govt list
+// row shape (team_base_lat/lng already COALESCEd across team/volunteer),
+// not the tourist-facing single-row shape.
 async function getActiveSOS(filters) {
-  return new SOSRepository().findActive(filters)
+  const { rows, total } = await new SOSRepository().findActive(filters)
+  const withEta = rows.map((sos) => {
+    if (!sos.assignment_id) return sos
+    const rescuerLat = sos.rescuer_latitude ?? sos.team_base_lat
+    const rescuerLng = sos.rescuer_longitude ?? sos.team_base_lng
+    const eta = estimateRescueEtaMinutes(rescuerLat, rescuerLng, sos.latitude, sos.longitude)
+    return {
+      ...sos,
+      rescuer_is_live: sos.rescuer_latitude != null,
+      rescuer_distance_km: eta?.distanceKm ?? null,
+      rescuer_eta_minutes: eta?.etaMinutes ?? null,
+    }
+  })
+  return { rows: withEta, total }
 }
 
 // Assigns either an official rescue team OR a volunteer to an SOS —

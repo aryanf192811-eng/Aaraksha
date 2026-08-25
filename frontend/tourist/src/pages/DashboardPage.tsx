@@ -6,6 +6,7 @@ import { Plus, Map, Shield, ChevronRight, MapPin, AlertTriangle, Plane, Newspape
 import { Button } from '../components/ui/button'
 import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed } from '../components/shared'
 import { RescueReadinessChecklist } from '../components/shared/RescueReadinessChecklist'
+import { SafetyTimeline, useEscalationLevel } from '../components/shared/SafetyTimeline'
 import { useAuthStore } from '../store/auth.store'
 import { useSafetyStore } from '../store/safety.store'
 import { useDMS } from '../hooks/useDMS'
@@ -33,6 +34,7 @@ export default function DashboardPage() {
   const tourist = useAuthStore((s) => s.tourist)
   const { dms } = useDMS()
   const activeSOSId = useSafetyStore((s) => s.activeSOSId)
+  const escalationLevel = useEscalationLevel(dms)
 
   const { data: tripsData, isLoading } = useQuery({
     queryKey: ['trips'],
@@ -175,6 +177,13 @@ export default function DashboardPage() {
           </Button>
         )}
       </div>
+
+      {/* ── Safety Timeline (only renders once something has escalated) ── */}
+      {escalationLevel > 0 && (
+        <div className="px-5 mt-6">
+          <SafetyTimeline dms={dms} />
+        </div>
+      )}
 
       {/* ── Rescue Readiness ─────────────────────────────────────── */}
       {tourist && (

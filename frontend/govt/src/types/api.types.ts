@@ -307,10 +307,17 @@ export interface SOSWithDetails extends SOSEvent {
   govt_id_suffix: string
   last_battery: number | null
   last_location_update: string | null
+  tsi_score: number | null
+  tsi_label: string | null
   assignment_id: string | null
+  assigned_at: string | null
   rescue_team_name: string | null
   rescue_team_type: string | null
   team_phone: string | null
+  rescuer_is_live?: boolean
+  rescuer_distance_km: number | null
+  rescuer_eta_minutes: number | null
+  rescuer_location_updated_at: string | null
 }
 
 export interface RescueTeam {
