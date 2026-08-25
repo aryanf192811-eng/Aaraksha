@@ -10,6 +10,15 @@ export interface CreateScamReportPayload {
   incidentDate?: string | null
 }
 
+export interface ScamHotspot {
+  destination_id: string
+  name: string
+  state: string
+  recent_count: number
+  last_reported_at: string
+  top_category: string
+}
+
 const scamApi = {
   createReport: (data: CreateScamReportPayload) =>
     api.post<APIResponse<ScamReport>>('/scam-reports', data),
@@ -19,6 +28,9 @@ const scamApi = {
       reports: ScamReport[]
       aggregate: { total: number; byCategory: Record<string, number> }
     }>>(`/scam-reports/${destinationId}`),
+
+  getHotspots: () =>
+    api.get<APIResponse<ScamHotspot[]>>('/scam-reports/hotspots'),
 }
 
 export default scamApi

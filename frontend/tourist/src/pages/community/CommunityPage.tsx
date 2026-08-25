@@ -10,7 +10,7 @@ import {
   ArrowLeft, Plus, X, Loader2, AlertCircle, Globe, CheckCircle2, Check, Send,
   Compass, IndianRupee, Wallet, UserX, AlertTriangle, HelpCircle,
   Star, MessageSquare, Camera, ThumbsUp, ThumbsDown, Lightbulb, Users2,
-  Clock, ShieldCheck, ShieldQuestion, ShieldAlert, Sparkles,
+  Clock, ShieldCheck, ShieldQuestion, ShieldAlert, Sparkles, Flame, ChevronRight,
 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -94,6 +94,16 @@ export default function CommunityPage() {
     enabled: !!selectedDest && activeTab === 'reports',
   })
 
+  // Cross-destination ranking — the "distributed safety sensor network"
+  // reframing of the same report data: which destinations have active
+  // reports right now, discoverable without already knowing where to look.
+  const { data: hotspots } = useQuery({
+    queryKey: ['scam-reports', 'hotspots'],
+    queryFn: () => scamApi.getHotspots().then(r => r.data.data),
+    enabled: activeTab === 'reports' && !selectedDest,
+    staleTime: 2 * 60_000,
+  })
+
   const { data: reviewsData, isLoading: reviewsLoading } = useQuery({
     queryKey: ['destinations', selectedDest, 'reviews'],
     queryFn: () => reviewApi.getForDestination(selectedDest).then(r => r.data.data),
@@ -160,7 +170,7 @@ export default function CommunityPage() {
       </div>
 
       <div className="px-5 mt-4 space-y-4">
-        <Select onValueChange={v => { setSelectedDest(v); setValue('destinationId', v) }}>
+        <Select value={selectedDest} onValueChange={v => { setSelectedDest(v); setValue('destinationId', v) }}>
           <SelectTrigger className="h-11 rounded-xl bg-surface-container-lowest">
             <SelectValue placeholder={activeTab === 'reports' ? 'Select destination to view reports' : 'Select destination to view experiences'} />
           </SelectTrigger>
@@ -192,7 +202,36 @@ export default function CommunityPage() {
               </div>
             )}
 
-            {!selectedDest && (
+            {!selectedDest && hotspots && hotspots.length > 0 && (
+              <div>
+                <p className="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-2 px-0.5">
+                  <Flame className="w-3.5 h-3.5 text-orange-500" /> Community Safety Hotspots — last 90 days
+                </p>
+                <div className="space-y-2">
+                  {hotspots.map((h) => {
+                    const Icon = SCAM_ICONS[h.top_category as ScamCategory] ?? HelpCircle
+                    return (
+                      <button key={h.destination_id} type="button"
+                        onClick={() => { setSelectedDest(h.destination_id); setValue('destinationId', h.destination_id) }}
+                        className="w-full bg-surface-container-lowest rounded-2xl shadow-sm p-4 flex items-center gap-3 text-left hover:shadow-md transition-all">
+                        <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center flex-shrink-0">
+                          <Icon className="w-4.5 h-4.5 text-orange-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-on-surface truncate">{h.name}, {h.state}</p>
+                          <p className="text-xs text-on-surface-variant">
+                            {h.recent_count} {h.recent_count === 1 ? 'report' : 'reports'} · Most common: {SCAM_LABELS[h.top_category as ScamCategory] || h.top_category}
+                          </p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-on-surface-variant flex-shrink-0" />
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {!selectedDest && (!hotspots || hotspots.length === 0) && (
               <div className="text-center py-12">
                 <Globe className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                 <p className="font-bold text-on-surface">Select a destination</p>

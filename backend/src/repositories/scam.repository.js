@@ -32,6 +32,38 @@ class ScamRepository extends BaseRepository {
     const byCategory = rows.reduce((acc, r) => ({ ...acc, [r.category]: r.count }), {})
     return { total, byCategory }
   }
+
+  // Cross-destination ranking — a tourist has no way to discover "which
+  // destinations have active reports right now" without already knowing to
+  // look at one specific place. Same underlying data as findByDestination/
+  // countByDestination, just aggregated the other way. `top category` per
+  // destination uses DISTINCT ON (Postgres-specific) ordered by count desc
+  // to pick the single most common category cheaply, without a second query.
+  async getHotspots(recentDays = 90, limit = 10) {
+    return this.query(`
+      WITH recent AS (
+        SELECT destination_id, category, created_at
+        FROM scam_reports
+        WHERE created_at >= NOW() - ($1 || ' days')::interval
+      ),
+      top_category AS (
+        SELECT DISTINCT ON (destination_id) destination_id, category
+        FROM (SELECT destination_id, category, COUNT(*)::int as cnt FROM recent GROUP BY destination_id, category) c
+        ORDER BY destination_id, cnt DESC
+      )
+      SELECT d.id as destination_id, d.name, d.state,
+        COUNT(r.*)::int as recent_count,
+        MAX(r.created_at) as last_reported_at,
+        tc.category as top_category
+      FROM recent r
+      JOIN destinations d ON d.id = r.destination_id
+      LEFT JOIN top_category tc ON tc.destination_id = r.destination_id
+      GROUP BY d.id, d.name, d.state, tc.category
+      ORDER BY recent_count DESC, last_reported_at DESC
+      LIMIT $2`,
+      [recentDays, limit]
+    )
+  }
 }
 
 module.exports = { ScamRepository }

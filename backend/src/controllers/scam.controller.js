@@ -10,4 +10,8 @@ const getByDestination = async (req, res, next) => {
   try { sendSuccess(res, await scamService.getByDestination(req.params.destinationId)) }
   catch (err) { next(err) }
 }
-module.exports = { createReport, getByDestination }
+const getHotspots = async (req, res, next) => {
+  try { sendSuccess(res, await scamService.getHotspots()) }
+  catch (err) { next(err) }
+}
+module.exports = { createReport, getByDestination, getHotspots }

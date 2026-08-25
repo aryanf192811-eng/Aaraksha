@@ -17,4 +17,11 @@ async function getByDestination(destinationId) {
   return { reports, aggregate }
 }
 
-module.exports = { createReport, getByDestination }
+// "Community Safety Intelligence" — the existing scam-report data, reframed
+// as a cross-destination ranking instead of something you can only see once
+// you already know to check one specific place.
+async function getHotspots() {
+  return new ScamRepository().getHotspots()
+}
+
+module.exports = { createReport, getByDestination, getHotspots }

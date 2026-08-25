@@ -5,6 +5,9 @@ const ctrl = require('../controllers/scam.controller')
 const { authenticateTourist } = require('../middleware/auth')
 const { validate } = require('../middleware/validate')
 const { CreateScamReportSchema } = require('../validators/scam.validator')
+// Must come before the param route below — otherwise Express matches
+// GET /scam-reports/hotspots as :destinationId="hotspots".
+router.get('/hotspots', ctrl.getHotspots)
 router.get('/:destinationId', ctrl.getByDestination)
 router.post('/', authenticateTourist, validate(CreateScamReportSchema), ctrl.createReport)
 module.exports = router
