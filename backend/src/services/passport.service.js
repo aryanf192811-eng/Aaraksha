@@ -2,10 +2,11 @@
 'use strict'
 
 const PDFDocument = require('pdfkit')
-const { TripRepository }    = require('../repositories/trip.repository')
-const { CheckinRepository } = require('../repositories/checkin.repository')
-const { SOSRepository }     = require('../repositories/sos.repository')
-const { TouristRepository } = require('../repositories/tourist.repository')
+const { TripRepository }       = require('../repositories/trip.repository')
+const { CheckinRepository }    = require('../repositories/checkin.repository')
+const { SOSRepository }        = require('../repositories/sos.repository')
+const { TouristRepository }    = require('../repositories/tourist.repository')
+const { CheckpointRepository } = require('../repositories/checkpoint.repository')
 const { ERRORS } = require('../constants/errors')
 const { sha256Hex } = require('../utils/crypto')
 
@@ -26,10 +27,11 @@ const TSI_COLORS = {
 // the standalone API always fetch (and therefore hash) identical data —
 // duplicating the fetch would risk the two drifting out of sync silently.
 async function fetchJourneyRecords(tripId, touristId) {
-  const tripRepo    = new TripRepository()
-  const checkinRepo = new CheckinRepository()
-  const sosRepo     = new SOSRepository()
-  const touristRepo = new TouristRepository()
+  const tripRepo       = new TripRepository()
+  const checkinRepo    = new CheckinRepository()
+  const sosRepo        = new SOSRepository()
+  const touristRepo    = new TouristRepository()
+  const checkpointRepo = new CheckpointRepository()
 
   const [trip, tourist] = await Promise.all([
     tripRepo.findById(tripId, touristId),
@@ -37,26 +39,31 @@ async function fetchJourneyRecords(tripId, touristId) {
   ])
   if (!trip) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
 
-  const [checkins, { rows: sosEvents }] = await Promise.all([
+  const [checkins, { rows: sosEvents }, checkpointScans] = await Promise.all([
     checkinRepo.findByTripId(tripId),
     sosRepo.findByTouristId(touristId, { tripId, limit: 50 }),
+    checkpointRepo.findByTripId(tripId),
   ])
 
   const stops = Array.isArray(trip.stops) ? trip.stops : JSON.parse(trip.stops || '[]')
-  return { trip, tourist, checkins, sosEvents, stops }
+  return { trip, tourist, checkins, sosEvents, checkpointScans, stops }
 }
 
 // ── Journey Integrity Hash ──────────────────────────────────────────────
 // A SHA-256 hash chain over the trip's deterministic record — itinerary,
-// then every check-in and SOS event in true chronological order (checkins
-// and SOS events are fetched pre-sorted but in OPPOSITE directions and from
-// separate tables, so they're re-merged by timestamp here rather than
-// trusted as already-interleaved). Genesis block is the trip's own
-// unchanging facts; each event folds the previous hash in, so altering,
-// removing, or reordering a single check-in or SOS record anywhere in the
-// trip's history changes the final hash. Deliberately excludes the PDF's
-// own "Generated <now>" render timestamp and the tourist's name — those
-// aren't part of the journey record, just presentation.
+// then every check-in, SOS event, and government checkpoint scan in true
+// chronological order (all three are fetched pre-sorted but from separate
+// tables, so they're re-merged by timestamp here rather than trusted as
+// already-interleaved). Genesis block is the trip's own unchanging facts;
+// each event folds the previous hash in, so altering, removing, or
+// reordering a single check-in, SOS record, or checkpoint scan anywhere in
+// the trip's history changes the final hash. A checkpoint scan is a govt
+// officer's own physical verification of the tourist — chaining it in is
+// the concrete "blockchain-based Digital ID" piece of SIH25002: the scan
+// becomes cryptographically bound to this journey's record, not just an
+// isolated audit-log row nobody can cross-check. Deliberately excludes the
+// PDF's own "Generated <now>" render timestamp and the tourist's name —
+// those aren't part of the journey record, just presentation.
 function canonicalStops(stops) {
   return (stops || []).map(s => ({
     city: s.city, state: s.state, days: s.days,
@@ -81,7 +88,7 @@ function tripCoreRecord(trip, stops) {
 // Postgres timestamps can collide at the millisecond an app-server clock
 // resolves to, so `id` (a UUID, stable and unique) breaks ties rather than
 // leaving merge order to sort() implementation details.
-function mergeEventsChronologically(checkins, sosEvents) {
+function mergeEventsChronologically(checkins, sosEvents, checkpointScans) {
   const checkinEvents = (checkins || []).map(c => ({
     kind: 'CHECKIN', id: c.id, at: new Date(c.created_at).toISOString(),
     type: c.type,
@@ -93,17 +100,24 @@ function mergeEventsChronologically(checkins, sosEvents) {
     kind: 'SOS', id: s.id, at: new Date(s.created_at).toISOString(),
     category: s.category, status: s.status, triggerType: s.trigger_type,
   }))
-  return [...checkinEvents, ...sosEventsCanon].sort((a, b) => {
+  const checkpointEvents = (checkpointScans || []).map(cp => ({
+    kind: 'CHECKPOINT_SCAN', id: cp.id, at: new Date(cp.scanned_at).toISOString(),
+    checkpointName: cp.checkpoint_name, district: cp.district || null,
+    lat: cp.latitude != null ? Number(cp.latitude) : null,
+    lng: cp.longitude != null ? Number(cp.longitude) : null,
+  }))
+  return [...checkinEvents, ...sosEventsCanon, ...checkpointEvents].sort((a, b) => {
     if (a.at !== b.at) return a.at < b.at ? -1 : 1
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
   })
 }
 
-function computeIntegrityChain(trip, stops, checkins, sosEvents) {
+function computeIntegrityChain(trip, stops, checkins, sosEvents, checkpointScans) {
   const genesisHash = sha256Hex(JSON.stringify(tripCoreRecord(trip, stops)))
-  const events = mergeEventsChronologically(checkins, sosEvents)
+  const events = mergeEventsChronologically(checkins, sosEvents, checkpointScans)
   const finalHash = events.reduce((hash, ev) => sha256Hex(`${hash}|${JSON.stringify(ev)}`), genesisHash)
-  return { genesisHash, finalHash, eventCount: events.length }
+  const checkpointScanCount = (checkpointScans || []).length
+  return { genesisHash, finalHash, eventCount: events.length, checkpointScanCount }
 }
 
 // Groups of 8 hex chars, matching how the analytics/incident-report PDFs
@@ -113,14 +127,14 @@ function formatHashDisplay(hash) {
 }
 
 async function getIntegrityHash(tripId, touristId) {
-  const { trip, checkins, sosEvents, stops } = await fetchJourneyRecords(tripId, touristId)
-  const chain = computeIntegrityChain(trip, stops, checkins, sosEvents)
+  const { trip, checkins, sosEvents, checkpointScans, stops } = await fetchJourneyRecords(tripId, touristId)
+  const chain = computeIntegrityChain(trip, stops, checkins, sosEvents, checkpointScans)
   return { tripId, ...chain }
 }
 
 async function generate(tripId, touristId) {
-  const { trip, tourist, checkins, sosEvents, stops } = await fetchJourneyRecords(tripId, touristId)
-  const integrity = computeIntegrityChain(trip, stops, checkins, sosEvents)
+  const { trip, tourist, checkins, sosEvents, checkpointScans, stops } = await fetchJourneyRecords(tripId, touristId)
+  const integrity = computeIntegrityChain(trip, stops, checkins, sosEvents, checkpointScans)
 
   const doc = new PDFDocument({ size: 'A4', margin: 50, info: {
     Title: `Journey Passport — ${trip.title}`,
@@ -220,27 +234,44 @@ async function generate(tripId, touristId) {
   }
   doc.moveDown()
 
-  // ── Section 6: Journey Achievements ───────────────────────────────
+  // ── Section 6: Checkpoint Verifications ────────────────────────────
+  // The "blockchain-based Digital ID" narrative made concrete and visible:
+  // each row here is a govt officer's own physical verification, and every
+  // one of them is folded into the integrity hash below — not just logged.
+  section(doc, left, contentWidth, 'Checkpoint Verifications')
+  if (checkpointScans.length === 0) {
+    doc.fontSize(9).font('Helvetica').fillColor(MUTED).text('No government checkpoint scans recorded on this trip.')
+    doc.fillColor(INK)
+  } else {
+    checkpointScans.forEach(cp => {
+      const dt = new Date(cp.scanned_at).toLocaleString('en-IN')
+      bullet(doc, left, `${dt}  —  ${cp.checkpoint_name}${cp.district ? `, ${cp.district}` : ''}`)
+    })
+  }
+  doc.moveDown()
+
+  // ── Section 7: Journey Achievements ───────────────────────────────
   section(doc, left, contentWidth, 'Journey Achievements')
   const days = Math.ceil((new Date(trip.end_date) - new Date(trip.start_date)) / 86400000)
   statRow(doc, left, contentWidth, [
     ['Cities Visited', stops.length.toString()],
     ['Total Days', days.toString()],
     ['Check-ins Made', checkins.length.toString()],
+    ['Checkpoint Scans', checkpointScans.length.toString()],
     ['Activities', stops.reduce((s, stop) => s + (stop.activities?.length || 0), 0).toString()],
   ])
 
-  // ── Section 7: Journey Integrity Hash ─────────────────────────────
+  // ── Section 8: Journey Integrity Hash ─────────────────────────────
   section(doc, left, contentWidth, 'Journey Integrity Hash')
   doc.fontSize(8).font('Helvetica').fillColor(MUTED)
-     .text("A tamper-evident fingerprint chained from this trip's itinerary and every recorded check-in and safety event, in order. Changing, removing, or reordering any one of them changes this hash — it can be independently recomputed from Aaraksha's platform records to verify this document hasn't been altered.",
+     .text("A tamper-evident fingerprint chained from this trip's itinerary and every recorded check-in, safety event, and government checkpoint scan, in order. Changing, removing, or reordering any one of them changes this hash — it can be independently recomputed from Aaraksha's platform records to verify this document hasn't been altered.",
        left, doc.y, { width: contentWidth })
   doc.moveDown(0.5)
   doc.fontSize(10).font('Courier-Bold').fillColor(INK)
      .text(formatHashDisplay(integrity.finalHash), left, doc.y, { width: contentWidth })
   doc.moveDown(0.2)
   doc.fontSize(7).font('Helvetica').fillColor(MUTED)
-     .text(`SHA-256 · ${integrity.eventCount} chained event${integrity.eventCount === 1 ? '' : 's'}`, left, doc.y)
+     .text(`SHA-256 · ${integrity.eventCount} chained event${integrity.eventCount === 1 ? '' : 's'} (including ${integrity.checkpointScanCount} checkpoint verification${integrity.checkpointScanCount === 1 ? '' : 's'})`, left, doc.y)
   doc.fillColor(INK)
 
   // ── Footer ─────────────────────────────────────────────────────────

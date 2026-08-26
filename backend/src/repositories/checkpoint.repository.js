@@ -4,12 +4,25 @@
 const { BaseRepository } = require('./base.repository')
 
 class CheckpointRepository extends BaseRepository {
-  async create({ touristId, govtUserId, checkpointName, district, latitude, longitude }) {
+  async create({ touristId, govtUserId, checkpointName, district, latitude, longitude, tripId }) {
     return this.queryOne(`
-      INSERT INTO checkpoint_scans (tourist_id, govt_user_id, checkpoint_name, district, latitude, longitude)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO checkpoint_scans (tourist_id, govt_user_id, checkpoint_name, district, latitude, longitude, trip_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *`,
-      [touristId, govtUserId, checkpointName, district ?? null, latitude ?? null, longitude ?? null]
+      [touristId, govtUserId, checkpointName, district ?? null, latitude ?? null, longitude ?? null, tripId ?? null]
+    )
+  }
+
+  // Feeds the Journey Integrity Hash chain (passport.service.js) — every
+  // checkpoint pass-through recorded against this trip, chronological so
+  // it merges cleanly with check-ins and SOS events.
+  async findByTripId(tripId) {
+    return this.query(`
+      SELECT id, checkpoint_name, district, latitude, longitude, scanned_at
+      FROM checkpoint_scans
+      WHERE trip_id = $1
+      ORDER BY scanned_at ASC`,
+      [tripId]
     )
   }
 

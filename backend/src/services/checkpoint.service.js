@@ -51,7 +51,10 @@ async function scanCheckpoint(rawToken, govtUserId, checkpointName, district, la
   if (!tourist || !tourist.is_active) throw Object.assign(new Error(ERRORS.NOT_FOUND), { statusCode: 404 })
 
   const activeTrip = await tripRepo.findActiveByTouristId(tourist.id)
-  const scan = await checkpointRepo.create({ touristId: tourist.id, govtUserId, checkpointName, district, latitude, longitude })
+  // Linking the scan to whatever trip was active at scan time is what lets
+  // it later fold into that trip's Journey Integrity Hash chain — see
+  // CheckpointRepository.findByTripId / passport.service.js.
+  const scan = await checkpointRepo.create({ touristId: tourist.id, govtUserId, checkpointName, district, latitude, longitude, tripId: activeTrip?.id ?? null })
 
   logger.info({ touristId: tourist.id, govtUserId, checkpointName }, 'Checkpoint scan recorded')
 
