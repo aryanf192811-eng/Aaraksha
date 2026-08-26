@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft, MapPin, Battery, Loader2, Timer, CheckCircle2, Wifi, WifiOff,
-  HeartPulse, Compass, Mountain, Waves, ShieldAlert, HelpCircle, PowerOff, Smartphone, Bell,
+  HeartPulse, Compass, Mountain, Waves, ShieldAlert, HelpCircle, PowerOff, Smartphone, Bell, FileWarning,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { SOSButton } from '../../components/shared/SOSButton'
@@ -357,6 +357,20 @@ export default function SOSPage() {
             </div>
           </div>
         )}
+
+        {/* E-FIR entry point — a formal, after-the-fact report (theft,
+            harassment...) routed to a govt officer, not an active
+            emergency. Placed last, below SOS/DMS, so it reads as "not
+            urgent enough for the SOS button above" rather than competing
+            with it. */}
+        <button onClick={() => navigate('/incidents')}
+          className="w-full bg-surface-container-lowest shadow-sm border border-outline-variant rounded-2xl p-5 flex items-center gap-3 text-left hover:shadow-md transition-all">
+          <FileWarning className="w-6 h-6 text-primary flex-shrink-0" />
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display font-black text-on-surface">{t('sos.incidentReportTitle')}</h2>
+            <p className="text-xs text-on-surface-variant">{t('sos.incidentReportSubtitle')}</p>
+          </div>
+        </button>
       </div>
     </div>
   )

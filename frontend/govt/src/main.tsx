@@ -8,6 +8,7 @@ import './index.css'
 import GovtLoginPage from './pages/GovtLoginPage'
 import DashboardPage from './pages/DashboardPage'
 import SOSManagementPage from './pages/SOSManagementPage'
+import IncidentQueuePage from './pages/IncidentQueuePage'
 import LiveMapPage from './pages/LiveMapPage'
 import RiskOverviewPage from './pages/RiskOverviewPage'
 import AnalyticsPage from './pages/AnalyticsPage'
@@ -46,6 +47,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/" element={<CommandCenterRoute><GovtLayout /></CommandCenterRoute>}>
             <Route index element={<DashboardPage />} />
             <Route path="sos" element={<SOSManagementPage />} />
+            <Route path="incidents" element={<IncidentQueuePage />} />
             <Route path="volunteers" element={<VolunteersPage />} />
             <Route path="map" element={<LiveMapPage />} />
             <Route path="risk" element={<RiskOverviewPage />} />

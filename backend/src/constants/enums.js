@@ -211,11 +211,45 @@ const ANOMALY_STATUSES = Object.freeze({
   RESOLVED: 'RESOLVED',
 })
 
+// E-FIR-style triage workflow (see migration 012_incident_reports) — an
+// after-the-fact report a tourist files (theft, harassment, fraud...), not
+// a live emergency. Distinct from SCAM_CATEGORIES, which tags a
+// crowd-sourced community warning (scam_reports) rather than a formal,
+// officer-routed case.
+const INCIDENT_CATEGORIES = Object.freeze({
+  THEFT: 'THEFT',
+  HARASSMENT: 'HARASSMENT',
+  ASSAULT: 'ASSAULT',
+  FRAUD: 'FRAUD',
+  LOST_DOCUMENT: 'LOST_DOCUMENT',
+  VEHICLE_ACCIDENT: 'VEHICLE_ACCIDENT',
+  PROPERTY_DAMAGE: 'PROPERTY_DAMAGE',
+  OTHER: 'OTHER',
+})
+
+// A real investigation ladder, not a binary open/closed — mirrors what an
+// actual police case file moves through: filed, picked up by an officer,
+// actively worked, then resolved or administratively closed (e.g. the
+// tourist withdrew the complaint, or it was a duplicate).
+const INCIDENT_STATUSES = Object.freeze({
+  FILED: 'FILED',
+  ASSIGNED: 'ASSIGNED',
+  UNDER_INVESTIGATION: 'UNDER_INVESTIGATION',
+  RESOLVED: 'RESOLVED',
+  CLOSED: 'CLOSED',
+})
+
+const INCIDENT_PRIORITIES = Object.freeze({
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+})
+
 module.exports = {
   TRAVEL_TYPES, TRIP_STATUSES, SOS_CATEGORIES, SOS_STATUSES, SOS_TRIGGER_TYPES,
   DMS_STATUSES, CHECKIN_TYPES, GOVT_ROLES, GOVT_ID_TYPES, CONNECTIVITY, DIFFICULTY,
   ZONE_TYPES, WEATHER_CONDITIONS, WEATHER_RISK, TEAM_TYPES, TEAM_STATUSES,
   ASSIGNMENT_STATUSES, SCAM_CATEGORIES, ACTIVITY_TYPES, PACKING_CATEGORIES,
   NOTIFICATION_TIERS, VOLUNTEER_STATUSES, VOLUNTEER_DISPATCH_STATUSES, RESCUER_TYPES,
-  ANOMALY_TYPES, ANOMALY_STATUSES,
+  ANOMALY_TYPES, ANOMALY_STATUSES, INCIDENT_CATEGORIES, INCIDENT_STATUSES, INCIDENT_PRIORITIES,
 }

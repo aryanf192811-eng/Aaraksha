@@ -30,6 +30,14 @@ interface AnomalyDetectedPayload {
   type: 'INACTIVITY' | 'ROUTE_DEVIATION'
 }
 
+interface IncidentFiledPayload {
+  incidentId: string
+  caseNumber: string
+  touristName?: string
+  category: string
+  priority: string
+}
+
 export function useSOSSocket() {
   const token = useAuthStore(s => s.token)
   const [activeSosCount, setActiveSosCount] = useState(0)
@@ -106,6 +114,18 @@ export function useSOSSocket() {
       queryClient.invalidateQueries({ queryKey: ['govt', 'anomalies'] })
     }
 
+    // A tourist filed a new E-FIR — lands in the officer triage queue.
+    const onIncidentFiled = (data: IncidentFiledPayload) => {
+      toast.warning(`New E-FIR ${data.caseNumber}: ${data.touristName ?? 'A tourist'} — ${data.category}`, {
+        action: { label: 'View', onClick: () => { window.location.href = '/incidents' } },
+      })
+      queryClient.invalidateQueries({ queryKey: ['govt', 'incidents'] })
+    }
+
+    const onIncidentStatusUpdated = () => {
+      queryClient.invalidateQueries({ queryKey: ['govt', 'incidents'] })
+    }
+
     socket.on(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
     socket.on(SOCKET_EVENTS.SOS_RESOLVED, onSOSResolved)
     socket.on(SOCKET_EVENTS.DMS_TRIGGERED, onDMSTriggered)
@@ -115,6 +135,8 @@ export function useSOSSocket() {
     socket.on(SOCKET_EVENTS.RESCUER_STATUS_UPDATE, onRescuerUpdate)
     socket.on(SOCKET_EVENTS.TOURIST_ANOMALY_DETECTED, onAnomalyDetected)
     socket.on(SOCKET_EVENTS.TOURIST_ANOMALY_RESOLVED, onAnomalyResolved)
+    socket.on(SOCKET_EVENTS.INCIDENT_FILED, onIncidentFiled)
+    socket.on(SOCKET_EVENTS.INCIDENT_STATUS_UPDATED, onIncidentStatusUpdated)
 
     return () => {
       socket.off(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
@@ -126,6 +148,8 @@ export function useSOSSocket() {
       socket.off(SOCKET_EVENTS.RESCUER_STATUS_UPDATE, onRescuerUpdate)
       socket.off(SOCKET_EVENTS.TOURIST_ANOMALY_DETECTED, onAnomalyDetected)
       socket.off(SOCKET_EVENTS.TOURIST_ANOMALY_RESOLVED, onAnomalyResolved)
+      socket.off(SOCKET_EVENTS.INCIDENT_FILED, onIncidentFiled)
+      socket.off(SOCKET_EVENTS.INCIDENT_STATUS_UPDATED, onIncidentStatusUpdated)
       mountCount.current -= 1
       if (mountCount.current <= 0) disconnectSocket()
     }

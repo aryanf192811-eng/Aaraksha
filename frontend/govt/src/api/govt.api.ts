@@ -143,6 +143,48 @@ export interface PostNewsPayload {
   source?: string
 }
 
+// E-FIR-style triage workflow — see backend migration
+// 012_incident_reports. An after-the-fact report a tourist files (theft,
+// harassment...), routed to an officer for investigation. Distinct from an
+// SOS (a live emergency) and from a scam report (a crowd-sourced warning
+// with no officer or case number attached).
+export type IncidentCategory = 'THEFT' | 'HARASSMENT' | 'ASSAULT' | 'FRAUD' | 'LOST_DOCUMENT' | 'VEHICLE_ACCIDENT' | 'PROPERTY_DAMAGE' | 'OTHER'
+export type IncidentStatus = 'FILED' | 'ASSIGNED' | 'UNDER_INVESTIGATION' | 'RESOLVED' | 'CLOSED'
+export type IncidentPriority = 'LOW' | 'MEDIUM' | 'HIGH'
+
+export interface IncidentEntry {
+  id: string
+  case_number: string
+  tourist_id: string | null
+  trip_id: string | null
+  category: IncidentCategory
+  description: string
+  location_text: string | null
+  latitude: string | null
+  longitude: string | null
+  incident_occurred_at: string | null
+  priority: IncidentPriority
+  status: IncidentStatus
+  assigned_officer_id: string | null
+  assigned_officer_name: string | null
+  assigned_officer_role?: string
+  assigned_at: string | null
+  resolution_notes: string | null
+  resolved_at: string | null
+  filed_at: string
+  full_name: string | null
+  phone: string | null
+  govt_id_suffix?: string | null
+  trip_title?: string | null
+}
+
+export interface AssignableOfficer {
+  id: string
+  name: string
+  role: string
+  district: string
+}
+
 const govtApi = {
   getDashboard: () =>
     api.get<APIResponse<GovtDashboard>>('/govt/dashboard'),
@@ -166,6 +208,27 @@ const govtApi = {
 
   resolveAnomaly: (id: string) =>
     api.patch<APIResponse<AnomalyEntry>>(`/govt/anomalies/${id}/resolve`),
+
+  getIncidentQueue: (params?: { status?: IncidentStatus; category?: IncidentCategory; assignedToMe?: boolean; unassigned?: boolean; page?: number; limit?: number }) =>
+    api.get<PaginatedResponse<IncidentEntry>>('/govt/incidents', { params }),
+
+  getIncident: (id: string) =>
+    api.get<APIResponse<IncidentEntry>>(`/govt/incidents/${id}`),
+
+  getAssignableOfficers: () =>
+    api.get<APIResponse<AssignableOfficer[]>>('/govt/incidents/officers'),
+
+  assignIncident: (id: string, officerId?: string) =>
+    api.patch<APIResponse<IncidentEntry>>(`/govt/incidents/${id}/assign`, officerId ? { officerId } : {}),
+
+  updateIncidentStatus: (id: string, data: { status: IncidentStatus; resolutionNotes?: string; priority?: IncidentPriority }) =>
+    api.patch<APIResponse<IncidentEntry>>(`/govt/incidents/${id}/status`, data),
+
+  // Same direct-navigation reasoning as getIncidentReportUrl above.
+  getEfirReportUrl: (incidentId: string) => {
+    const token = useAuthStore.getState().token
+    return `${API_URL}/govt/incidents/${incidentId}/report?token=${encodeURIComponent(token || '')}`
+  },
 
   resolveSOS: (sosId: string, data: { resolutionNotes?: string }) =>
     api.patch<APIResponse<SOSWithDetails>>(`/govt/sos/${sosId}/resolve`, data),

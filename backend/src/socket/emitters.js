@@ -345,6 +345,31 @@ function emitAnomalyResolved(anomaly) {
   })
 }
 
+// Govt dashboard: a tourist filed a new E-FIR — lands in the officer queue.
+function emitIncidentFiled(incident) {
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.INCIDENT_FILED, {
+    incidentId: incident.id,
+    caseNumber: incident.case_number,
+    touristName: incident.full_name,
+    category: incident.category,
+    priority: incident.priority,
+    filedAt: incident.filed_at,
+  })
+}
+
+// Govt dashboard (queue refresh) + the filing tourist's own room (so "My
+// Reports" reflects investigation progress live, not just on next open).
+function emitIncidentStatusUpdated(incident) {
+  const payload = {
+    incidentId: incident.id, caseNumber: incident.case_number,
+    status: incident.status, assignedOfficerId: incident.assigned_officer_id,
+  }
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.INCIDENT_STATUS_UPDATED, payload)
+  if (incident.tourist_id) {
+    safeEmit(SOCKET_ROOMS.tourist(incident.tourist_id), SOCKET_EVENTS.INCIDENT_STATUS_UPDATED, payload)
+  }
+}
+
 module.exports = {
   emitSOSReceived, emitSOSResolved, emitRescueAssigned, emitDMSTriggered,
   emitTSIUpdated, emitCheckinUpdate, emitGuardianSOSAlert, emitGuardianRescueAssigned,
@@ -352,4 +377,5 @@ module.exports = {
   emitVolunteerSOSAlert, emitVolunteerAssignmentUpdated,
   emitVolunteerAssigned, emitRescuerLocationUpdate, emitRescuerStatusUpdate,
   emitAnomalyDetected, emitAnomalyResolved,
+  emitIncidentFiled, emitIncidentStatusUpdated,
 }

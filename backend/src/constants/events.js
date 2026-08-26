@@ -25,6 +25,12 @@ const SOCKET_EVENTS = Object.freeze({
   // SOS, a softer "look into this" signal (see migration 011).
   TOURIST_ANOMALY_DETECTED: 'TOURIST_ANOMALY_DETECTED',
   TOURIST_ANOMALY_RESOLVED: 'TOURIST_ANOMALY_RESOLVED',
+  // A tourist filed a new E-FIR — lands in the govt officer queue (see
+  // migration 012_incident_reports).
+  INCIDENT_FILED:          'INCIDENT_FILED',
+  // Also fans out to the filing tourist's own room so their "My Reports"
+  // view updates live as an officer works the case.
+  INCIDENT_STATUS_UPDATED: 'INCIDENT_STATUS_UPDATED',
 
   // Server → Tourist room (tourist:{touristId})
   TSI_UPDATED:         'TSI_UPDATED',

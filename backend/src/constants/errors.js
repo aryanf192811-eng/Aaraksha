@@ -60,6 +60,8 @@ const ERRORS = Object.freeze({
   VOLUNTEER_NOT_AVAILABLE: 'Volunteer is not available — status must be AVAILABLE to assign',
   ASSIGNMENT_NOT_FOUND:    'Assignment not found or access denied',
   ANOMALY_NOT_FOUND:       'Anomaly not found or already resolved',
+  INCIDENT_NOT_FOUND:      'Incident report not found or access denied',
+  INCIDENT_ALREADY_CLOSED: 'This incident report is already resolved or closed',
 
   // Generic
   NOT_FOUND:           'Resource not found',

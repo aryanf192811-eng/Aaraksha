@@ -22,8 +22,9 @@ async function seed() {
         TRUNCATE TABLE inbound_sos_sms, scam_reports, weather_cache, rescue_assignments,
           rescue_teams, volunteer_dispatches, volunteers, govt_users, tourist_locations,
           checkins, dead_mans_switches, sos_events, trips, tourists, destinations,
-          otp_verifications CASCADE
+          otp_verifications, incident_reports, safety_anomalies CASCADE
       `)
+      await client.query(`ALTER SEQUENCE incident_case_seq RESTART WITH 1`)
       console.log('✅ Tables cleared')
     } else {
       // Idempotent: check if already seeded
@@ -231,6 +232,19 @@ async function seed() {
        'CHECKPOINT_OFFICER', 'Dimapur', 'Nagaland']
     )
     console.log('  ✅ Govt checkpoint officer seeded: checkpoint.officer@aaraksha.gov.in / Checkpoint@123')
+
+    // POLICE — the E-FIR queue's primary investigating role (see
+    // migration 012_incident_reports / IncidentRepository.findAssignableOfficers).
+    // Keeps full command-center access on top of being checkpoint-eligible.
+    const policeOfficerHash = await hashPassword('Police@123')
+    const { rows: [policeOfficer] } = await client.query(`
+      INSERT INTO govt_users (name, email, password_hash, role, district, state)
+      VALUES ($1,$2,$3,$4,$5,$6)
+      RETURNING id`,
+      ['Inspector Aiyushman Rai', 'police.officer@aaraksha.gov.in', policeOfficerHash,
+       'POLICE', 'Kamrup Metropolitan', 'Assam']
+    )
+    console.log('  ✅ Govt police officer seeded: police.officer@aaraksha.gov.in / Police@123')
 
     // ── DEMO TOURIST ──────────────────────────────────────────────────
     const demoPhone    = '9999999999'
@@ -622,6 +636,50 @@ async function seed() {
     )
     console.log('  ✅ Demo tourist 5 (SOS assigned to a volunteer, EN_ROUTE): karan.demo@aaraksha.in (phone: 9000055501) / DemoPass123')
 
+    // ── E-FIR / INCIDENT REPORTS ─────────────────────────────────────
+    // Three cases across the investigation ladder (see migration
+    // 012_incident_reports) so the govt E-FIR Queue isn't empty on first
+    // login — an unassigned FILED case for the officer to pick up, one
+    // already ASSIGNED, and one actively UNDER_INVESTIGATION with notes.
+    async function nextCaseNumber() {
+      const { rows: [{ n }] } = await client.query(`SELECT nextval('incident_case_seq') as n`)
+      return `EFIR-${new Date().getFullYear()}-${String(n).padStart(6, '0')}`
+    }
+    const efirCase1 = await nextCaseNumber()
+    await client.query(`
+      INSERT INTO incident_reports (case_number, tourist_id, trip_id, category, description,
+        location_text, priority, status, filed_at)
+      VALUES ($1,$2,$3,'THEFT',$4,$5,'MEDIUM','FILED',$6)`,
+      [efirCase1, tourist.id, trip.id,
+       'My daypack was taken from the guesthouse common room while I was at dinner. It had my spare phone charger and about ₹2,000 cash.',
+       'Prashanti Guesthouse, Shillong', new Date(Date.now() - 2 * 24 * 3600 * 1000)]
+    )
+    const efirCase2 = await nextCaseNumber()
+    const efirCase2FiledAt = new Date(Date.now() - 5 * 24 * 3600 * 1000)
+    await client.query(`
+      INSERT INTO incident_reports (case_number, tourist_id, trip_id, category, description,
+        location_text, priority, status, assigned_officer_id, assigned_at, filed_at)
+      VALUES ($1,$2,$3,'HARASSMENT',$4,$5,'HIGH','ASSIGNED',$6,$7,$8)`,
+      [efirCase2, priya.id, priyaTrip.id,
+       'A man on a motorbike followed our group and made repeated inappropriate comments near the lake viewpoint before local shopkeepers intervened.',
+       'Ward\'s Lake, Shillong', policeOfficer.id,
+       new Date(efirCase2FiledAt.getTime() + 6 * 3600 * 1000), efirCase2FiledAt]
+    )
+    const efirCase3 = await nextCaseNumber()
+    const efirCase3FiledAt = new Date(Date.now() - 10 * 24 * 3600 * 1000)
+    await client.query(`
+      INSERT INTO incident_reports (case_number, tourist_id, trip_id, category, description,
+        location_text, priority, status, assigned_officer_id, assigned_at, resolution_notes, filed_at)
+      VALUES ($1,$2,$3,'FRAUD',$4,$5,'MEDIUM','UNDER_INVESTIGATION',$6,$7,$8,$9)`,
+      [efirCase3, sneha.id, snehaTrip.id,
+       'A taxi driver charged nearly 4x the fare quoted on the meter and refused to provide a receipt when I asked to see the fare breakdown.',
+       'Imphal Airport taxi stand', policeOfficer.id,
+       new Date(efirCase3FiledAt.getTime() + 12 * 3600 * 1000),
+       'Contacted the taxi union office — cross-checking the vehicle registration number against the complaint. Awaiting response.',
+       efirCase3FiledAt]
+    )
+    console.log('  ✅ 3 E-FIR incident reports seeded (FILED / ASSIGNED / UNDER_INVESTIGATION)')
+
     // ── DESTINATION NEWS & ALERTS ────────────────────────────────────
     // Curated per spec (mock/curated feed is explicitly the demo-appropriate
     // source, not a live external news API) — realistic NE India travel
@@ -673,6 +731,7 @@ async function seed() {
     console.log(`  Govt super admin:    admin@aaraksha.gov.in / Admin@123`)
     console.log(`  Govt district admin: district.officer@aaraksha.gov.in / District@123`)
     console.log(`  Govt checkpoint officer (CHECKPOINT_OFFICER): checkpoint.officer@aaraksha.gov.in / Checkpoint@123`)
+    console.log(`  Govt police officer (POLICE): police.officer@aaraksha.gov.in / Police@123 — E-FIR queue investigator`)
     console.log('  ── Demo tourists ──')
     console.log(`  1. Aryan Demo   — demo@aaraksha.in       (9999999999) / Demo@123  — ACTIVE trip, 1 check-in, 1 resolved SOS`)
     console.log(`  2. Priya Sharma — priya.demo@aaraksha.in (9876500001) / Demo@123  — COMPLETED trip, passport-ready (3 check-ins, activities, packing list)`)

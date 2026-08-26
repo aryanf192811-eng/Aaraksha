@@ -5,6 +5,8 @@ const incidentReportService = require('../services/incidentReport.service')
 const checkpointService = require('../services/checkpoint.service')
 const newsService = require('../services/news.service')
 const anomalyService = require('../services/anomaly.service')
+const incidentService = require('../services/incident.service')
+const efirReportService = require('../services/efirReport.service')
 const { sendSuccess, sendPaginated } = require('../utils/response')
 const { parsePaginationParams } = require('../utils/pagination')
 const logger = require('../utils/logger')
@@ -80,6 +82,48 @@ const resolveAnomaly = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+const getIncidentQueue = async (req, res, next) => {
+  try {
+    const { page, limit, offset } = parsePaginationParams(req.query)
+    const assignedOfficerId = req.query.assignedToMe === 'true' ? req.govtUser.id : req.query.assignedOfficerId
+    const { rows, total } = await incidentService.getQueue({ ...req.query, assignedOfficerId, limit, offset })
+    sendPaginated(res, rows, total, page, limit)
+  } catch (err) { next(err) }
+}
+
+const getIncident = async (req, res, next) => {
+  try { sendSuccess(res, await incidentService.getIncident(req.params.id)) } catch (err) { next(err) }
+}
+
+const getAssignableOfficers = async (req, res, next) => {
+  try { sendSuccess(res, await incidentService.getAssignableOfficers()) } catch (err) { next(err) }
+}
+
+const assignIncident = async (req, res, next) => {
+  try {
+    const incident = await incidentService.assignIncident(req.params.id, req.govtUser.id, req.validatedBody.officerId)
+    sendSuccess(res, incident, 'Incident assigned')
+  } catch (err) { next(err) }
+}
+
+const updateIncidentStatus = async (req, res, next) => {
+  try {
+    const { status, resolutionNotes, priority } = req.validatedBody
+    const incident = await incidentService.updateStatus(req.params.id, status, resolutionNotes, priority)
+    sendSuccess(res, incident, 'Incident status updated')
+  } catch (err) { next(err) }
+}
+
+const downloadEfirReport = async (req, res, next) => {
+  try {
+    const pdfStream = await efirReportService.generate(req.params.id)
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="aaraksha-efir-${req.params.id.slice(0, 8)}.pdf"`)
+    pdfStream.pipe(res)
+    pdfStream.on('error', err => { logger.error({ err: err.message }, 'E-FIR PDF stream error'); next(err) })
+  } catch (err) { next(err) }
+}
+
 const updateTeamStatus = async (req, res, next) => {
   try {
     const team = await govtService.updateTeamStatus(req.params.id, req.validatedBody.status)
@@ -136,4 +180,5 @@ module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRescueTeam
   resolveSOS, updateTeamStatus, downloadIncidentReport,
   scanCheckpoint, getRecentCheckpointScans, postDestinationNews,
   getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer,
-  getAnomalies, resolveAnomaly }
+  getAnomalies, resolveAnomaly,
+  getIncidentQueue, getIncident, getAssignableOfficers, assignIncident, updateIncidentStatus, downloadEfirReport }
