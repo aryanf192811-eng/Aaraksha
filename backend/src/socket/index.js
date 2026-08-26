@@ -42,7 +42,7 @@ function initSocket(server) {
     // Tourist or Govt — require JWT
     if (token) {
       try {
-        const payload = jwt.verify(token, config.jwt.secret)
+        const payload = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] })
         socket.data.role = payload.role
         if (payload.role === 'tourist')   socket.data.touristId   = payload.id
         if (payload.role === 'govt')      socket.data.govtUserId  = payload.id

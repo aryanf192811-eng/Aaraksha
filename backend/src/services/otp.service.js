@@ -82,8 +82,22 @@ async function requestPasswordReset(rawPhone, ipAddress) {
   const smsResult = await sendSMS(phone, message)
   logger.info({ phone, smsSent: smsResult.sent }, 'Password reset OTP sent')
 
-  // Always return the same message regardless of SMS success (anti-enumeration)
-  return { sent: true, message: `OTP sent to your registered phone number` }
+  // Always return the same message regardless of SMS success (anti-enumeration
+  // — an attacker probing phone numbers must see identical responses whether
+  // or not the phone is registered, so this can't branch on smsResult.sent).
+  // The debugOtp fallback below is the one deliberate exception: it only
+  // fires once we're already past the "does this phone exist" branch (this
+  // function returns early above for a non-existent/inactive tourist, before
+  // any OTP is even generated), so it can never be used to enumerate phones
+  // — it only ever tells someone who already knows a phone IS registered
+  // what its current OTP is, same trust boundary as the SMS itself. See
+  // requestEmergencyContactVerification for the same pattern and the
+  // Twilio-trial-account rationale.
+  return {
+    sent: true,
+    message: `OTP sent to your registered phone number`,
+    ...(config.isDev && !smsResult.sent ? { debugOtp: otp, debugReason: smsResult.reason } : {}),
+  }
 }
 
 // ── STEP 2: Verify OTP ────────────────────────────────────────────────────
@@ -205,9 +219,12 @@ async function requestPhoneVerification(touristId, rawPhone, ipAddress) {
     `Valid for ${OTP_EXPIRE_MINUTES} minutes.`,
   ].join('\n')
 
-  await sendSMS(phone, message)
-  logger.info({ touristId, phone }, 'Phone verification OTP sent')
-  return { message: 'Verification code sent to your phone.' }
+  const smsResult = await sendSMS(phone, message)
+  logger.info({ touristId, phone, smsSent: smsResult.sent }, 'Phone verification OTP sent')
+  return {
+    message: 'Verification code sent to your phone.',
+    ...(config.isDev && !smsResult.sent ? { debugOtp: otp, debugReason: smsResult.reason } : {}),
+  }
 }
 
 // ── Emergency Contact Verification ─────────────────────────────────────────

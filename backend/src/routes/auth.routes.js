@@ -4,8 +4,9 @@
 const router = require('express').Router()
 const ctrl   = require('../controllers/auth.controller')
 const { validate }  = require('../middleware/validate')
-const { authenticateTourist } = require('../middleware/auth')
+const { authenticateTourist, authenticateGovt, requireGovtRole } = require('../middleware/auth')
 const { createAuthLimiter, createOtpLimiter } = require('../middleware/rateLimiter')
+const { GOVT_ROLES } = require('../constants/enums')
 
 // Each auth-sensitive route gets its own limiter instance/counter — see
 // rateLimiter.js for why a single shared instance is wrong here. Registration
@@ -45,7 +46,13 @@ router.post('/resend-otp',      resendOtpLimiter, validate(ResendOTPSchema),    
 router.post('/send-verification-otp', authenticateTourist, verificationOtpLimiter, ctrl.sendVerificationOTP)
 
 // ── Government auth ────────────────────────────────────────────────────
-router.post('/govt/register',  govtRegisterLimiter, validate(RegisterGovtSchema), ctrl.registerGovt)
+// registerGovt provisions a NEW govt account and was previously reachable
+// by anyone, unauthenticated, with a caller-controlled `role` field —
+// meaning any request could self-assign SUPER_ADMIN and get a valid govt
+// JWT back immediately. Only an existing super admin may provision new
+// govt accounts now, matching the same govt-provisions-volunteer pattern
+// already used in govt.routes.js.
+router.post('/govt/register',  authenticateGovt, requireGovtRole(GOVT_ROLES.SUPER_ADMIN), govtRegisterLimiter, validate(RegisterGovtSchema), ctrl.registerGovt)
 router.post('/govt/login',     govtLoginLimiter,    validate(LoginGovtSchema),    ctrl.loginGovt)
 
 module.exports = router

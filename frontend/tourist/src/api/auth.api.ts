@@ -43,6 +43,16 @@ export interface ResetPasswordPayload {
   newPassword: string       // min 8 chars
 }
 
+// Only ever populated in a dev environment, and only when Twilio didn't
+// actually deliver the SMS (see backend otp.service.js) — a Twilio trial
+// account rejects free-form OTP message bodies, so this keeps the flow
+// demoable without a paid plan. Never present in production regardless of
+// SMS delivery outcome.
+export interface DebugOtpFields {
+  debugOtp?: string
+  debugReason?: string
+}
+
 const authApi = {
   register: (data: RegisterPayload) =>
     api.post<APIResponse<AuthResponse>>('/auth/register', data),
@@ -51,7 +61,7 @@ const authApi = {
     api.post<APIResponse<AuthResponse>>('/auth/login', data),
 
   forgotPassword: (data: ForgotPasswordPayload) =>
-    api.post<APIResponse<null>>('/auth/forgot-password', data),
+    api.post<APIResponse<DebugOtpFields | null>>('/auth/forgot-password', data),
 
   verifyOTP: (data: VerifyOTPPayload) =>
     api.post<APIResponse<{ resetToken: string; expiresIn: string }>>('/auth/verify-otp', data),
@@ -60,10 +70,10 @@ const authApi = {
     api.post<APIResponse<null>>('/auth/reset-password', data),
 
   resendOTP: (data: { phone: string; purpose?: string }) =>
-    api.post<APIResponse<null>>('/auth/resend-otp', data),
+    api.post<APIResponse<DebugOtpFields | null>>('/auth/resend-otp', data),
 
   sendVerificationOTP: () =>
-    api.post<APIResponse<null>>('/auth/send-verification-otp'),
+    api.post<APIResponse<DebugOtpFields | null>>('/auth/send-verification-otp'),
 
   loginGovt: (data: { email: string; password: string }) =>
     api.post<APIResponse<GovtAuthResponse>>('/auth/govt/login', data),

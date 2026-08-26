@@ -32,7 +32,7 @@ async function getCheckpointQR(touristId) {
 async function scanCheckpoint(rawToken, govtUserId, checkpointName, district, latitude, longitude) {
   let payload
   try {
-    payload = jwt.verify(rawToken, config.jwt.secret)
+    payload = jwt.verify(rawToken, config.jwt.secret, { algorithms: ['HS256'] })
   } catch (err) {
     const message = err.name === 'TokenExpiredError'
       ? 'This QR code has expired — ask the tourist to refresh it.'

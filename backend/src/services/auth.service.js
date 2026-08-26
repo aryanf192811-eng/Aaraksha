@@ -71,15 +71,19 @@ async function loginTourist(data) {
   return { tourist: { ...safeTourist, rescue_readiness_score: computeProfileReadiness(safeTourist) }, token }
 }
 
+// Provisions a new govt account — called by an authenticated SUPER_ADMIN
+// (see auth.routes.js), not a self-signup, so this deliberately does NOT
+// issue a session JWT for the new account. The admin doing the
+// provisioning stays logged in as themselves; the new officer logs in
+// separately with the credentials they're handed.
 async function registerGovt(data) {
   const repo = new GovtRepository()
   const existing = await repo.findByEmail(data.email)
   if (existing) throw Object.assign(new Error(ERRORS.EMAIL_TAKEN), { statusCode: 409 })
   const passwordHash = await hashPassword(data.password)
   const user = await repo.create({ ...data, passwordHash })
-  const token = generateJWT(user.id, 'govt')
-  logger.info({ govtUserId: user.id, role: data.role }, 'Govt user registered')
-  return { user, token }
+  logger.info({ govtUserId: user.id, role: data.role }, 'Govt user provisioned')
+  return { user }
 }
 
 async function loginGovt(data) {

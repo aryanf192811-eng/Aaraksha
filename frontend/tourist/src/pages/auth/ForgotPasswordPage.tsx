@@ -22,6 +22,7 @@ export default function ForgotPasswordPage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [resendTimer, setResendTimer] = useState(0)
+  const [debugOtp, setDebugOtp] = useState<string | null>(null)
   const otpRefs = useRef<Array<HTMLInputElement | null>>([])
 
   // Resend cooldown timer
@@ -34,8 +35,9 @@ export default function ForgotPasswordPage() {
   // ── Step 1: Request OTP ─────────────────────────────────────────
   const { mutate: requestOTP, isPending: requesting } = useMutation({
     mutationFn: () => authApi.forgotPassword({ phone }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       toast.success('OTP sent to your registered phone')
+      setDebugOtp(res.data.data?.debugOtp ?? null)
       setStep(2)
       setResendTimer(60)
     },
@@ -63,7 +65,11 @@ export default function ForgotPasswordPage() {
 
   const { mutate: resendOTP } = useMutation({
     mutationFn: () => authApi.resendOTP({ phone, purpose: 'PASSWORD_RESET' }),
-    onSuccess: () => { toast.success('OTP resent'); setResendTimer(60) },
+    onSuccess: (res) => {
+      toast.success('OTP resent')
+      setDebugOtp(res.data.data?.debugOtp ?? null)
+      setResendTimer(60)
+    },
   })
 
   // OTP input: auto-advance on digit entry, backspace handling
@@ -143,6 +149,11 @@ export default function ForgotPasswordPage() {
                   <h2 className="text-xl font-black text-on-surface mb-1">Enter the OTP</h2>
                   <p className="text-sm text-on-surface-variant">6-digit code sent to +91{phone}. Valid for 10 minutes.</p>
                 </div>
+                {debugOtp && (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    Demo mode — SMS delivery is unavailable on this Twilio trial account. Code: <span className="font-mono font-bold">{debugOtp}</span>
+                  </p>
+                )}
                 {/* OTP Input boxes */}
                 <div className="flex gap-2 justify-center">
                   {otp.map((digit, idx) => (

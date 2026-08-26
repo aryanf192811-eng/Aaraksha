@@ -24,7 +24,11 @@ function extractToken(req) {
 
 function verifyJWT(token) {
   try {
-    return jwt.verify(token, config.jwt.secret)
+    // Explicit algorithm allow-list — defense in depth against alg-confusion
+    // attacks, even though jsonwebtoken's own secret/key-type separation
+    // already prevents the classic "alg: none" / RS256-as-HS256 exploits
+    // for a plain string secret like this one.
+    return jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] })
   } catch (err) {
     if (err.name === 'TokenExpiredError') throw Object.assign(new Error(ERRORS.INVALID_TOKEN), { statusCode: 401, code: 'TOKEN_EXPIRED' })
     throw Object.assign(new Error(ERRORS.INVALID_TOKEN), { statusCode: 401 })

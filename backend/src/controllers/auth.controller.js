@@ -44,8 +44,10 @@ const forgotPassword = async (req, res, next) => {
     const { phone } = req.validatedBody
     const ipAddress = req.ip || req.connection?.remoteAddress || 'unknown'
     const result = await otpService.requestPasswordReset(phone, ipAddress)
-    // Always return 200 — never reveal if phone is registered
-    sendSuccess(res, null, result.message)
+    // Always return 200 — never reveal if phone is registered. debugOtp (dev
+    // only, and only when the phone really is registered — see
+    // otp.service.js) is the one field allowed through beyond the message.
+    sendSuccess(res, result.debugOtp ? { debugOtp: result.debugOtp, debugReason: result.debugReason } : null, result.message)
   } catch (err) { next(err) }
 }
 
@@ -75,7 +77,7 @@ const resendOTP = async (req, res, next) => {
     const { phone, purpose } = req.validatedBody
     const ipAddress = req.ip || req.connection?.remoteAddress || 'unknown'
     const result = await otpService.resendOTP(phone, purpose, ipAddress)
-    sendSuccess(res, null, result.message)
+    sendSuccess(res, result.debugOtp ? { debugOtp: result.debugOtp, debugReason: result.debugReason } : null, result.message)
   } catch (err) { next(err) }
 }
 
@@ -84,7 +86,7 @@ const sendVerificationOTP = async (req, res, next) => {
   try {
     const ipAddress = req.ip || req.connection?.remoteAddress || 'unknown'
     const result = await otpService.requestPhoneVerification(req.tourist.id, req.tourist.phone, ipAddress)
-    sendSuccess(res, null, result.message)
+    sendSuccess(res, result.debugOtp ? { debugOtp: result.debugOtp, debugReason: result.debugReason } : null, result.message)
   } catch (err) { next(err) }
 }
 
