@@ -6,7 +6,7 @@
 // user than a dotted key path.
 import type { TFunction } from 'i18next'
 
-type EnumGroup = 'sosCategory' | 'travelType' | 'zoneType' | 'tsiLabel' | 'tripStatus'
+type EnumGroup = 'sosCategory' | 'travelType' | 'zoneType' | 'tsiLabel' | 'tripStatus' | 'scamCategory' | 'crowdLevel' | 'feltSafe'
 
 export function tEnum(t: TFunction, group: EnumGroup, value: string | null | undefined): string {
   if (!value) return ''
