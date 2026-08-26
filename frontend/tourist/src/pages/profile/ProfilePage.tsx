@@ -3,20 +3,24 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { ArrowLeft, Copy, ExternalLink, Shield, LogOut, User, Phone, Droplet, Lock, Eye, Siren, CheckCircle2, Pencil, ShieldCheck, Loader2, QrCode } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { ArrowLeft, Copy, ExternalLink, Shield, LogOut, User, Phone, Droplet, Lock, Eye, Siren, CheckCircle2, Pencil, ShieldCheck, Loader2, QrCode, Languages } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { PageSkeleton } from '../../components/shared'
 import { useAuthStore } from '../../store/auth.store'
 import { queryClient } from '../../lib/queryClient'
 import touristApi from '../../api/tourist.api'
 import { cn } from '../../lib/utils'
+import { SUPPORTED_LANGUAGES } from '../../i18n/config'
 import type { EmergencyContact } from '../../types/api.types'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
   const { tourist, logout } = useAuthStore()
   const [showGuardianLink, setShowGuardianLink] = useState(false)
   const [verifyingContact, setVerifyingContact] = useState<EmergencyContact | null>(null)
@@ -37,17 +41,17 @@ export default function ProfilePage() {
       setDebugOtp(res.data.data.debugOtp ?? null)
       toast.success(res.data.data.message)
     },
-    onError: () => toast.error('Could not send verification code'),
+    onError: () => toast.error(t('profile.toastOtpFailed')),
   })
 
   const { mutate: confirmContactOTP, isPending: confirmingOTP } = useMutation({
     mutationFn: () => touristApi.verifyEmergencyContactOTP(verifyingContact!.phone, otpCode.trim()),
     onSuccess: () => {
-      toast.success(`${verifyingContact?.name} verified!`)
+      toast.success(t('profile.toastContactVerified', { name: verifyingContact?.name }))
       queryClient.invalidateQueries({ queryKey: ['tourists', 'me'] })
       closeVerifyDialog()
     },
-    onError: (err: any) => toast.error(err?.response?.data?.message || 'Incorrect or expired code'),
+    onError: (err: any) => toast.error(err?.response?.data?.message || t('profile.toastOtpWrong')),
   })
 
   const openVerifyDialog = (contact: EmergencyContact) => {
@@ -74,13 +78,13 @@ export default function ProfilePage() {
 
   const handleCopyGuardianLink = async () => {
     await navigator.clipboard.writeText(guardianUrl)
-    toast.success('Guardian tracking link copied! Share with family.')
+    toast.success(t('profile.toastLinkCopied'))
   }
 
   const handleLogout = () => {
     logout()
     navigate('/')
-    toast.success('Logged out successfully')
+    toast.success(t('profile.toastLoggedOut'))
   }
 
   if (!profile) return <div className="min-h-screen bg-surface"><PageSkeleton /></div>
@@ -90,10 +94,10 @@ export default function ProfilePage() {
       <div className="bg-surface-container-lowest px-5 pt-12 pb-4 shadow-sm">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)}><ArrowLeft className="w-6 h-6 text-on-surface" /></button>
-          <h1 className="text-xl font-black text-on-surface flex-1">Profile</h1>
+          <h1 className="text-xl font-black text-on-surface flex-1">{t('profile.title')}</h1>
           <button onClick={() => navigate('/profile/edit')}
             className="flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full">
-            <Pencil className="w-3.5 h-3.5" /> Edit
+            <Pencil className="w-3.5 h-3.5" /> {t('common.edit')}
           </button>
         </div>
       </div>
@@ -111,12 +115,30 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Language */}
+        <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Languages className="w-5 h-5 text-primary" />
+            <span className="font-bold text-on-surface">{t('common.language')}</span>
+          </div>
+          <Select value={i18n.language} onValueChange={(v) => i18n.changeLanguage(v)}>
+            <SelectTrigger className="w-36 h-10 rounded-xl bg-surface-container">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SUPPORTED_LANGUAGES.map((l) => (
+                <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Rescue readiness */}
         <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Shield className="w-5 h-5 text-primary" />
-              <span className="font-bold text-on-surface">Rescue Readiness</span>
+              <span className="font-bold text-on-surface">{t('profile.rescueReadiness')}</span>
             </div>
             <span className={cn('font-black text-lg',
               profile.rescue_readiness_score >= 80 ? 'text-green-600' :
@@ -130,23 +152,23 @@ export default function ProfilePage() {
             )} style={{ width: `${profile.rescue_readiness_score}%` }} />
           </div>
           <p className="text-xs text-on-surface-variant mt-2">
-            {profile.rescue_readiness_score < 100 ? 'Add blood group and emergency contacts to improve your rescue readiness.' : 'All safety info complete!'}
+            {profile.rescue_readiness_score < 100 ? t('profile.rescueReadinessIncomplete') : t('profile.rescueReadinessComplete')}
           </p>
         </div>
 
         {/* Health info */}
         <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 space-y-3">
           <h3 className="font-bold text-on-surface flex items-center gap-2">
-            <Droplet className="w-4 h-4 text-red-500" /> Health Information
+            <Droplet className="w-4 h-4 text-red-500" /> {t('profile.healthInformation')}
           </h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-red-50 rounded-xl p-3 text-center">
               <p className="text-2xl font-black text-red-600">{profile.blood_group || '—'}</p>
-              <p className="text-xs text-red-600 font-semibold mt-0.5">Blood Group</p>
+              <p className="text-xs text-red-600 font-semibold mt-0.5">{t('profile.bloodGroup')}</p>
             </div>
             <div className="bg-surface-container rounded-xl p-3">
-              <p className="text-xs text-on-surface-variant font-semibold mb-1">Medical Info</p>
-              <p className="text-sm text-on-surface">{profile.medical_info || 'Not set'}</p>
+              <p className="text-xs text-on-surface-variant font-semibold mb-1">{t('profile.medicalInfo')}</p>
+              <p className="text-sm text-on-surface">{profile.medical_info || t('profile.notSet')}</p>
             </div>
           </div>
         </div>
@@ -155,13 +177,13 @@ export default function ProfilePage() {
         <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5">
           <div className="flex items-center gap-2 mb-3">
             <User className="w-4 h-4 text-on-surface-variant" />
-            <span className="font-bold text-on-surface">Government ID</span>
+            <span className="font-bold text-on-surface">{t('profile.governmentId')}</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs bg-surface-container-high text-on-surface-variant px-3 py-1.5 rounded-full font-semibold">{profile.govt_id_type}</span>
             <span className="text-on-surface font-mono font-bold">•••• •••• {profile.govt_id_suffix}</span>
             <span className="text-xs text-green-600 ml-auto flex items-center gap-1 font-semibold">
-              <Lock className="w-3 h-3" /> Encrypted
+              <Lock className="w-3 h-3" /> {t('profile.encrypted')}
             </span>
           </div>
         </div>
@@ -171,9 +193,9 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Phone className="w-4 h-4 text-on-surface-variant" />
-              <span className="font-bold text-on-surface">Emergency Contacts</span>
+              <span className="font-bold text-on-surface">{t('profile.emergencyContacts')}</span>
             </div>
-            <span className="text-xs text-on-surface-variant">{(profile.emergency_contacts || []).length} contacts</span>
+            <span className="text-xs text-on-surface-variant">{t('profile.contactsCount', { count: (profile.emergency_contacts || []).length })}</span>
           </div>
           <div className="space-y-2">
             {(profile.emergency_contacts || []).map((c, i) => (
@@ -192,12 +214,12 @@ export default function ProfilePage() {
                 )}
                 {c.verified ? (
                   <span className="text-xs text-green-600 font-semibold flex items-center gap-0.5">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Verified
+                    <ShieldCheck className="w-3.5 h-3.5" /> {t('profile.verified')}
                   </span>
                 ) : (
                   <button onClick={() => openVerifyDialog(c)}
                     className="text-xs text-primary font-semibold underline flex-shrink-0">
-                    Verify
+                    {t('profile.verify')}
                   </button>
                 )}
               </div>
@@ -210,13 +232,13 @@ export default function ProfilePage() {
           <div className="flex items-center gap-2 mb-3">
             <Eye className="w-5 h-5 text-primary" />
             <div>
-              <h3 className="font-bold text-on-surface">Guardian Tracking Link</h3>
-              <p className="text-xs text-on-surface-variant">Share with family to track your journey</p>
+              <h3 className="font-bold text-on-surface">{t('profile.guardianLinkTitle')}</h3>
+              <p className="text-xs text-on-surface-variant">{t('profile.guardianLinkSubtitle')}</p>
             </div>
           </div>
           <button onClick={() => setShowGuardianLink(v => !v)}
             className="text-xs text-primary font-semibold underline mb-2">
-            {showGuardianLink ? 'Hide link' : 'Show link'}
+            {showGuardianLink ? t('profile.hideLink') : t('profile.showLink')}
           </button>
           {showGuardianLink && (
             <div className="bg-surface-container-lowest rounded-xl p-3 font-mono text-xs text-on-surface-variant break-all mb-2">
@@ -226,17 +248,17 @@ export default function ProfilePage() {
           <div className="flex gap-2">
             <Button size="sm" onClick={handleCopyGuardianLink}
               className="flex-1 bg-primary hover:brightness-95 text-on-surface rounded-full text-xs font-bold">
-              <Copy className="w-3 h-3 mr-1" /> Copy Link
+              <Copy className="w-3 h-3 mr-1" /> {t('profile.copyLink')}
             </Button>
             {typeof navigator.share === 'function' && (
               <Button size="sm" variant="outline"
                 onClick={() => navigator.share({ title: 'Track my journey — Aaraksha', url: guardianUrl })}
                 className="flex-1 rounded-full text-xs">
-                <ExternalLink className="w-3 h-3 mr-1" /> Share
+                <ExternalLink className="w-3 h-3 mr-1" /> {t('profile.shareLink')}
               </Button>
             )}
           </div>
-          <p className="text-xs text-primary mt-2">Valid for 90 days · Renews automatically</p>
+          <p className="text-xs text-primary mt-2">{t('profile.guardianLinkValidity')}</p>
         </div>
 
         {/* Digital Tourist ID */}
@@ -246,30 +268,30 @@ export default function ProfilePage() {
             <QrCode className="w-5 h-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-on-surface">Digital Tourist ID</p>
-            <p className="text-xs text-on-surface-variant">Show your verified ID at govt checkpoints and ILP posts</p>
+            <p className="font-bold text-on-surface">{t('profile.digitalId')}</p>
+            <p className="text-xs text-on-surface-variant">{t('profile.digitalIdDescription')}</p>
           </div>
         </button>
 
         {/* Logout */}
         <Button variant="outline" onClick={handleLogout}
           className="w-full h-12 rounded-full border-red-200 text-red-600 hover:bg-red-50 font-bold">
-          <LogOut className="w-4 h-4 mr-2" /> Sign Out
+          <LogOut className="w-4 h-4 mr-2" /> {t('common.signOut')}
         </Button>
 
         <p className="text-center text-xs text-on-surface-variant pb-4 flex items-center justify-center gap-1">
-          <CheckCircle2 className="w-3 h-3" /> Aaraksha v1.0.0 · SIH 2025 · Smart Tourism · Safe Journey
+          <CheckCircle2 className="w-3 h-3" /> {t('profile.footer')}
         </p>
       </div>
 
       <Dialog open={!!verifyingContact} onOpenChange={(open) => !open && closeVerifyDialog()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Verify {verifyingContact?.name}</DialogTitle>
+            <DialogTitle>{t('profile.verifyDialogTitle', { name: verifyingContact?.name })}</DialogTitle>
             <DialogDescription>
               {otpSent
-                ? `Enter the 6-digit code sent to ${verifyingContact?.phone}.`
-                : `Confirm this is a real, reachable number before it's relied on during an SOS.`}
+                ? t('profile.verifyDialogSentCode', { phone: verifyingContact?.phone })
+                : t('profile.verifyDialogConfirm')}
             </DialogDescription>
           </DialogHeader>
 
@@ -277,13 +299,13 @@ export default function ProfilePage() {
             <Button onClick={() => sendContactOTP(verifyingContact!.phone)} disabled={sendingOTP}
               className="w-full bg-primary hover:brightness-95 text-on-surface font-bold rounded-full">
               {sendingOTP ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              {sendingOTP ? 'Sending...' : 'Send Code'}
+              {sendingOTP ? t('profile.sending') : t('profile.sendCode')}
             </Button>
           ) : (
             <>
               {debugOtp && (
                 <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Demo mode — SMS delivery is unavailable on this Twilio trial account. Code: <span className="font-mono font-bold">{debugOtp}</span>
+                  {t('profile.demoOtpNotice')} <span className="font-mono font-bold">{debugOtp}</span>
                 </p>
               )}
               <Input
@@ -299,7 +321,7 @@ export default function ProfilePage() {
                 <Button onClick={() => confirmContactOTP()} disabled={confirmingOTP || otpCode.length !== 6}
                   className="bg-primary hover:brightness-95 text-on-surface font-bold rounded-full">
                   {confirmingOTP ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  {confirmingOTP ? 'Verifying...' : 'Verify'}
+                  {confirmingOTP ? t('profile.verifying') : t('profile.verify')}
                 </Button>
               </DialogFooter>
             </>

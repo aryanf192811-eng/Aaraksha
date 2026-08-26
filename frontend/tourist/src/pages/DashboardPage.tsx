@@ -2,6 +2,7 @@
 // Layout: sticky header -> hero status -> quick actions -> active trip -> DMS card -> recent trips
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Plus, Map, Shield, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed } from '../components/shared'
@@ -14,6 +15,7 @@ import tripApi from '../api/trip.api'
 import newsApi from '../api/news.api'
 import type { Trip } from '../types/api.types'
 import { formatDate, cn } from '../lib/utils'
+import { tEnum } from '../lib/i18nEnums'
 import { TRIP_STATUSES } from '../constants/enums'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -24,13 +26,14 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 const QUICK_ACTIONS = [
-  { Icon: MapPin,        label: 'Check In', route: '/checkin',  color: 'bg-green-50 border-green-200' },
-  { Icon: Map,            label: 'My Trips', route: '/trips',    color: 'bg-amber-50 border-amber-200' },
-  { Icon: AlertTriangle, label: 'Advisory', route: '/advisory', color: 'bg-orange-50 border-orange-200' },
+  { Icon: MapPin,        labelKey: 'dashboard.checkIn',  route: '/checkin',  color: 'bg-green-50 border-green-200' },
+  { Icon: Map,            labelKey: 'dashboard.myTrips',  route: '/trips',    color: 'bg-amber-50 border-amber-200' },
+  { Icon: AlertTriangle, labelKey: 'dashboard.advisory', route: '/advisory', color: 'bg-orange-50 border-orange-200' },
 ]
 
 export default function DashboardPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const tourist = useAuthStore((s) => s.tourist)
   const { dms } = useDMS()
   const activeSOSId = useSafetyStore((s) => s.activeSOSId)
@@ -62,9 +65,9 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs font-extrabold text-primary uppercase tracking-widest">Aaraksha</p>
             <h1 className="font-display text-2xl font-black text-on-surface leading-tight mt-0.5">
-              Welcome, {tourist?.full_name?.split(' ')[0] || 'Traveler'}
+              {t('dashboard.welcome', { name: tourist?.full_name?.split(' ')[0] || t('dashboard.travelerFallback') })}
             </h1>
-            <p className="text-sm text-on-surface-variant mt-0.5">Smart Tourism · Safe Journey</p>
+            <p className="text-sm text-on-surface-variant mt-0.5">{t('dashboard.tagline')}</p>
           </div>
           <button className="relative p-2" onClick={() => navigate('/profile')}>
             <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
@@ -81,7 +84,7 @@ export default function DashboardPage() {
             <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
             <TSIBadge score={activeTrip.tsi_score} size="md" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-extrabold text-primary uppercase tracking-wide">Active Trip</p>
+              <p className="text-xs font-extrabold text-primary uppercase tracking-wide">{t('dashboard.activeTrip')}</p>
               <p className="font-bold text-on-surface truncate">{activeTrip.title}</p>
               <p className="text-xs text-on-surface-variant">{formatDate(activeTrip.start_date)} → {formatDate(activeTrip.end_date)}</p>
             </div>
@@ -93,9 +96,9 @@ export default function DashboardPage() {
       {/* ── Safety Section ────────────────────────────────────────── */}
       <div className="px-5 mt-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-black text-on-surface">Safety</h2>
+          <h2 className="font-display text-lg font-black text-on-surface">{t('dashboard.safety')}</h2>
           <Button variant="ghost" size="sm" onClick={() => navigate('/sos')} className="text-primary font-semibold">
-            <Shield className="w-4 h-4 mr-1" /> Safety Center
+            <Shield className="w-4 h-4 mr-1" /> {t('dashboard.safetyCenter')}
           </Button>
         </div>
 
@@ -105,7 +108,7 @@ export default function DashboardPage() {
           {activeSOSId && (
             <div className="bg-sos-light border border-sos/30 rounded-xl px-4 py-2 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-sos flex-shrink-0" />
-              <p className="text-sm font-bold text-sos-dark">SOS Active — Emergency services notified</p>
+              <p className="text-sm font-bold text-sos-dark">{t('dashboard.sosActiveBanner')}</p>
             </div>
           )}
         </div>
@@ -119,10 +122,10 @@ export default function DashboardPage() {
         <div className="px-5 mt-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-display text-lg font-black text-on-surface flex items-center gap-1.5">
-              <Newspaper className="w-4.5 h-4.5" /> Latest Alerts
+              <Newspaper className="w-4.5 h-4.5" /> {t('dashboard.latestAlerts')}
             </h2>
             <Button variant="ghost" size="sm" onClick={() => navigate(`/trips/${activeTrip.id}`)} className="text-primary font-semibold">
-              View all
+              {t('common.viewAll')}
             </Button>
           </div>
           <NewsFeed items={latestNews.slice(0, 2)} showDestinationName />
@@ -132,11 +135,11 @@ export default function DashboardPage() {
       {/* ── Quick Actions ─────────────────────────────────────────── */}
       <div className="px-5 mt-5">
         <div className="grid grid-cols-3 gap-3">
-          {QUICK_ACTIONS.map(({ Icon, label, route, color }) => (
-            <button key={label} onClick={() => navigate(route)}
+          {QUICK_ACTIONS.map(({ Icon, labelKey, route, color }) => (
+            <button key={labelKey} onClick={() => navigate(route)}
               className={cn('rounded-2xl border p-4 flex flex-col items-center gap-2 font-semibold text-xs text-on-surface bg-surface-container-lowest shadow-sm hover:shadow-md active:scale-95 transition-all', color)}>
               <Icon className="w-6 h-6" />
-              {label}
+              {t(labelKey)}
             </button>
           ))}
         </div>
@@ -145,20 +148,20 @@ export default function DashboardPage() {
       {/* ── Recent Trips ──────────────────────────────────────────── */}
       <div className="px-5 mt-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-lg font-black text-on-surface">My Trips</h2>
+          <h2 className="font-display text-lg font-black text-on-surface">{t('dashboard.myTrips')}</h2>
           <Button variant="ghost" size="sm" onClick={() => navigate('/trips')} className="text-primary font-semibold">
-            View all
+            {t('common.viewAll')}
           </Button>
         </div>
 
         {isLoading && [1, 2].map(i => <TripCardSkeleton key={i} />)}
 
         {!isLoading && trips.length === 0 && (
-          <EmptyState icon={Plane} title="No trips yet"
-            description="Plan your first safe journey to Northeast India"
+          <EmptyState icon={Plane} title={t('dashboard.noTripsTitle')}
+            description={t('dashboard.noTripsDescription')}
             action={
               <Button onClick={() => navigate('/trips/new')} className="bg-primary hover:brightness-95 text-primary-foreground rounded-full px-6">
-                <Plus className="w-4 h-4 mr-2" /> Plan New Trip
+                <Plus className="w-4 h-4 mr-2" /> {t('dashboard.planNewTrip')}
               </Button>
             }
           />
@@ -173,7 +176,7 @@ export default function DashboardPage() {
         {trips.length > 0 && (
           <Button onClick={() => navigate('/trips/new')}
             className="w-full mt-4 bg-on-surface hover:bg-on-surface/90 text-surface rounded-full h-12 font-bold">
-            <Plus className="w-4 h-4 mr-2" /> Plan New Trip
+            <Plus className="w-4 h-4 mr-2" /> {t('dashboard.planNewTrip')}
           </Button>
         )}
       </div>
@@ -196,6 +199,7 @@ export default function DashboardPage() {
 }
 
 function TripCard({ trip, onClick }: { trip: Trip; onClick: () => void }) {
+  const { t } = useTranslation()
   return (
     <div onClick={onClick} role="button"
       className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant p-5 flex items-center gap-4 active:scale-[0.98] transition-transform cursor-pointer">
@@ -205,10 +209,10 @@ function TripCard({ trip, onClick }: { trip: Trip; onClick: () => void }) {
         <p className="text-xs text-on-surface-variant mt-0.5">{formatDate(trip.start_date)} → {formatDate(trip.end_date)}</p>
         <div className="flex items-center gap-2 mt-1">
           <span className={cn('text-xs px-2 py-0.5 rounded-full font-semibold', STATUS_COLORS[trip.status] || STATUS_COLORS.PLANNED)}>
-            {trip.status}
+            {tEnum(t, 'tripStatus', trip.status)}
           </span>
           <span className="flex items-center gap-0.5 text-xs text-on-surface-variant">
-            <MapPin className="w-3 h-3" /> {(trip.stop_count || 0)} stops
+            <MapPin className="w-3 h-3" /> {(trip.stop_count || 0)} {t('dashboard.stops')}
           </span>
         </div>
       </div>
