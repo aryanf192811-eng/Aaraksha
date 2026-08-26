@@ -197,10 +197,25 @@ const VOLUNTEER_DISPATCH_STATUSES = Object.freeze({
   DECLINED: 'DECLINED',
 })
 
+// Always-on rule-based safety net (see migration 011_safety_anomalies) —
+// distinct from an SOS: an anomaly means "this needs a human to check in
+// on," not "an emergency is confirmed." INACTIVITY = no location update in
+// too long for an active trip; ROUTE_DEVIATION = last known position is
+// far from every planned stop.
+const ANOMALY_TYPES = Object.freeze({
+  INACTIVITY: 'INACTIVITY',
+  ROUTE_DEVIATION: 'ROUTE_DEVIATION',
+})
+const ANOMALY_STATUSES = Object.freeze({
+  OPEN: 'OPEN',
+  RESOLVED: 'RESOLVED',
+})
+
 module.exports = {
   TRAVEL_TYPES, TRIP_STATUSES, SOS_CATEGORIES, SOS_STATUSES, SOS_TRIGGER_TYPES,
   DMS_STATUSES, CHECKIN_TYPES, GOVT_ROLES, GOVT_ID_TYPES, CONNECTIVITY, DIFFICULTY,
   ZONE_TYPES, WEATHER_CONDITIONS, WEATHER_RISK, TEAM_TYPES, TEAM_STATUSES,
   ASSIGNMENT_STATUSES, SCAM_CATEGORIES, ACTIVITY_TYPES, PACKING_CATEGORIES,
   NOTIFICATION_TIERS, VOLUNTEER_STATUSES, VOLUNTEER_DISPATCH_STATUSES, RESCUER_TYPES,
+  ANOMALY_TYPES, ANOMALY_STATUSES,
 }

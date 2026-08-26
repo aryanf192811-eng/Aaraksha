@@ -311,10 +311,45 @@ function emitRescuerStatusUpdate(sosEvent, guardianToken, status) {
   safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.RESCUER_STATUS_UPDATE, payload)
 }
 
+// Govt dashboard: the anomaly cron flagged a tourist. For INACTIVITY only,
+// also nudge the tourist directly — a route deviation is something they
+// already know about (they're the one who moved), but "we haven't heard
+// from you in a while" is genuinely useful for them to see too, not just
+// the operators watching the dashboard.
+function emitAnomalyDetected(anomaly, tourist) {
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.TOURIST_ANOMALY_DETECTED, {
+    anomalyId:   anomaly.id,
+    touristId:   anomaly.tourist_id,
+    touristName: tourist?.full_name,
+    phone:       tourist?.phone,
+    type:        anomaly.type,
+    latitude:    anomaly.last_latitude,
+    longitude:   anomaly.last_longitude,
+    distanceFromRouteKm: anomaly.distance_from_route_km,
+    details:     anomaly.details,
+    detectedAt:  anomaly.detected_at,
+  })
+  if (anomaly.type === 'INACTIVITY' && tourist?.id) {
+    sendPushToTourist(tourist.id, {
+      title: 'Aaraksha — Still there?',
+      body: "We haven't heard from your app in a while. Open Aaraksha and check in if you're safe.",
+      url: '/checkin',
+    })
+  }
+}
+
+// Govt dashboard: an operator reviewed and cleared an anomaly.
+function emitAnomalyResolved(anomaly) {
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.TOURIST_ANOMALY_RESOLVED, {
+    anomalyId: anomaly.id, touristId: anomaly.tourist_id, resolvedAt: anomaly.resolved_at,
+  })
+}
+
 module.exports = {
   emitSOSReceived, emitSOSResolved, emitRescueAssigned, emitDMSTriggered,
   emitTSIUpdated, emitCheckinUpdate, emitGuardianSOSAlert, emitGuardianRescueAssigned,
   emitWeatherRiskIncreased, emitGroupSOSAlert, emitDestinationNewsCritical,
   emitVolunteerSOSAlert, emitVolunteerAssignmentUpdated,
   emitVolunteerAssigned, emitRescuerLocationUpdate, emitRescuerStatusUpdate,
+  emitAnomalyDetected, emitAnomalyResolved,
 }

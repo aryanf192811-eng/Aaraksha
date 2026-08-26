@@ -4,6 +4,7 @@ const govtReportService = require('../services/govtReport.service')
 const incidentReportService = require('../services/incidentReport.service')
 const checkpointService = require('../services/checkpoint.service')
 const newsService = require('../services/news.service')
+const anomalyService = require('../services/anomaly.service')
 const { sendSuccess, sendPaginated } = require('../utils/response')
 const { parsePaginationParams } = require('../utils/pagination')
 const logger = require('../utils/logger')
@@ -66,6 +67,19 @@ const resolveSOS = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+const getAnomalies = async (req, res, next) => {
+  try {
+    sendSuccess(res, await anomalyService.getOpenAnomalies())
+  } catch (err) { next(err) }
+}
+
+const resolveAnomaly = async (req, res, next) => {
+  try {
+    const anomaly = await anomalyService.resolveAnomaly(req.params.id, req.govtUser.id)
+    sendSuccess(res, anomaly, 'Anomaly resolved')
+  } catch (err) { next(err) }
+}
+
 const updateTeamStatus = async (req, res, next) => {
   try {
     const team = await govtService.updateTeamStatus(req.params.id, req.validatedBody.status)
@@ -121,4 +135,5 @@ module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRescueTeam
   getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, getNearbyRescuers, getActiveRescuers,
   resolveSOS, updateTeamStatus, downloadIncidentReport,
   scanCheckpoint, getRecentCheckpointScans, postDestinationNews,
-  getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer }
+  getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer,
+  getAnomalies, resolveAnomaly }

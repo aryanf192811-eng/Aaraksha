@@ -59,6 +59,7 @@ const ERRORS = Object.freeze({
   DISPATCH_ALREADY_CLOSED: 'This dispatch is already resolved',
   VOLUNTEER_NOT_AVAILABLE: 'Volunteer is not available — status must be AVAILABLE to assign',
   ASSIGNMENT_NOT_FOUND:    'Assignment not found or access denied',
+  ANOMALY_NOT_FOUND:       'Anomaly not found or already resolved',
 
   // Generic
   NOT_FOUND:           'Resource not found',

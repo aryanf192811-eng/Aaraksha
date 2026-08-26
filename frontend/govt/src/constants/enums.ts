@@ -211,6 +211,8 @@ export const SOCKET_EVENTS = {
   // rooms (see backend/src/socket/emitters.js#emitRescuerLocationUpdate).
   RESCUER_LOCATION_UPDATE: 'RESCUER_LOCATION_UPDATE',
   RESCUER_STATUS_UPDATE:   'RESCUER_STATUS_UPDATE',
+  TOURIST_ANOMALY_DETECTED: 'TOURIST_ANOMALY_DETECTED',
+  TOURIST_ANOMALY_RESOLVED: 'TOURIST_ANOMALY_RESOLVED',
 
   // Server -> Tourist room (tourist:{touristId})
   TSI_UPDATED:        'TSI_UPDATED',

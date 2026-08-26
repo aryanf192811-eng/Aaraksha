@@ -23,6 +23,13 @@ interface DMSTriggeredPayload {
   category: string
 }
 
+interface AnomalyDetectedPayload {
+  anomalyId: string
+  touristId: string
+  touristName?: string
+  type: 'INACTIVITY' | 'ROUTE_DEVIATION'
+}
+
 export function useSOSSocket() {
   const token = useAuthStore(s => s.token)
   const [activeSosCount, setActiveSosCount] = useState(0)
@@ -84,6 +91,21 @@ export function useSOSSocket() {
       queryClient.invalidateQueries({ queryKey: ['govt', 'active-rescuers'] })
     }
 
+    // A tourist went quiet or drifted off their planned route — see
+    // backend anomaly.service.js. Not an emergency confirmation like SOS,
+    // so a persistent (but non-blocking) toast rather than duration: 0.
+    const onAnomalyDetected = (data: AnomalyDetectedPayload) => {
+      const label = data.type === 'INACTIVITY' ? 'gone quiet' : 'off planned route'
+      toast.warning(`Anomaly: ${data.touristName ?? 'A tourist'} — ${label}`, {
+        action: { label: 'View', onClick: () => { window.location.href = '/map' } },
+      })
+      queryClient.invalidateQueries({ queryKey: ['govt', 'anomalies'] })
+    }
+
+    const onAnomalyResolved = () => {
+      queryClient.invalidateQueries({ queryKey: ['govt', 'anomalies'] })
+    }
+
     socket.on(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
     socket.on(SOCKET_EVENTS.SOS_RESOLVED, onSOSResolved)
     socket.on(SOCKET_EVENTS.DMS_TRIGGERED, onDMSTriggered)
@@ -91,6 +113,8 @@ export function useSOSSocket() {
     socket.on(SOCKET_EVENTS.RESCUE_ASSIGNED, onRescueAssigned)
     socket.on(SOCKET_EVENTS.RESCUER_LOCATION_UPDATE, onRescuerUpdate)
     socket.on(SOCKET_EVENTS.RESCUER_STATUS_UPDATE, onRescuerUpdate)
+    socket.on(SOCKET_EVENTS.TOURIST_ANOMALY_DETECTED, onAnomalyDetected)
+    socket.on(SOCKET_EVENTS.TOURIST_ANOMALY_RESOLVED, onAnomalyResolved)
 
     return () => {
       socket.off(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
@@ -100,6 +124,8 @@ export function useSOSSocket() {
       socket.off(SOCKET_EVENTS.RESCUE_ASSIGNED, onRescueAssigned)
       socket.off(SOCKET_EVENTS.RESCUER_LOCATION_UPDATE, onRescuerUpdate)
       socket.off(SOCKET_EVENTS.RESCUER_STATUS_UPDATE, onRescuerUpdate)
+      socket.off(SOCKET_EVENTS.TOURIST_ANOMALY_DETECTED, onAnomalyDetected)
+      socket.off(SOCKET_EVENTS.TOURIST_ANOMALY_RESOLVED, onAnomalyResolved)
       mountCount.current -= 1
       if (mountCount.current <= 0) disconnectSocket()
     }

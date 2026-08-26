@@ -1,10 +1,11 @@
 // src/pages/LiveMapPage.tsx — real-time ops map with tourist status markers
 import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { AlertTriangle, Battery, LocateFixed, Navigation2, Flame } from 'lucide-react'
+import { toast } from 'sonner'
+import { AlertTriangle, Battery, LocateFixed, Navigation2, Flame, Radar, CheckCircle2 } from 'lucide-react'
 import govtApi from '../api/govt.api'
 import { getRoute, type Route } from '../lib/osrm'
 import { cn, formatTimeAgo } from '../lib/utils'
@@ -48,6 +49,23 @@ const RESCUER_ICON = L.divIcon({
   iconAnchor: [14, 14],
 })
 
+// Diamond badge, not a circle — visually distinct from every other marker
+// shape on this map (tourist status dots, rescuer arrow) so an anomaly
+// reads as "worth a look" rather than "confirmed emergency" at a glance.
+// Indigo rather than red/amber: this is a rule-based flag for a human to
+// check, not the SOS/warning severity ladder those colors already own.
+const ANOMALY_ICON = L.divIcon({
+  className: '',
+  html: `<div style="background:#4f46e5;width:22px;height:22px;transform:rotate(45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.35);border:2px solid white"><span style="transform:rotate(-45deg);color:white;font-size:12px;font-weight:900;line-height:1">?</span></div>`,
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+})
+
+const ANOMALY_LABEL: Record<string, string> = {
+  INACTIVITY: 'Gone quiet',
+  ROUTE_DEVIATION: 'Off planned route',
+}
+
 // Recenter control — after panning around the ops map to inspect an
 // incident, one click returns to the full Northeast India overview.
 function RecenterControl({ center, zoom }: { center: [number, number]; zoom: number }) {
@@ -64,9 +82,29 @@ export default function LiveMapPage() {
   const [selectedTourist, setSelectedTourist] = useState<LiveTourist | null>(null)
   const [routes, setRoutes] = useState<Record<string, Route | null>>({})
   const [showDensity, setShowDensity] = useState(true)
+  const queryClient = useQueryClient()
   // Pushes an instant refetch on SOS/DMS/location events instead of waiting
   // for the next poll tick; the interval below stays as a safety net.
   useSOSSocket()
+
+  // Open safety anomalies (inactivity / route deviation) — rule-based flags
+  // from the anomaly-detection cron, not confirmed emergencies. Socket
+  // events push an instant invalidation; this interval is the safety net.
+  const { data: anomalyData } = useQuery({
+    queryKey: ['govt', 'anomalies'],
+    queryFn: () => govtApi.getAnomalies().then(r => r.data.data),
+    refetchInterval: 20_000,
+  })
+  const anomalies = anomalyData || []
+
+  const resolveAnomalyMutation = useMutation({
+    mutationFn: (id: string) => govtApi.resolveAnomaly(id),
+    onSuccess: () => {
+      toast.success('Anomaly resolved')
+      queryClient.invalidateQueries({ queryKey: ['govt', 'anomalies'] })
+    },
+    onError: () => toast.error('Failed to resolve anomaly'),
+  })
 
   const { data: tourists, isLoading } = useQuery({
     queryKey: ['govt', 'tourists', 'live'],
@@ -147,6 +185,12 @@ export default function LiveMapPage() {
             <div className="flex items-center gap-1.5">
               <Navigation2 className="w-3 h-3 text-primary flex-shrink-0" />
               <span className="text-on-surface-variant font-medium whitespace-nowrap">{rescuers.length} rescuer{rescuers.length === 1 ? '' : 's'} en route</span>
+            </div>
+          )}
+          {anomalies.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Radar className="w-3 h-3 text-indigo-600 flex-shrink-0" />
+              <span className="text-on-surface-variant font-medium whitespace-nowrap">{anomalies.length} anomal{anomalies.length === 1 ? 'y' : 'ies'} flagged</span>
             </div>
           )}
           <div className="hidden sm:flex items-center gap-1.5">
@@ -244,6 +288,30 @@ export default function LiveMapPage() {
                 </div>
               )
             })}
+            {anomalies.map((a) => {
+              const lat = Number(a.last_latitude), lng = Number(a.last_longitude)
+              if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+              return (
+                <Marker key={a.id} position={[lat, lng]} icon={ANOMALY_ICON}>
+                  <Popup>
+                    <div className="p-1 min-w-[190px]">
+                      <p className="font-bold text-on-surface">{a.full_name}</p>
+                      <p className="text-xs text-on-surface-variant">{a.phone}</p>
+                      <p className="text-xs font-semibold text-indigo-600 mt-1">{ANOMALY_LABEL[a.type] || a.type}</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{a.details}</p>
+                      <p className="text-[10px] text-on-surface-variant/70 mt-1">Flagged {formatTimeAgo(a.detected_at)}</p>
+                      <button
+                        onClick={() => resolveAnomalyMutation.mutate(a.id)}
+                        disabled={resolveAnomalyMutation.isPending}
+                        className="mt-2 w-full rounded-lg bg-indigo-600 text-white text-xs font-semibold py-1.5 hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        Mark resolved
+                      </button>
+                    </div>
+                  </Popup>
+                </Marker>
+              )
+            })}
             <RecenterControl center={mapCenter} zoom={7} />
           </MapContainer>
 
@@ -268,6 +336,36 @@ export default function LiveMapPage() {
         </div>
 
         <div className="w-full lg:w-72 flex-1 lg:flex-initial min-h-0 bg-surface-container-lowest border-t lg:border-t-0 lg:border-l border-outline-variant overflow-y-auto">
+          {anomalies.length > 0 && (
+            <div className="border-b border-outline-variant">
+              <div className="px-4 pt-3 pb-2 flex items-center gap-1.5">
+                <Radar className="w-3.5 h-3.5 text-indigo-600" />
+                <p className="text-sm font-bold text-on-surface">{anomalies.length} anomal{anomalies.length === 1 ? 'y' : 'ies'} flagged</p>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {anomalies.map((a) => (
+                  <div key={a.id} className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-on-surface truncate">{a.full_name}</p>
+                        <p className="text-xs font-medium text-indigo-600">{ANOMALY_LABEL[a.type] || a.type}</p>
+                        <p className="text-xs text-on-surface-variant mt-0.5">{a.details}</p>
+                        <p className="text-[10px] text-on-surface-variant/70 mt-1">{formatTimeAgo(a.detected_at)}</p>
+                      </div>
+                      <button
+                        onClick={() => resolveAnomalyMutation.mutate(a.id)}
+                        disabled={resolveAnomalyMutation.isPending}
+                        title="Mark resolved" aria-label="Mark resolved"
+                        className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="p-4 border-b border-outline-variant">
             <p className="text-sm font-bold text-on-surface">{liveTourists.length} tourists tracked in last 2h</p>
           </div>

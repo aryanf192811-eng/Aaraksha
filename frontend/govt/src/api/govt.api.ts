@@ -102,6 +102,28 @@ export interface ActiveRescuer {
   is_live: boolean
 }
 
+// Rule-based, always-on safety net — see backend anomaly.service.js. Not an
+// SOS: "this needs a human to check on," not "an emergency is confirmed."
+export interface AnomalyEntry {
+  id: string
+  tourist_id: string
+  trip_id: string | null
+  type: 'INACTIVITY' | 'ROUTE_DEVIATION'
+  last_latitude: string | null
+  last_longitude: string | null
+  last_location_at: string | null
+  distance_from_route_km: string | null
+  details: string
+  status: 'OPEN' | 'RESOLVED'
+  detected_at: string
+  full_name: string
+  phone: string
+  blood_group: string | null
+  trip_title: string | null
+  tsi_score: number | null
+  tsi_label: string | null
+}
+
 export interface CreateVolunteerPayload {
   fullName: string
   phone: string
@@ -138,6 +160,12 @@ const govtApi = {
 
   getActiveRescuers: () =>
     api.get<APIResponse<ActiveRescuer[]>>('/govt/active-rescuers'),
+
+  getAnomalies: () =>
+    api.get<APIResponse<AnomalyEntry[]>>('/govt/anomalies'),
+
+  resolveAnomaly: (id: string) =>
+    api.patch<APIResponse<AnomalyEntry>>(`/govt/anomalies/${id}/resolve`),
 
   resolveSOS: (sosId: string, data: { resolutionNotes?: string }) =>
     api.patch<APIResponse<SOSWithDetails>>(`/govt/sos/${sosId}/resolve`, data),
