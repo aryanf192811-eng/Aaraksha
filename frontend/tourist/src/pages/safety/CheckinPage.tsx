@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, MapPin, Battery, MessageSquare, CheckCircle2, Loader2, RefreshCw, RotateCcw } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { useDMS } from '../../hooks/useDMS'
@@ -15,6 +16,7 @@ import { formatTimeAgo, cn } from '../../lib/utils'
 
 export default function CheckinPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [message, setMessage] = useState('')
   const [locationReady, setLocationReady] = useState(false)
   const [coords, setCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null)
@@ -45,7 +47,7 @@ export default function CheckinPage() {
       accuracyM: coords?.accuracy || null,
     }),
     onSuccess: (res) => {
-      toast.success(`Checked in!${res.data.data.dmsReset ? ' DMS reset.' : ''}`)
+      toast.success(`${t('checkin.toastCheckedIn')}${res.data.data.dmsReset ? t('checkin.toastDmsResetSuffix') : ''}`)
       queryClient.invalidateQueries({ queryKey: ['checkins'] })
       queryClient.invalidateQueries({ queryKey: ['dms', 'active'] })
       setMessage('')
@@ -57,9 +59,9 @@ export default function CheckinPage() {
       const pos = await getPosition()
       setCoords({ lat: pos.latitude, lng: pos.longitude, accuracy: pos.accuracy })
       setLocationReady(true)
-      toast.success('Location updated')
+      toast.success(t('checkin.toastLocationUpdated'))
     } catch {
-      toast.error('Could not get GPS location')
+      toast.error(t('checkin.toastGpsFailed'))
     }
   }
 
@@ -69,8 +71,8 @@ export default function CheckinPage() {
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)}><ArrowLeft className="w-6 h-6 text-on-surface" /></button>
           <div>
-            <h1 className="text-xl font-black text-on-surface">Check In</h1>
-            <p className="text-xs text-on-surface-variant">Confirm you're safe · Reset DMS</p>
+            <h1 className="text-xl font-black text-on-surface">{t('checkin.title')}</h1>
+            <p className="text-xs text-on-surface-variant">{t('checkin.subtitle')}</p>
           </div>
         </div>
       </div>
@@ -88,11 +90,11 @@ export default function CheckinPage() {
                 <MapPin className={cn('w-5 h-5', locationReady ? 'text-green-600' : 'text-on-surface-variant')} />
               </div>
               <div>
-                <p className="text-sm font-bold text-on-surface">GPS Location</p>
+                <p className="text-sm font-bold text-on-surface">{t('checkin.gpsLocation')}</p>
                 <p className={cn('text-xs', locationReady ? 'text-green-600 font-medium' : 'text-on-surface-variant')}>
-                  {gpsLoading ? 'Getting GPS fix...' :
-                   locationReady ? `Accuracy: ±${Math.round(coords?.accuracy || 0)}m` :
-                                   'GPS unavailable'}
+                  {gpsLoading ? t('checkin.gettingGpsFix') :
+                   locationReady ? t('checkin.accuracy', { m: Math.round(coords?.accuracy || 0) }) :
+                                   t('checkin.gpsUnavailable')}
                 </p>
               </div>
             </div>
@@ -113,7 +115,7 @@ export default function CheckinPage() {
             <Battery className="w-5 h-5 text-primary" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-bold text-on-surface">Battery Level</p>
+            <p className="text-sm font-bold text-on-surface">{t('checkin.batteryLevel')}</p>
             {batteryPct !== null ? (
               <div className="flex items-center gap-2 mt-1">
                 <div className="flex-1 bg-surface-container-high rounded-full h-2">
@@ -129,11 +131,11 @@ export default function CheckinPage() {
                 )}>{batteryPct}%</span>
               </div>
             ) : (
-              <p className="text-xs text-on-surface-variant">Not available on this device</p>
+              <p className="text-xs text-on-surface-variant">{t('checkin.notAvailableDevice')}</p>
             )}
           </div>
           {batteryPct !== null && batteryPct < 20 && (
-            <span className="text-xs text-red-600 font-bold bg-red-50 px-2 py-1 rounded-full">Low!</span>
+            <span className="text-xs text-red-600 font-bold bg-red-50 px-2 py-1 rounded-full">{t('checkin.low')}</span>
           )}
         </div>
 
@@ -141,10 +143,10 @@ export default function CheckinPage() {
         <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5">
           <div className="flex items-center gap-2 mb-3">
             <MessageSquare className="w-4 h-4 text-on-surface-variant" />
-            <p className="text-sm font-bold text-on-surface">Message (optional)</p>
+            <p className="text-sm font-bold text-on-surface">{t('checkin.messageOptional')}</p>
           </div>
           <textarea
-            placeholder="Everything is good! Currently at..."
+            placeholder={t('checkin.messagePlaceholder')}
             value={message}
             onChange={e => setMessage(e.target.value)}
             rows={2}
@@ -156,8 +158,8 @@ export default function CheckinPage() {
           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
             <div>
-              <p className="text-sm font-bold text-green-700">DMS will reset</p>
-              <p className="text-xs text-green-600">Your Dead Man's Switch resets automatically when you check in</p>
+              <p className="text-sm font-bold text-green-700">{t('checkin.dmsWillReset')}</p>
+              <p className="text-xs text-green-600">{t('checkin.dmsResetDesc')}</p>
             </div>
           </div>
         )}
@@ -167,18 +169,18 @@ export default function CheckinPage() {
           disabled={isPending || !locationReady}
           className="w-full h-14 bg-green-600 hover:bg-green-700 text-white rounded-full font-black text-lg shadow-lg shadow-green-200 flex items-center justify-center gap-2"
         >
-          {isPending ? <Loader2 className="w-6 h-6 animate-spin" /> : <><CheckCircle2 className="w-5 h-5" /> I'm Safe — Check In Now</>}
+          {isPending ? <Loader2 className="w-6 h-6 animate-spin" /> : <><CheckCircle2 className="w-5 h-5" /> {t('checkin.imSafeButton')}</>}
         </Button>
 
         {!locationReady && !gpsLoading && (
           <p className="text-center text-xs text-primary">
-            Enable GPS location for accurate check-in. Tap the refresh icon above.
+            {t('checkin.enableGpsHint')}
           </p>
         )}
 
         {recentCheckins && recentCheckins.length > 0 && (
           <div>
-            <h2 className="text-base font-black text-on-surface mb-3">Recent Check-ins</h2>
+            <h2 className="text-base font-black text-on-surface mb-3">{t('checkin.recentCheckins')}</h2>
             <div className="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
               {recentCheckins.map((c, i) => (
                 <div key={c.id} className={cn('flex items-center gap-3 px-5 py-3', i > 0 && 'border-t border-outline-variant')}>
@@ -187,7 +189,7 @@ export default function CheckinPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-on-surface">
-                      {c.type === 'DMS_RESET' ? 'DMS Reset' : 'Manual Check-in'}
+                      {c.type === 'DMS_RESET' ? t('checkin.dmsResetLabel') : t('checkin.manualCheckin')}
                     </p>
                     {c.message && <p className="text-xs text-on-surface-variant truncate">"{c.message}"</p>}
                   </div>

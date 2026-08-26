@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import type { ComponentType } from 'react'
 import {
   ArrowLeft, Search, AlertTriangle, Shield, MapPin, Activity,
@@ -11,18 +12,20 @@ import {
 import { Input } from '../../components/ui/input'
 import { WeatherBadge } from '../../components/shared'
 import destinationApi from '../../api/destination.api'
+import { tEnum } from '../../lib/i18nEnums'
 import { cn } from '../../lib/utils'
 
-const ZONE_CONFIG: Record<string, { icon: ComponentType<{ className?: string }>; color: string; label: string }> = {
-  SAFE:         { icon: CheckCircle2, color: 'bg-green-50 border-green-200 text-green-700',   label: 'Safe' },
-  CAUTION:      { icon: AlertTriangle, color: 'bg-primary/10 border-primary/20 text-primary',   label: 'Caution' },
-  HIGH_RISK:    { icon: ShieldAlert,  color: 'bg-orange-50 border-orange-200 text-orange-700', label: 'High Risk' },
-  RESTRICTED:   { icon: Ban,          color: 'bg-red-50 border-red-200 text-red-700',          label: 'Restricted' },
-  ILP_REQUIRED: { icon: ClipboardList, color: 'bg-purple-50 border-purple-200 text-purple-700', label: 'ILP Required' },
+const ZONE_CONFIG: Record<string, { icon: ComponentType<{ className?: string }>; color: string }> = {
+  SAFE:         { icon: CheckCircle2, color: 'bg-green-50 border-green-200 text-green-700' },
+  CAUTION:      { icon: AlertTriangle, color: 'bg-primary/10 border-primary/20 text-primary' },
+  HIGH_RISK:    { icon: ShieldAlert,  color: 'bg-orange-50 border-orange-200 text-orange-700' },
+  RESTRICTED:   { icon: Ban,          color: 'bg-red-50 border-red-200 text-red-700' },
+  ILP_REQUIRED: { icon: ClipboardList, color: 'bg-purple-50 border-purple-200 text-purple-700' },
 }
 
 export default function AdvisoryPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [selectedZone, setSelectedZone] = useState('')
 
@@ -57,13 +60,13 @@ export default function AdvisoryPage() {
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => navigate(-1)}><ArrowLeft className="w-6 h-6 text-on-surface" /></button>
           <div>
-            <h1 className="text-xl font-black text-on-surface">Travel Advisory</h1>
-            <p className="text-xs text-on-surface-variant">NE India risk assessment · Updated live</p>
+            <h1 className="text-xl font-black text-on-surface">{t('advisory.title')}</h1>
+            <p className="text-xs text-on-surface-variant">{t('advisory.subtitle')}</p>
           </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
-          <Input placeholder="Search destinations..." value={search} onChange={e => setSearch(e.target.value)}
+          <Input placeholder={t('advisory.searchPlaceholder')} value={search} onChange={e => setSearch(e.target.value)}
             className="pl-10 h-11 rounded-xl bg-surface-container border-outline-variant" />
         </div>
       </div>
@@ -73,13 +76,13 @@ export default function AdvisoryPage() {
         <button onClick={() => setSelectedZone('')}
           className={cn('px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all',
             !selectedZone ? 'bg-on-surface text-surface border-on-surface' : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant')}>
-          All
+          {t('advisory.all')}
         </button>
-        {Object.entries(ZONE_CONFIG).map(([zone, { icon: Icon, color, label }]) => (
+        {Object.entries(ZONE_CONFIG).map(([zone, { icon: Icon, color }]) => (
           <button key={zone} onClick={() => setSelectedZone(zone === selectedZone ? '' : zone)}
             className={cn('px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all flex items-center gap-1',
               selectedZone === zone ? `${color} border` : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant')}>
-            <Icon className="w-3.5 h-3.5" /> {label}
+            <Icon className="w-3.5 h-3.5" /> {tEnum(t, 'zoneType', zone)}
           </button>
         ))}
       </div>
@@ -100,7 +103,7 @@ export default function AdvisoryPage() {
                     <p className="text-xs text-on-surface-variant">{dest.state}</p>
                   </div>
                   <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full border flex items-center gap-1', zone.color)}>
-                    <ZoneIcon className="w-3.5 h-3.5" /> {zone.label}
+                    <ZoneIcon className="w-3.5 h-3.5" /> {tEnum(t, 'zoneType', dest.zone_type)}
                   </span>
                 </div>
 
@@ -108,9 +111,9 @@ export default function AdvisoryPage() {
                   <div className="bg-surface-container rounded-xl px-3 py-2 mb-3 flex items-center gap-2">
                     <Users className="w-3.5 h-3.5 text-on-surface-variant flex-shrink-0" />
                     <p className="text-xs text-on-surface-variant">
-                      <span className="font-bold text-on-surface">{activity.total} {activity.total === 1 ? 'tourist' : 'tourists'}</span> here right now
+                      <span className="font-bold text-on-surface">{t('advisory.touristsHereNow', { count: activity.total })}</span> {t('advisory.hereRightNow')}
                       {activity.highRisk > 0 && (
-                        <span className="text-orange-600 font-semibold"> · {activity.highRisk} flagged high-risk</span>
+                        <span className="text-orange-600 font-semibold"> {t('advisory.flaggedHighRisk', { count: activity.highRisk })}</span>
                       )}
                     </p>
                   </div>
@@ -119,18 +122,18 @@ export default function AdvisoryPage() {
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   <div className="bg-surface-container rounded-xl p-2.5 text-center">
                     <Activity className="w-4 h-4 text-on-surface-variant mx-auto mb-1" />
-                    <p className="text-xs font-bold text-on-surface">{dest.difficulty}</p>
-                    <p className="text-[10px] text-on-surface-variant">Difficulty</p>
+                    <p className="text-xs font-bold text-on-surface">{tEnum(t, 'difficulty', dest.difficulty)}</p>
+                    <p className="text-[10px] text-on-surface-variant">{t('advisory.difficulty')}</p>
                   </div>
                   <div className="bg-surface-container rounded-xl p-2.5 text-center">
                     <MapPin className="w-4 h-4 text-on-surface-variant mx-auto mb-1" />
-                    <p className="text-xs font-bold text-on-surface">{dest.altitude_m > 0 ? `${dest.altitude_m}m` : 'Low'}</p>
-                    <p className="text-[10px] text-on-surface-variant">Altitude</p>
+                    <p className="text-xs font-bold text-on-surface">{dest.altitude_m > 0 ? `${dest.altitude_m}m` : t('advisory.lowAltitude')}</p>
+                    <p className="text-[10px] text-on-surface-variant">{t('advisory.altitude')}</p>
                   </div>
                   <div className="bg-surface-container rounded-xl p-2.5 text-center">
                     <Shield className="w-4 h-4 text-on-surface-variant mx-auto mb-1" />
-                    <p className="text-xs font-bold text-on-surface">{dest.connectivity}</p>
-                    <p className="text-[10px] text-on-surface-variant">Signal</p>
+                    <p className="text-xs font-bold text-on-surface">{tEnum(t, 'connectivity', dest.connectivity)}</p>
+                    <p className="text-[10px] text-on-surface-variant">{t('advisory.signal')}</p>
                   </div>
                 </div>
 
@@ -143,9 +146,9 @@ export default function AdvisoryPage() {
                 {dest.ilp_required && (
                   <div className="bg-purple-50 border border-purple-200 rounded-xl p-2 mb-2">
                     <p className="text-xs font-bold text-purple-700 flex items-center gap-1">
-                      <ClipboardList className="w-3.5 h-3.5" /> Inner Line Permit (ILP) Required
+                      <ClipboardList className="w-3.5 h-3.5" /> {t('advisory.ilpRequiredTitle')}
                     </p>
-                    <p className="text-[10px] text-purple-600 mt-0.5">Apply 7 days before travel</p>
+                    <p className="text-[10px] text-purple-600 mt-0.5">{t('advisory.ilpRequiredDesc')}</p>
                   </div>
                 )}
 
@@ -160,7 +163,7 @@ export default function AdvisoryPage() {
 
                 {dest.nearest_hospital_km && (
                   <p className="text-xs text-on-surface-variant mt-2 flex items-center gap-1">
-                    <HeartPulse className="w-3 h-3" /> {dest.nearest_hospital_name || 'Nearest hospital'}: {dest.nearest_hospital_km}km
+                    <HeartPulse className="w-3 h-3" /> {dest.nearest_hospital_name || t('advisory.nearestHospitalFallback')}: {dest.nearest_hospital_km}km
                     {dest.nearest_hospital_phone && ` · ${dest.nearest_hospital_phone}`}
                   </p>
                 )}
@@ -172,8 +175,8 @@ export default function AdvisoryPage() {
         {!isLoading && filtered.length === 0 && (
           <div className="text-center py-12">
             <Search className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-            <p className="font-bold text-on-surface">No destinations found</p>
-            <p className="text-sm text-on-surface-variant">Try a different search</p>
+            <p className="font-bold text-on-surface">{t('advisory.noDestinationsFound')}</p>
+            <p className="text-sm text-on-surface-variant">{t('advisory.tryDifferentSearch')}</p>
           </div>
         )}
       </div>

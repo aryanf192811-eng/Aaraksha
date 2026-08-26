@@ -14,6 +14,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, RefreshCw, QrCode, ShieldCheck, Loader2, IdCard } from 'lucide-react'
 import checkpointApi from '../../api/checkpoint.api'
 import tripApi from '../../api/trip.api'
@@ -31,6 +32,7 @@ const TSI_STYLE: Record<string, string> = {
 
 export default function CheckpointPassPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const tourist = useAuthStore((s) => s.tourist)
   const [secondsLeft, setSecondsLeft] = useState(0)
 
@@ -72,8 +74,8 @@ export default function CheckpointPassPage() {
           <ArrowLeft className="w-6 h-6 text-on-surface" />
         </button>
         <div>
-          <h1 className="font-display text-xl font-black text-on-surface">Digital Tourist ID</h1>
-          <p className="text-xs text-on-surface-variant">Show this to a checkpoint officer</p>
+          <h1 className="font-display text-xl font-black text-on-surface">{t('checkpointPass.title')}</h1>
+          <p className="text-xs text-on-surface-variant">{t('checkpointPass.subtitle')}</p>
         </div>
       </header>
 
@@ -82,7 +84,7 @@ export default function CheckpointPassPage() {
         <div className="w-full max-w-sm rounded-3xl shadow-glass-lg overflow-hidden bg-surface-container-lowest">
           <div className="bg-on-surface text-surface px-5 pt-4 pb-3 flex items-center gap-2">
             <IdCard className="w-4 h-4" />
-            <span className="text-xs font-extrabold uppercase tracking-widest">Aaraksha · Digital Tourist ID</span>
+            <span className="text-xs font-extrabold uppercase tracking-widest">{t('checkpointPass.cardHeader')}</span>
           </div>
 
           <div className="p-5 flex items-center gap-4">
@@ -97,10 +99,10 @@ export default function CheckpointPassPage() {
             <div className="min-w-0">
               <p className="font-display font-black text-on-surface text-lg truncate">{tourist?.full_name}</p>
               <p className="text-xs text-on-surface-variant font-mono">
-                {tourist?.govt_id_type || 'ID'} · •••• {tourist?.govt_id_suffix || '····'}
+                {tourist?.govt_id_type || t('checkpointPass.idFallback')} · •••• {tourist?.govt_id_suffix || '····'}
               </p>
               {tourist?.blood_group && (
-                <p className="text-xs text-on-surface-variant mt-0.5">Blood group: {tourist.blood_group}</p>
+                <p className="text-xs text-on-surface-variant mt-0.5">{t('checkpointPass.bloodGroupLabel', { group: tourist.blood_group })}</p>
               )}
             </div>
           </div>
@@ -109,9 +111,9 @@ export default function CheckpointPassPage() {
             {activeTrip ? (
               <div className="bg-surface-container rounded-xl px-3 py-2.5 flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">Currently traveling</p>
+                  <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">{t('checkpointPass.currentlyTraveling')}</p>
                   <p className="text-sm font-bold text-on-surface truncate">
-                    {activeStop?.city || activeTrip.title} · until {formatDate(activeTrip.end_date)}
+                    {activeStop?.city || activeTrip.title} · {t('checkpointPass.untilDate', { date: formatDate(activeTrip.end_date) })}
                   </p>
                 </div>
                 {activeTrip.tsi_label && (
@@ -122,14 +124,14 @@ export default function CheckpointPassPage() {
               </div>
             ) : (
               <div className="bg-surface-container rounded-xl px-3 py-2.5">
-                <p className="text-sm text-on-surface-variant">No active trip right now</p>
+                <p className="text-sm text-on-surface-variant">{t('checkpointPass.noActiveTrip')}</p>
               </div>
             )}
           </div>
 
           {/* ── Verification QR ──────────────────────────────── */}
           <div className="border-t border-outline-variant bg-surface p-5 flex flex-col items-center">
-            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide mb-3">Verification code</p>
+            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide mb-3">{t('checkpointPass.verificationCode')}</p>
             <div className="w-48 h-48 rounded-2xl bg-white flex items-center justify-center overflow-hidden shadow-inner">
               {isLoading ? (
                 <Loader2 className="w-8 h-8 text-on-surface-variant animate-spin" />
@@ -142,10 +144,10 @@ export default function CheckpointPassPage() {
 
             <div className="mt-3 text-center">
               {expired ? (
-                <p className="text-sm font-bold text-sos">Code expired</p>
+                <p className="text-sm font-bold text-sos">{t('checkpointPass.codeExpired')}</p>
               ) : data ? (
                 <p className="text-sm text-on-surface-variant">
-                  Expires in <span className="font-mono font-bold text-on-surface">{mm}:{ss}</span>
+                  {t('checkpointPass.expiresIn')} <span className="font-mono font-bold text-on-surface">{mm}:{ss}</span>
                 </p>
               ) : null}
             </div>
@@ -153,17 +155,17 @@ export default function CheckpointPassPage() {
             <button onClick={handleRefresh} disabled={isFetching}
               className="mt-3 flex items-center gap-2 text-sm font-bold text-primary bg-primary/10 px-4 py-2 rounded-full disabled:opacity-60">
               <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-              {isFetching ? 'Refreshing...' : 'Refresh Code'}
+              {isFetching ? t('checkpointPass.refreshing') : t('checkpointPass.refreshCode')}
             </button>
           </div>
         </div>
 
         <div className="mt-5 bg-primary/10 border border-primary/20 rounded-2xl p-4 w-full max-w-sm">
           <p className="text-xs font-bold text-primary flex items-center gap-1.5 mb-1">
-            <ShieldCheck className="w-3.5 h-3.5" /> Why this refreshes every 5 minutes
+            <ShieldCheck className="w-3.5 h-3.5" /> {t('checkpointPass.whyRefreshTitle')}
           </p>
           <p className="text-xs text-primary/90">
-            A static ID code could be screenshotted and reused by anyone. This one expires and rotates instead, so scanning it always confirms you're the one actually present. It shares your name, blood group, medical info, government ID suffix, emergency contacts, and active trip safety score with the checkpoint officer — nothing more.
+            {t('checkpointPass.whyRefreshDesc')}
           </p>
         </div>
       </div>
