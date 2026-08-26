@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft, MapPin, Battery, Loader2, Timer, CheckCircle2, Wifi, WifiOff,
   HeartPulse, Compass, Mountain, Waves, ShieldAlert, HelpCircle, PowerOff, Smartphone, Bell,
@@ -22,21 +23,22 @@ import { usePushNotifications, isPushSupported } from '../../hooks/usePushNotifi
 import dmsApi, { withSecondsRemaining } from '../../api/dms.api'
 import { queryClient } from '../../lib/queryClient'
 import { useSafetyStore } from '../../store/safety.store'
+import { tEnum } from '../../lib/i18nEnums'
 import type { SOSCategory } from '../../constants/enums'
 import { cn } from '../../lib/utils'
 
 const CATEGORY_CONFIG = [
-  { value: 'MEDICAL',  Icon: HeartPulse,  label: 'Medical',  color: 'bg-sos-light text-sos-dark' },
-  { value: 'LOST',     Icon: Compass,     label: 'Lost',     color: 'bg-amber-100 text-amber-700' },
-  { value: 'TRAPPED',  Icon: Mountain,    label: 'Trapped',  color: 'bg-orange-100 text-orange-700' },
-  { value: 'DISASTER', Icon: Waves,       label: 'Disaster', color: 'bg-blue-100 text-blue-700' },
-  { value: 'CRIME',    Icon: ShieldAlert, label: 'Crime',    color: 'bg-purple-100 text-purple-700' },
-  { value: 'OTHER',    Icon: HelpCircle,  label: 'Other',    color: 'bg-surface-container-high text-on-surface-variant' },
+  { value: 'MEDICAL',  Icon: HeartPulse,  color: 'bg-sos-light text-sos-dark' },
+  { value: 'LOST',     Icon: Compass,     color: 'bg-amber-100 text-amber-700' },
+  { value: 'TRAPPED',  Icon: Mountain,    color: 'bg-orange-100 text-orange-700' },
+  { value: 'DISASTER', Icon: Waves,       color: 'bg-blue-100 text-blue-700' },
+  { value: 'CRIME',    Icon: ShieldAlert, color: 'bg-purple-100 text-purple-700' },
+  { value: 'OTHER',    Icon: HelpCircle,  color: 'bg-surface-container-high text-on-surface-variant' },
 ] as const
 
 const DMS_INTERVALS = [
-  { label: '30 min', value: 30 }, { label: '1 hour', value: 60 },
-  { label: '2 hours', value: 120 }, { label: '3 hours', value: 180 },
+  { labelKey: 'sos.interval30', value: 30 }, { labelKey: 'sos.interval60', value: 60 },
+  { labelKey: 'sos.interval120', value: 120 }, { labelKey: 'sos.interval180', value: 180 },
 ]
 // Judge-demo-only quick pick — bypasses the real 15-480 min minimum via the
 // backend's separate demoSeconds path (see dms.validator.js) so the
@@ -45,6 +47,7 @@ const DMS_DEMO_SECONDS = 20
 
 export default function SOSPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [category, setCategory] = useState<SOSCategory>('OTHER')
   const [message, setMessage] = useState('')
   const [showDMSSetup, setShowDMSSetup] = useState(false)
@@ -73,8 +76,8 @@ export default function SOSPage() {
       : dmsApi.createDMS({ intervalMinutes: dmsInterval }),
     onSuccess: (res) => {
       toast.success(dmsInterval === 'demo'
-        ? `Dead Man's Switch activated — demo mode, ${DMS_DEMO_SECONDS}s`
-        : `Dead Man's Switch activated — check in every ${dmsInterval} min`)
+        ? t('sos.toastDmsActivatedDemo', { seconds: DMS_DEMO_SECONDS })
+        : t('sos.toastDmsActivatedInterval', { minutes: dmsInterval }))
       // Set the cache directly rather than only invalidating — see the
       // matching comment in useDMS.ts's resetDMSMutation for why.
       queryClient.setQueryData(['dms', 'active'], withSecondsRemaining(res.data.data))
@@ -89,7 +92,7 @@ export default function SOSPage() {
   const handleTogglePanicGesture = async () => {
     if (panicGestureEnabled) {
       setPanicGestureEnabled(false)
-      toast('Panic shake gesture disabled')
+      toast(t('sos.toastPanicDisabled'))
       return
     }
     setRequestingPermission(true)
@@ -97,9 +100,9 @@ export default function SOSPage() {
     setRequestingPermission(false)
     if (granted) {
       setPanicGestureEnabled(true)
-      toast.success('Panic shake gesture enabled — shake your phone hard 3x to trigger SOS')
+      toast.success(t('sos.toastPanicEnabled'))
     } else {
-      toast.error('Motion access denied — enable it in your browser/device settings to use this')
+      toast.error(t('sos.toastMotionDenied'))
     }
   }
 
@@ -107,13 +110,13 @@ export default function SOSPage() {
     if (pushEnabled) {
       await unsubscribePush()
       setPushEnabled(false)
-      toast('Push notifications disabled')
+      toast(t('sos.toastPushDisabled'))
       return
     }
     const ok = await subscribePush()
     setPushEnabled(ok)
-    if (ok) toast.success('Push notifications enabled — you\'ll get alerts even when the app is closed')
-    else toast.error('Could not enable push notifications — check browser notification permissions')
+    if (ok) toast.success(t('sos.toastPushEnabled'))
+    else toast.error(t('sos.toastPushFailed'))
   }
 
   // pb-40, not the usual pb-24 — this page's last section (DMS setup)
@@ -129,8 +132,8 @@ export default function SOSPage() {
             <ArrowLeft className="w-6 h-6 text-on-surface" />
           </button>
           <div>
-            <h1 className="font-display text-xl font-black text-on-surface">Safety Center</h1>
-            <p className="text-xs text-on-surface-variant">SOS · Dead Man's Switch</p>
+            <h1 className="font-display text-xl font-black text-on-surface">{t('sos.title')}</h1>
+            <p className="text-xs text-on-surface-variant">{t('sos.subtitle')}</p>
           </div>
         </div>
         {navigator.onLine ? <Wifi className="w-5 h-5 text-tsi-low" /> : <WifiOff className="w-5 h-5 text-sos" />}
@@ -142,14 +145,14 @@ export default function SOSPage() {
           <div className="flex-1 bg-surface-container-lowest shadow-sm border border-outline-variant rounded-lg px-3 py-2 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-tsi-low flex-shrink-0" />
             <div className="flex flex-col">
-              <span className="text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant">GPS Sync</span>
-              <span className="font-mono text-xs font-bold text-on-surface">Active</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant">{t('sos.gpsSync')}</span>
+              <span className="font-mono text-xs font-bold text-on-surface">{t('sos.active')}</span>
             </div>
           </div>
           <div className="flex-1 bg-surface-container-lowest shadow-sm border border-outline-variant rounded-lg px-3 py-2 flex items-center gap-2">
             <Battery className="w-4 h-4 text-tsi-low flex-shrink-0" />
             <div className="flex flex-col">
-              <span className="text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant">Power</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant">{t('sos.power')}</span>
               <span className="font-mono text-xs font-bold text-on-surface">{batteryPct ?? '—'}%</span>
             </div>
           </div>
@@ -163,15 +166,15 @@ export default function SOSPage() {
         <div className="flex flex-col items-center gap-5 py-4">
           <SOSButton onTrigger={handleSOS} loading={sending} size="default" />
           <p className="text-center text-xs text-on-surface-variant max-w-[260px]">
-            Activating SOS shares your live location with emergency services and emergency contacts.
+            {t('sos.disclaimer')}
           </p>
         </div>
 
         {/* Category selector */}
         <div>
-          <p className="text-xs font-extrabold text-on-surface-variant uppercase tracking-wide mb-3 px-0.5">Specific Emergency</p>
+          <p className="text-xs font-extrabold text-on-surface-variant uppercase tracking-wide mb-3 px-0.5">{t('sos.specificEmergency')}</p>
           <div className="grid grid-cols-3 gap-2">
-            {CATEGORY_CONFIG.map(({ value, Icon, label, color }) => (
+            {CATEGORY_CONFIG.map(({ value, Icon, color }) => (
               <button key={value} type="button"
                 onClick={() => setCategory(value)}
                 className={cn(
@@ -181,7 +184,7 @@ export default function SOSPage() {
                 <div className={cn('w-9 h-9 rounded-full flex items-center justify-center', color)}>
                   <Icon className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-bold text-on-surface">{label}</span>
+                <span className="text-xs font-bold text-on-surface">{tEnum(t, 'sosCategory', value)}</span>
               </button>
             ))}
           </div>
@@ -189,7 +192,7 @@ export default function SOSPage() {
 
         {/* Optional message */}
         <textarea
-          placeholder="Additional details (optional)..."
+          placeholder={t('sos.additionalDetailsPlaceholder')}
           value={message}
           onChange={e => setMessage(e.target.value)}
           rows={2}
@@ -201,23 +204,23 @@ export default function SOSPage() {
           <div className="flex items-center gap-3 mb-4">
             <Timer className="w-6 h-6 text-primary" />
             <div>
-              <h2 className="font-display font-black text-on-surface">Dead Man's Switch</h2>
-              <p className="text-xs text-on-surface-variant">Auto-SOS if you stop checking in</p>
+              <h2 className="font-display font-black text-on-surface">{t('sos.dmsTitle')}</h2>
+              <p className="text-xs text-on-surface-variant">{t('sos.dmsSubtitle')}</p>
             </div>
           </div>
 
           {dms && dms.status === 'TRIGGERED' ? (
             <div className="space-y-2">
               <div className="bg-red-50 border border-red-300 rounded-xl p-4 text-center">
-                <p className="font-bold text-red-700">Missed check-in — auto-SOS was sent</p>
-                <p className="text-xs text-red-600/80 mt-1">Dismiss to re-arm a new switch</p>
+                <p className="font-bold text-red-700">{t('sos.dmsTriggeredTitle')}</p>
+                <p className="text-xs text-red-600/80 mt-1">{t('sos.dmsTriggeredSubtitle')}</p>
               </div>
               <button
                 onClick={() => disableDMS(dms.id)}
                 disabled={disabling}
                 className="w-full rounded-full h-11 text-sm font-bold border-2 border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors"
               >
-                {disabling ? 'Dismissing...' : 'Dismiss'}
+                {disabling ? t('sos.dismissing') : t('sos.dismiss')}
               </button>
             </div>
           ) : dms && dms.status === 'ACTIVE' ? (
@@ -226,10 +229,10 @@ export default function SOSPage() {
                 <p className="flex items-center justify-center gap-1.5 font-bold text-tsi-low">
                   <CheckCircle2 className="w-4 h-4" />
                   {dms.interval_seconds != null
-                    ? `Active — demo mode, ${dms.interval_seconds}s`
-                    : `Active — Check-in every ${dms.interval_minutes} min`}
+                    ? t('sos.dmsActiveDemo', { seconds: dms.interval_seconds })
+                    : t('sos.dmsActiveInterval', { minutes: dms.interval_minutes })}
                 </p>
-                <p className="text-xs text-tsi-low/80 mt-1">Tap "Check In" from the bottom nav to reset</p>
+                <p className="text-xs text-tsi-low/80 mt-1">{t('sos.dmsActiveHint')}</p>
               </div>
 
               {confirmingDisable ? (
@@ -239,13 +242,13 @@ export default function SOSPage() {
                     disabled={disabling}
                     className="flex-1 rounded-full h-10 text-xs font-bold border-2 border-red-300 text-red-600 hover:bg-red-50 transition-colors"
                   >
-                    {disabling ? 'Disabling...' : 'Confirm disable'}
+                    {disabling ? t('sos.disabling') : t('sos.confirmDisable')}
                   </button>
                   <button
                     onClick={() => setConfirmingDisable(false)}
                     className="flex-1 rounded-full h-10 text-xs font-bold text-on-surface-variant hover:bg-surface-container transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               ) : (
@@ -253,7 +256,7 @@ export default function SOSPage() {
                   onClick={() => setConfirmingDisable(true)}
                   className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:text-red-600 py-2 transition-colors"
                 >
-                  <PowerOff className="w-3.5 h-3.5" /> Disable Dead Man's Switch
+                  <PowerOff className="w-3.5 h-3.5" /> {t('sos.disableDms')}
                 </button>
               )}
             </div>
@@ -262,18 +265,18 @@ export default function SOSPage() {
               {!showDMSSetup ? (
                 <button onClick={() => setShowDMSSetup(true)}
                   className="w-full bg-primary hover:brightness-95 text-primary-foreground font-bold rounded-full h-12 transition-all active:scale-95">
-                  Activate Dead Man's Switch
+                  {t('sos.activateDms')}
                 </button>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-sm font-semibold text-on-surface-variant">Check-in interval:</p>
+                  <p className="text-sm font-semibold text-on-surface-variant">{t('sos.checkInInterval')}</p>
                   <div className="grid grid-cols-4 gap-2">
-                    {DMS_INTERVALS.map(({ label, value }) => (
+                    {DMS_INTERVALS.map(({ labelKey, value }) => (
                       <button key={value} type="button" onClick={() => setDmsInterval(value)}
                         className={cn('rounded-xl border-2 py-2 text-center text-xs font-bold transition-all',
                           dmsInterval === value ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant'
                         )}>
-                        {label}
+                        {t(labelKey)}
                       </button>
                     ))}
                   </div>
@@ -281,13 +284,13 @@ export default function SOSPage() {
                     className={cn('w-full rounded-xl border-2 border-dashed py-2 text-center text-xs font-bold transition-all flex items-center justify-center gap-1.5',
                       dmsInterval === 'demo' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant'
                     )}>
-                    <Timer className="w-3.5 h-3.5" /> {DMS_DEMO_SECONDS} sec (Demo for judges)
+                    <Timer className="w-3.5 h-3.5" /> {t('sos.demoIntervalLabel', { seconds: DMS_DEMO_SECONDS })}
                   </button>
                   <button onClick={() => createDMS()} disabled={creatingDMS}
                     className="w-full bg-on-surface text-surface font-bold rounded-full h-12 flex items-center justify-center active:scale-95 transition-all">
                     {creatingDMS
                       ? <Loader2 className="w-5 h-5 animate-spin" />
-                      : dmsInterval === 'demo' ? `Activate — ${DMS_DEMO_SECONDS}s demo` : `Activate — ${dmsInterval} min intervals`}
+                      : dmsInterval === 'demo' ? t('sos.activateDemo', { seconds: DMS_DEMO_SECONDS }) : t('sos.activateInterval', { minutes: dmsInterval })}
                   </button>
                 </div>
               )}
@@ -301,8 +304,8 @@ export default function SOSPage() {
             <div className="flex items-center gap-3 min-w-0">
               <Smartphone className="w-6 h-6 text-primary flex-shrink-0" />
               <div className="min-w-0">
-                <h2 className="font-display font-black text-on-surface">Panic Shake Gesture</h2>
-                <p className="text-xs text-on-surface-variant">Shake your phone hard 3x to trigger SOS — for when it's in your pocket</p>
+                <h2 className="font-display font-black text-on-surface">{t('sos.panicTitle')}</h2>
+                <p className="text-xs text-on-surface-variant">{t('sos.panicSubtitle')}</p>
               </div>
             </div>
             <button
@@ -331,8 +334,8 @@ export default function SOSPage() {
               <div className="flex items-center gap-3 min-w-0">
                 <Bell className="w-6 h-6 text-primary flex-shrink-0" />
                 <div className="min-w-0">
-                  <h2 className="font-display font-black text-on-surface">Push Notifications</h2>
-                  <p className="text-xs text-on-surface-variant">Get SOS, weather, and group alerts even when the app is closed</p>
+                  <h2 className="font-display font-black text-on-surface">{t('sos.pushTitle')}</h2>
+                  <p className="text-xs text-on-surface-variant">{t('sos.pushSubtitle')}</p>
                 </div>
               </div>
               <button
