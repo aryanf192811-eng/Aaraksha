@@ -137,4 +137,18 @@ export default {
     toastDmsActivatedDemo: "Dead Man's Switch activated — demo mode, {{seconds}}s",
     toastDmsActivatedInterval: "Dead Man's Switch activated — check in every {{minutes}} min",
   },
+  trips: {
+    title: 'My Trips',
+    join: 'Join',
+    newTrip: 'New Trip',
+    tabAll: 'All',
+    noTripsFound: 'No trips found',
+    noTripsDescription: 'Start planning your first safe journey to Northeast India',
+    joinDialogTitle: 'Join a group trip',
+    joinDialogDescription: 'Enter the invite code a travel companion shared with you.',
+    joining: 'Joining...',
+    joinTripButton: 'Join Trip',
+    toastJoined: 'Joined the group trip!',
+    toastJoinFailed: 'Could not join — check the invite code',
+  },
 } as const

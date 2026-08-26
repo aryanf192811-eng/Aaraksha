@@ -135,4 +135,18 @@ export default {
     toastDmsActivatedDemo: 'डेड मैन्स स्विच सक्रिय — डेमो मोड, {{seconds}} सेकंड',
     toastDmsActivatedInterval: 'डेड मैन्स स्विच सक्रिय — हर {{minutes}} मिनट में चेक-इन करें',
   },
+  trips: {
+    title: 'मेरी यात्राएं',
+    join: 'जुड़ें',
+    newTrip: 'नई यात्रा',
+    tabAll: 'सभी',
+    noTripsFound: 'कोई यात्रा नहीं मिली',
+    noTripsDescription: 'पूर्वोत्तर भारत की अपनी पहली सुरक्षित यात्रा की योजना बनाना शुरू करें',
+    joinDialogTitle: 'समूह यात्रा में शामिल हों',
+    joinDialogDescription: 'साथी यात्री द्वारा साझा किया गया आमंत्रण कोड दर्ज करें।',
+    joining: 'शामिल हो रहे हैं...',
+    joinTripButton: 'यात्रा में शामिल हों',
+    toastJoined: 'समूह यात्रा में शामिल हो गए!',
+    toastJoinFailed: 'शामिल नहीं हो सके — आमंत्रण कोड जांचें',
+  },
 } as const

@@ -141,4 +141,18 @@ export default {
     toastDmsActivatedDemo: "ডেড মেনচ ছুইচ সক্ৰিয় — ডেম'ড মোড, {{seconds}} ছেকেণ্ড",
     toastDmsActivatedInterval: 'ডেড মেনচ ছুইচ সক্ৰিয় — প্ৰতি {{minutes}} মিনিটত চেক-ইন কৰক',
   },
+  trips: {
+    title: 'মোৰ ভ্ৰমণ',
+    join: 'যোগদান কৰক',
+    newTrip: 'নতুন ভ্ৰমণ',
+    tabAll: 'সকলো',
+    noTripsFound: 'কোনো ভ্ৰমণ পোৱা নগ\'ল',
+    noTripsDescription: 'উত্তৰ-পূৱ ভাৰতলৈ আপোনাৰ প্ৰথম সুৰক্ষিত ভ্ৰমণৰ পৰিকল্পনা কৰিবলৈ আৰম্ভ কৰক',
+    joinDialogTitle: 'গোট ভ্ৰমণত যোগদান কৰক',
+    joinDialogDescription: 'সহযাত্ৰীয়ে শ্বেয়াৰ কৰা আমন্ত্ৰণ ক\'ড দিয়ক।',
+    joining: 'যোগদান হৈ আছে...',
+    joinTripButton: 'ভ্ৰমণত যোগদান কৰক',
+    toastJoined: 'গোট ভ্ৰমণত যোগদান কৰা হ\'ল!',
+    toastJoinFailed: "যোগদান কৰিব পৰা নগ'ল — আমন্ত্ৰণ ক'ড পৰীক্ষা কৰক",
+  },
 } as const
