@@ -9,6 +9,7 @@ import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft, Plus, Trash2, Loader2, ChevronRight, ChevronLeft, MapPin,
   User, Users, Mountain, Landmark, Briefcase, Rocket,
@@ -19,6 +20,7 @@ import { Label } from '../../components/ui/label'
 import tripApi, { type CreateTripPayload } from '../../api/trip.api'
 import destinationApi from '../../api/destination.api'
 import { queryClient } from '../../lib/queryClient'
+import { tEnum } from '../../lib/i18nEnums'
 import type { TravelType } from '../../constants/enums'
 import type { Destination } from '../../types/api.types'
 
@@ -61,16 +63,17 @@ type FormInput = z.input<typeof CreateTripSchema>
 type FormOutput = z.infer<typeof CreateTripSchema>
 
 const TRAVEL_TYPE_CONFIG = [
-  { value: 'SOLO',       Icon: User,     label: 'Solo' },
-  { value: 'FAMILY',     Icon: Users,    label: 'Family' },
-  { value: 'FRIENDS',    Icon: Users,    label: 'Friends' },
-  { value: 'ADVENTURE',  Icon: Mountain, label: 'Adventure' },
-  { value: 'PILGRIMAGE', Icon: Landmark, label: 'Pilgrimage' },
-  { value: 'BUSINESS',   Icon: Briefcase,label: 'Business' },
+  { value: 'SOLO',       Icon: User },
+  { value: 'FAMILY',     Icon: Users },
+  { value: 'FRIENDS',    Icon: Users },
+  { value: 'ADVENTURE',  Icon: Mountain },
+  { value: 'PILGRIMAGE', Icon: Landmark },
+  { value: 'BUSINESS',   Icon: Briefcase },
 ] as const
 
 export default function CreateTripPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [step, setStep] = useState(1)
 
   // Real destination rows (id, connectivity, difficulty, altitude_m,
@@ -94,7 +97,7 @@ export default function CreateTripPage() {
     mutationFn: (data: CreateTripPayload) => tripApi.createTrip(data),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['trips'] })
-      toast.success('Trip created successfully!')
+      toast.success(t('createTrip.toastCreated'))
       navigate(`/trips/${res.data.data.id}`)
     },
   })
@@ -128,8 +131,8 @@ export default function CreateTripPage() {
           <ArrowLeft className="w-6 h-6 text-on-surface" />
         </button>
         <div>
-          <h1 className="text-xl font-black text-on-surface">Plan New Trip</h1>
-          <p className="text-xs text-on-surface-variant">Step {step} of 3</p>
+          <h1 className="text-xl font-black text-on-surface">{t('createTrip.planNewTrip')}</h1>
+          <p className="text-xs text-on-surface-variant">{t('createTrip.stepOf', { step })}</p>
         </div>
       </div>
 
@@ -143,20 +146,20 @@ export default function CreateTripPage() {
         {step === 1 && (
           <div className="space-y-5 animate-slide-up">
             <div className="space-y-1.5">
-              <Label className="font-semibold">Trip Name *</Label>
-              <Input placeholder="e.g. Meghalaya Adventure 2025" className="h-12 rounded-xl" {...register('title')} />
+              <Label className="font-semibold">{t('createTrip.tripNameLabel')}</Label>
+              <Input placeholder={t('createTrip.tripNamePlaceholder')} className="h-12 rounded-xl" {...register('title')} />
               {errors.title && <p className="text-xs text-red-500">{errors.title.message}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label className="font-semibold">Travel Type *</Label>
+              <Label className="font-semibold">{t('createTrip.travelTypeLabel')}</Label>
               <div className="grid grid-cols-3 gap-2">
-                {TRAVEL_TYPE_CONFIG.map(({ value, Icon, label }) => (
+                {TRAVEL_TYPE_CONFIG.map(({ value, Icon }) => (
                   <button key={value} type="button"
                     onClick={() => setValue('travelType', value as TravelType)}
                     className={`rounded-xl border-2 p-3 flex flex-col items-center gap-1 transition-all ${watchedData.travelType === value ? 'border-amber-500 bg-primary/10' : 'border-outline-variant bg-surface-container-lowest'}`}>
                     <Icon className="w-5 h-5 text-on-surface" />
-                    <span className="text-xs font-semibold text-on-surface">{label}</span>
+                    <span className="text-xs font-semibold text-on-surface">{tEnum(t, 'travelType', value)}</span>
                   </button>
                 ))}
               </div>
@@ -164,13 +167,13 @@ export default function CreateTripPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="font-semibold">Start Date *</Label>
+                <Label className="font-semibold">{t('createTrip.startDateLabel')}</Label>
                 <Input type="date" className="h-12 rounded-xl" {...register('startDate')}
                   min={new Date().toISOString().split('T')[0]} />
                 {errors.startDate && <p className="text-xs text-red-500">{errors.startDate.message}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label className="font-semibold">End Date *</Label>
+                <Label className="font-semibold">{t('createTrip.endDateLabel')}</Label>
                 <Input type="date" className="h-12 rounded-xl" {...register('endDate')}
                   min={watchedData.startDate || new Date().toISOString().split('T')[0]} />
                 {errors.endDate && <p className="text-xs text-red-500">{errors.endDate.message}</p>}
@@ -178,13 +181,13 @@ export default function CreateTripPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="font-semibold">Budget (₹)</Label>
-              <Input type="number" placeholder="e.g. 25000" className="h-12 rounded-xl" {...register('budgetInr')} />
+              <Label className="font-semibold">{t('createTrip.budgetLabel')}</Label>
+              <Input type="number" placeholder={t('createTrip.budgetPlaceholder')} className="h-12 rounded-xl" {...register('budgetInr')} />
             </div>
 
             <Button type="button" onClick={() => setStep(2)}
               className="w-full h-12 bg-primary hover:brightness-95 text-on-surface rounded-full font-bold">
-              Add Destinations <ChevronRight className="ml-2 w-4 h-4" />
+              {t('createTrip.addDestinations')} <ChevronRight className="ml-2 w-4 h-4" />
             </Button>
           </div>
         )}
@@ -193,8 +196,8 @@ export default function CreateTripPage() {
         {step === 2 && (
           <div className="space-y-4 animate-slide-up">
             <div>
-              <h2 className="font-black text-on-surface text-lg">Add Destinations</h2>
-              <p className="text-sm text-on-surface-variant">Pick from popular NE India destinations or add your own.</p>
+              <h2 className="font-black text-on-surface text-lg">{t('createTrip.addDestinations')}</h2>
+              <p className="text-sm text-on-surface-variant">{t('createTrip.addDestinationsSubtitle')}</p>
             </div>
 
             {/* Quick add popular destinations */}
@@ -212,16 +215,16 @@ export default function CreateTripPage() {
             {stops.map((field, idx) => (
               <div key={field.id} className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-on-surface">Stop {idx + 1}</span>
+                  <span className="text-sm font-bold text-on-surface">{t('createTrip.stopLabel', { n: idx + 1 })}</span>
                   <button type="button" onClick={() => remove(idx)}>
                     <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Input placeholder="City" className="h-10 rounded-lg text-sm" {...register(`stops.${idx}.city`)} />
-                  <Input placeholder="State" className="h-10 rounded-lg text-sm" {...register(`stops.${idx}.state`)} />
+                  <Input placeholder={t('createTrip.cityPlaceholder')} className="h-10 rounded-lg text-sm" {...register(`stops.${idx}.city`)} />
+                  <Input placeholder={t('createTrip.statePlaceholder')} className="h-10 rounded-lg text-sm" {...register(`stops.${idx}.state`)} />
                   <div className="flex items-center gap-2 col-span-2">
-                    <span className="text-xs text-on-surface-variant whitespace-nowrap">Days:</span>
+                    <span className="text-xs text-on-surface-variant whitespace-nowrap">{t('createTrip.daysLabel')}</span>
                     <Input type="number" min={1} className="h-10 rounded-lg text-sm w-20" {...register(`stops.${idx}.days`)} />
                   </div>
                 </div>
@@ -231,15 +234,15 @@ export default function CreateTripPage() {
             <Button type="button" variant="outline"
               onClick={() => append({ city: '', state: '', destinationId: null, days: 2, connectivity: 'MODERATE', difficulty: 'EASY', altitude_m: 0, zone_type: 'SAFE', hospital_km: 0 })}
               className="w-full rounded-xl border-dashed h-11">
-              <Plus className="w-4 h-4 mr-2" /> Add Custom Destination
+              <Plus className="w-4 h-4 mr-2" /> {t('createTrip.addCustomDestination')}
             </Button>
 
             <div className="flex gap-3">
               <Button type="button" variant="outline" onClick={() => setStep(1)} className="flex-1 h-12 rounded-full">
-                <ChevronLeft className="mr-2 w-4 h-4" /> Back
+                <ChevronLeft className="mr-2 w-4 h-4" /> {t('common.back')}
               </Button>
               <Button type="button" onClick={() => setStep(3)} className="flex-1 h-12 bg-primary text-on-surface rounded-full font-bold">
-                Review <ChevronRight className="ml-2 w-4 h-4" />
+                {t('createTrip.review')} <ChevronRight className="ml-2 w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -249,25 +252,25 @@ export default function CreateTripPage() {
         {step === 3 && (
           <div className="space-y-4 animate-slide-up">
             <div>
-              <h2 className="font-black text-on-surface text-lg">Review Trip</h2>
-              <p className="text-sm text-on-surface-variant">Your Travel Safety Index will be calculated upon creation.</p>
+              <h2 className="font-black text-on-surface text-lg">{t('createTrip.reviewTrip')}</h2>
+              <p className="text-sm text-on-surface-variant">{t('createTrip.reviewTripSubtitle')}</p>
             </div>
 
             <div className="bg-surface-container-lowest rounded-2xl p-5 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-on-surface">{watchedData.title}</span>
-                <span className="text-xs bg-amber-100 text-primary px-2 py-0.5 rounded-full font-semibold">{watchedData.travelType}</span>
+                <span className="text-xs bg-amber-100 text-primary px-2 py-0.5 rounded-full font-semibold">{tEnum(t, 'travelType', watchedData.travelType)}</span>
               </div>
               <p className="text-sm text-on-surface-variant">{watchedData.startDate} → {watchedData.endDate}</p>
               {watchedData.budgetInr != null && watchedData.budgetInr !== '' && (
-                <p className="text-sm text-on-surface-variant">Budget: ₹{Number(watchedData.budgetInr).toLocaleString('en-IN')}</p>
+                <p className="text-sm text-on-surface-variant">{t('createTrip.budgetSummary', { amount: Number(watchedData.budgetInr).toLocaleString('en-IN') })}</p>
               )}
               {stops.length > 0 && (
                 <div className="pt-2 border-t border-outline-variant space-y-1">
-                  <p className="text-xs font-bold text-on-surface mb-1">Stops:</p>
+                  <p className="text-xs font-bold text-on-surface mb-1">{t('createTrip.stopsLabel')}</p>
                   {stops.map((s, i) => (
                     <p key={i} className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-                      <MapPin className="w-3.5 h-3.5 text-on-surface-variant flex-shrink-0" /> {s.city}, {s.state} ({String(s.days)} days)
+                      <MapPin className="w-3.5 h-3.5 text-on-surface-variant flex-shrink-0" /> {t('createTrip.stopSummary', { city: s.city, state: s.state, days: String(s.days) })}
                     </p>
                   ))}
                 </div>
@@ -276,10 +279,10 @@ export default function CreateTripPage() {
 
             <div className="flex gap-3">
               <Button type="button" variant="outline" onClick={() => setStep(2)} className="flex-1 h-12 rounded-full">
-                <ChevronLeft className="mr-2 w-4 h-4" /> Back
+                <ChevronLeft className="mr-2 w-4 h-4" /> {t('common.back')}
               </Button>
               <Button type="submit" disabled={isPending} className="flex-1 h-12 bg-on-surface text-surface rounded-full font-bold">
-                {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Rocket className="w-4 h-4 mr-2" /> Create Trip</>}
+                {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Rocket className="w-4 h-4 mr-2" /> {t('createTrip.createTripButton')}</>}
               </Button>
             </div>
           </div>
