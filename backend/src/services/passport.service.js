@@ -7,6 +7,7 @@ const { CheckinRepository } = require('../repositories/checkin.repository')
 const { SOSRepository }     = require('../repositories/sos.repository')
 const { TouristRepository } = require('../repositories/tourist.repository')
 const { ERRORS } = require('../constants/errors')
+const { sha256Hex } = require('../utils/crypto')
 
 const INK       = '#0f172a'
 const MUTED     = '#64748b'
@@ -21,7 +22,10 @@ const TSI_COLORS = {
   'Extreme Risk':  { bg: '#fee2e2', fg: '#b91c1c' },
 }
 
-async function generate(tripId, touristId) {
+// Shared by generate() and getIntegrityHash() so the PDF's printed hash and
+// the standalone API always fetch (and therefore hash) identical data —
+// duplicating the fetch would risk the two drifting out of sync silently.
+async function fetchJourneyRecords(tripId, touristId) {
   const tripRepo    = new TripRepository()
   const checkinRepo = new CheckinRepository()
   const sosRepo     = new SOSRepository()
@@ -39,6 +43,84 @@ async function generate(tripId, touristId) {
   ])
 
   const stops = Array.isArray(trip.stops) ? trip.stops : JSON.parse(trip.stops || '[]')
+  return { trip, tourist, checkins, sosEvents, stops }
+}
+
+// ── Journey Integrity Hash ──────────────────────────────────────────────
+// A SHA-256 hash chain over the trip's deterministic record — itinerary,
+// then every check-in and SOS event in true chronological order (checkins
+// and SOS events are fetched pre-sorted but in OPPOSITE directions and from
+// separate tables, so they're re-merged by timestamp here rather than
+// trusted as already-interleaved). Genesis block is the trip's own
+// unchanging facts; each event folds the previous hash in, so altering,
+// removing, or reordering a single check-in or SOS record anywhere in the
+// trip's history changes the final hash. Deliberately excludes the PDF's
+// own "Generated <now>" render timestamp and the tourist's name — those
+// aren't part of the journey record, just presentation.
+function canonicalStops(stops) {
+  return (stops || []).map(s => ({
+    city: s.city, state: s.state, days: s.days,
+    activities: (s.activities || []).map(a => ({ name: a.name, cost: a.cost || 0 })),
+  }))
+}
+
+function tripCoreRecord(trip, stops) {
+  return {
+    tripId: trip.id,
+    title: trip.title,
+    startDate: trip.start_date,
+    endDate: trip.end_date,
+    travelType: trip.travel_type,
+    budgetInr: trip.budget_inr,
+    tsiScore: trip.tsi_score,
+    tsiLabel: trip.tsi_label,
+    stops: canonicalStops(stops),
+  }
+}
+
+// Postgres timestamps can collide at the millisecond an app-server clock
+// resolves to, so `id` (a UUID, stable and unique) breaks ties rather than
+// leaving merge order to sort() implementation details.
+function mergeEventsChronologically(checkins, sosEvents) {
+  const checkinEvents = (checkins || []).map(c => ({
+    kind: 'CHECKIN', id: c.id, at: new Date(c.created_at).toISOString(),
+    type: c.type,
+    lat: c.latitude != null ? Number(c.latitude) : null,
+    lng: c.longitude != null ? Number(c.longitude) : null,
+    message: c.message || null,
+  }))
+  const sosEventsCanon = (sosEvents || []).map(s => ({
+    kind: 'SOS', id: s.id, at: new Date(s.created_at).toISOString(),
+    category: s.category, status: s.status, triggerType: s.trigger_type,
+  }))
+  return [...checkinEvents, ...sosEventsCanon].sort((a, b) => {
+    if (a.at !== b.at) return a.at < b.at ? -1 : 1
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+  })
+}
+
+function computeIntegrityChain(trip, stops, checkins, sosEvents) {
+  const genesisHash = sha256Hex(JSON.stringify(tripCoreRecord(trip, stops)))
+  const events = mergeEventsChronologically(checkins, sosEvents)
+  const finalHash = events.reduce((hash, ev) => sha256Hex(`${hash}|${JSON.stringify(ev)}`), genesisHash)
+  return { genesisHash, finalHash, eventCount: events.length }
+}
+
+// Groups of 8 hex chars, matching how the analytics/incident-report PDFs
+// already break up long identifiers for on-page readability.
+function formatHashDisplay(hash) {
+  return hash.match(/.{1,8}/g).join('  ')
+}
+
+async function getIntegrityHash(tripId, touristId) {
+  const { trip, checkins, sosEvents, stops } = await fetchJourneyRecords(tripId, touristId)
+  const chain = computeIntegrityChain(trip, stops, checkins, sosEvents)
+  return { tripId, ...chain }
+}
+
+async function generate(tripId, touristId) {
+  const { trip, tourist, checkins, sosEvents, stops } = await fetchJourneyRecords(tripId, touristId)
+  const integrity = computeIntegrityChain(trip, stops, checkins, sosEvents)
 
   const doc = new PDFDocument({ size: 'A4', margin: 50, info: {
     Title: `Journey Passport — ${trip.title}`,
@@ -148,6 +230,19 @@ async function generate(tripId, touristId) {
     ['Activities', stops.reduce((s, stop) => s + (stop.activities?.length || 0), 0).toString()],
   ])
 
+  // ── Section 7: Journey Integrity Hash ─────────────────────────────
+  section(doc, left, contentWidth, 'Journey Integrity Hash')
+  doc.fontSize(8).font('Helvetica').fillColor(MUTED)
+     .text("A tamper-evident fingerprint chained from this trip's itinerary and every recorded check-in and safety event, in order. Changing, removing, or reordering any one of them changes this hash — it can be independently recomputed from Aaraksha's platform records to verify this document hasn't been altered.",
+       left, doc.y, { width: contentWidth })
+  doc.moveDown(0.5)
+  doc.fontSize(10).font('Courier-Bold').fillColor(INK)
+     .text(formatHashDisplay(integrity.finalHash), left, doc.y, { width: contentWidth })
+  doc.moveDown(0.2)
+  doc.fontSize(7).font('Helvetica').fillColor(MUTED)
+     .text(`SHA-256 · ${integrity.eventCount} chained event${integrity.eventCount === 1 ? '' : 's'}`, left, doc.y)
+  doc.fillColor(INK)
+
   // ── Footer ─────────────────────────────────────────────────────────
   const footerY = doc.page.height - doc.page.margins.bottom - 24
   doc.moveTo(left, footerY).lineTo(right, footerY).strokeColor(RULE).lineWidth(1).stroke()
@@ -199,4 +294,4 @@ function formatPDFDate(d) {
   return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-module.exports = { generate }
+module.exports = { generate, getIntegrityHash }

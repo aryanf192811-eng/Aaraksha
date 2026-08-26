@@ -74,6 +74,14 @@ function extractSuffix(str, n = 4) {
   return str.slice(-n).toUpperCase()
 }
 
+// Plain (non-HMAC) SHA-256 — for content fingerprints like the Journey
+// Passport's integrity hash chain, where the point is reproducibility from
+// public record data, not a server-secret-gated lookup (that's what
+// hashGovtId's HMAC is for).
+function sha256Hex(input) {
+  return crypto.createHash('sha256').update(input).digest('hex')
+}
+
 module.exports = {
   generateGuardianToken,
   generatePublicToken,
@@ -84,4 +92,5 @@ module.exports = {
   verifyPassword,
   normalizePhone,
   extractSuffix,
+  sha256Hex,
 }
