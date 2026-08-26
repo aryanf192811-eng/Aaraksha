@@ -62,6 +62,7 @@ const config = {
     max:             parseInt(optionalEnv('RATE_LIMIT_MAX', '100'), 10),
     authMax:         parseInt(optionalEnv('AUTH_RATE_LIMIT_MAX', '5'), 10),
     webhookMax:      parseInt(optionalEnv('WEBHOOK_RATE_LIMIT_MAX', '1000'), 10),
+    otpMax:          parseInt(optionalEnv('OTP_RATE_LIMIT_MAX', '3'), 10),
   },
 
   // Twilio (optional — graceful fallback if missing)

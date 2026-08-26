@@ -34,11 +34,15 @@ const createAuthLimiter = (max = config.rateLimit.authMax) => rateLimit({
 
 // OTP endpoints need tighter limits than general auth. Also a factory —
 // forgot-password, verify-otp, resend-otp, and send-verification-otp are
-// distinct actions and must not drain one shared counter.
+// distinct actions and must not drain one shared counter. Shares the same
+// configurable window as the other limiters (was hardcoded to 15 minutes
+// here, independent of RATE_LIMIT_WINDOW_MS, which meant relaxing that var
+// alone didn't actually relax OTP testing — a real gap this was found and
+// fixed to close).
 const createOtpLimiter = () => rateLimit({
   ...limiterDefaults,
-  windowMs: 15 * 60 * 1000,  // 15 minutes
-  max:      3,               // max 3 OTP requests per 15 min per IP+phone
+  windowMs: config.rateLimit.windowMs,
+  max:      config.rateLimit.otpMax,
   message:  { success: false, message: 'Too many OTP requests — wait 15 minutes.' },
   keyGenerator: (req) => `${req.ip}-${req.body?.phone || ''}`,  // per IP + per phone
 })
