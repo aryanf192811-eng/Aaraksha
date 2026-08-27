@@ -5,12 +5,13 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { toast } from 'sonner'
-import { AlertTriangle, Battery, LocateFixed, Navigation2, Flame, Radar, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, Battery, LocateFixed, Navigation2, Flame, Radar, CheckCircle2, Mountain, Layers } from 'lucide-react'
 import govtApi from '../api/govt.api'
 import { getRoute, type Route } from '../lib/osrm'
 import { cn, formatTimeAgo } from '../lib/utils'
 import type { LiveTourist } from '../types/api.types'
 import { useSOSSocket } from '../hooks/useSOSSocket'
+import { TerrainMap } from '../components/TerrainMap'
 
 // Same semantic bands as lib/utils.ts#getZoneColor, in hex — Leaflet's
 // color/fillColor props take CSS color values, not Tailwind classes, so
@@ -82,6 +83,7 @@ export default function LiveMapPage() {
   const [selectedTourist, setSelectedTourist] = useState<LiveTourist | null>(null)
   const [routes, setRoutes] = useState<Record<string, Route | null>>({})
   const [showDensity, setShowDensity] = useState(true)
+  const [viewMode, setViewMode] = useState<'2D' | '3D'>('2D')
   const queryClient = useQueryClient()
   // Pushes an instant refetch on SOS/DMS/location events instead of waiting
   // for the next poll tick; the interval below stays as a safety net.
@@ -197,17 +199,39 @@ export default function LiveMapPage() {
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
             <span className="text-xs text-on-surface-variant whitespace-nowrap">Live · updates every 15s</span>
           </div>
-          <button onClick={() => setShowDensity(v => !v)}
-            className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border transition-colors',
-              showDensity ? 'bg-orange-50 border-orange-200 text-orange-700' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'
-            )}>
-            <Flame className="w-3.5 h-3.5" /> Risk Density
-          </button>
+          {viewMode === '2D' && (
+            <button onClick={() => setShowDensity(v => !v)}
+              className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border transition-colors',
+                showDensity ? 'bg-orange-50 border-orange-200 text-orange-700' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container'
+              )}>
+              <Flame className="w-3.5 h-3.5" /> Risk Density
+            </button>
+          )}
+          <div className="flex items-center bg-surface-container rounded-full p-0.5">
+            <button onClick={() => setViewMode('2D')}
+              className={cn('flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold transition-colors',
+                viewMode === '2D' ? 'bg-on-surface text-surface' : 'text-on-surface-variant')}>
+              <Layers className="w-3.5 h-3.5" /> 2D
+            </button>
+            <button onClick={() => setViewMode('3D')}
+              className={cn('flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold transition-colors',
+                viewMode === '3D' ? 'bg-on-surface text-surface' : 'text-on-surface-variant')}>
+              <Mountain className="w-3.5 h-3.5" /> 3D Terrain
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="flex flex-col lg:flex-row flex-1 overflow-hidden min-h-0">
         <div className="h-[45vh] lg:h-auto lg:flex-1 relative flex-shrink-0">
+          {viewMode === '3D' ? (
+            <TerrainMap
+              tourists={liveTourists}
+              rescuers={rescuers}
+              center={[mapCenter[1], mapCenter[0]]}
+              zoom={6.5}
+            />
+          ) : (
           <MapContainer center={mapCenter} zoom={7} style={{ height: '100%', width: '100%' }}>
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -314,6 +338,7 @@ export default function LiveMapPage() {
             })}
             <RecenterControl center={mapCenter} zoom={7} />
           </MapContainer>
+          )}
 
           {isLoading && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-surface-container-lowest rounded-full px-4 py-2 shadow-md text-sm font-medium text-on-surface-variant">
@@ -321,7 +346,7 @@ export default function LiveMapPage() {
             </div>
           )}
 
-          {showDensity && densityZones.length > 0 && (
+          {viewMode === '2D' && showDensity && densityZones.length > 0 && (
             <div className="absolute bottom-4 left-4 z-[1000] bg-surface-container-lowest rounded-xl px-3 py-2.5 shadow-md text-xs">
               <p className="font-bold text-on-surface mb-1.5">Risk Density — by destination</p>
               {Object.entries(ZONE_COLOR_HEX).map(([zone, color]) => (
