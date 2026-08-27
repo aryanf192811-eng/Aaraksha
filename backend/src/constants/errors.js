@@ -14,6 +14,7 @@ const ERRORS = Object.freeze({
   // Govt ID
   GOVTID_INVALID_TYPE:   'Invalid government ID type',
   GOVTID_INVALID_FORMAT: 'Government ID number format is invalid for the selected type',
+  GOVTID_CHECKSUM_FAILED: 'This Aadhaar number fails the standard UIDAI checksum — please re-check the digits',
   GOVTID_TAKEN:          'A tourist is already registered with this government ID',
 
   // Trip

@@ -5,8 +5,15 @@ const { z } = require('zod')
 const { GOVT_ID_TYPES, GOVT_ROLES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const { PhoneSchema } = require('./common.validator')
+const { isValidVerhoeff } = require('../utils/verhoeff')
 
-// Govt ID number format validator
+// Govt ID number format validator. AADHAAR gets a second, stronger pass:
+// the Verhoeff checksum UIDAI itself uses to generate the 12th digit —
+// catches a fat-fingered or made-up sequence that happens to pass the
+// plain \d{12} regex but is mathematically impossible as a real Aadhaar
+// number. Deliberately NOT presented as "verified with UIDAI" anywhere —
+// this platform has no production DigiLocker/eKYC partner credentials to
+// check a number against the live database, and never claims otherwise.
 const govtIdNumberRefinement = (type) => (num, ctx) => {
   const cleaned = num.toUpperCase().replace(/\s|-/g, '')
   const patterns = {
@@ -19,6 +26,13 @@ const govtIdNumberRefinement = (type) => (num, ctx) => {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: ERRORS.GOVTID_INVALID_FORMAT,
+    })
+    return
+  }
+  if (type === 'AADHAAR' && !isValidVerhoeff(cleaned)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: ERRORS.GOVTID_CHECKSUM_FAILED,
     })
   }
 }

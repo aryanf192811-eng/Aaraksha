@@ -3,6 +3,7 @@
 
 const router = require('express').Router()
 const ctrl   = require('../controllers/tourist.controller')
+const dataRightsCtrl = require('../controllers/dataRights.controller')
 const { authenticateTourist } = require('../middleware/auth')
 const { validate } = require('../middleware/validate')
 const { z } = require('zod')
@@ -33,5 +34,11 @@ router.post('/emergency-contacts/send-otp',   authenticateTourist, validate(Send
 router.post('/emergency-contacts/verify-otp', authenticateTourist, validate(VerifyEmergencyContactOTPSchema), ctrl.verifyEmergencyContactOTP)
 router.get('/checkpoint-qr',         authenticateTourist, ctrl.getCheckpointQR)
 router.get('/guardian/:token',       ctrl.getGuardianView)  // Public — no auth
+
+// DPDP Act 2023 data rights — see services/dataRights.service.js.
+router.get('/me/privacy-notice',     authenticateTourist, dataRightsCtrl.getPrivacyNotice)
+router.get('/me/data-export',        authenticateTourist, dataRightsCtrl.exportMyData)
+router.get('/me/deletion-requests',  authenticateTourist, dataRightsCtrl.getMyDeletionRequests)
+router.post('/me/deletion-request',  authenticateTourist, dataRightsCtrl.requestDeletion)
 
 module.exports = router

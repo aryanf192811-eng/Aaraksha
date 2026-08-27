@@ -5,10 +5,13 @@ const { z } = require('zod')
 const { GOVT_ID_TYPES, VOLUNTEER_STATUSES, VOLUNTEER_DISPATCH_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const { PhoneSchema, LatitudeSchema, LongitudeSchema } = require('./common.validator')
+const { isValidVerhoeff } = require('../utils/verhoeff')
 
 // Same govt ID format check as auth.validator.js's RegisterTouristSchema —
 // identity verification for a volunteer uses the identical HMAC-hash
-// pattern, so the input shape it validates has to match.
+// pattern, so the input shape it validates has to match, including the
+// Verhoeff checksum pass on Aadhaar (see that file's comment for why this
+// is a real math check, not a claim of live UIDAI verification).
 const govtIdNumberRefinement = (type) => (num, ctx) => {
   const cleaned = num.toUpperCase().replace(/\s|-/g, '')
   const patterns = {
@@ -19,6 +22,10 @@ const govtIdNumberRefinement = (type) => (num, ctx) => {
   }
   if (type && patterns[type] && !patterns[type].test(cleaned)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: ERRORS.GOVTID_INVALID_FORMAT })
+    return
+  }
+  if (type === 'AADHAAR' && !isValidVerhoeff(cleaned)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: ERRORS.GOVTID_CHECKSUM_FAILED })
   }
 }
 

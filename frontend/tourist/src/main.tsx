@@ -31,6 +31,7 @@ import IncidentReportPage from './pages/safety/IncidentReportPage'
 import CommunityPage from './pages/community/CommunityPage'
 import ProfilePage from './pages/profile/ProfilePage'
 import ProfileEditPage from './pages/profile/ProfileEditPage'
+import PrivacyPage from './pages/profile/PrivacyPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
@@ -70,6 +71,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/community" element={<CommunityPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/profile/edit" element={<ProfileEditPage />} />
+            <Route path="/profile/privacy" element={<PrivacyPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
