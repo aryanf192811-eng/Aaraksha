@@ -78,65 +78,67 @@ export default function CheckinPage() {
       </div>
 
       <div className="px-5 mt-5 space-y-5">
-        {/* Location card */}
-        <div className={cn('bg-surface-container-lowest rounded-2xl shadow-sm p-5 border-2 transition-colors',
-          locationReady ? 'border-green-200' : 'border-outline-variant'
+        {/* Check-in readiness — GPS + battery as one instrument card, not
+            two duplicate boxes stacked with a gap between them. */}
+        <div className={cn('bg-surface-container-lowest rounded-2xl shadow-sm border transition-colors overflow-hidden',
+          locationReady ? 'border-tsi-low/30' : 'border-outline-variant'
         )}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center',
-                locationReady ? 'bg-green-100' : 'bg-surface-container-high'
+          <div className="flex items-center justify-between gap-3 p-5">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0',
+                locationReady ? 'bg-tsi-low/10' : 'bg-surface-container-high'
               )}>
-                <MapPin className={cn('w-5 h-5', locationReady ? 'text-green-600' : 'text-on-surface-variant')} />
+                <MapPin className={cn('w-5 h-5', locationReady ? 'text-tsi-low' : 'text-on-surface-variant')} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-bold text-on-surface">{t('checkin.gpsLocation')}</p>
-                <p className={cn('text-xs', locationReady ? 'text-green-600 font-medium' : 'text-on-surface-variant')}>
+                <p className={cn('text-xs', locationReady ? 'text-tsi-low font-medium' : 'text-on-surface-variant')}>
                   {gpsLoading ? t('checkin.gettingGpsFix') :
                    locationReady ? t('checkin.accuracy', { m: Math.round(coords?.accuracy || 0) }) :
                                    t('checkin.gpsUnavailable')}
                 </p>
               </div>
             </div>
-            <button onClick={refreshLocation} className="p-1.5 rounded-lg hover:bg-surface-container-high">
+            <button onClick={refreshLocation} className="p-1.5 rounded-lg hover:bg-surface-container-high flex-shrink-0">
               <RefreshCw className={cn('w-4 h-4 text-on-surface-variant', gpsLoading && 'animate-spin')} />
             </button>
           </div>
           {coords && (
-            <p className="text-xs text-on-surface-variant font-mono bg-surface-container rounded-lg px-3 py-1.5">
+            <p className="mx-5 -mt-2 mb-4 text-xs text-on-surface-variant font-mono bg-surface-container rounded-lg px-3 py-1.5">
               {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
             </p>
           )}
-        </div>
 
-        {/* Battery status */}
-        <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 flex items-center gap-4">
-          <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center">
-            <Battery className="w-5 h-5 text-primary" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-bold text-on-surface">{t('checkin.batteryLevel')}</p>
-            {batteryPct !== null ? (
-              <div className="flex items-center gap-2 mt-1">
-                <div className="flex-1 bg-surface-container-high rounded-full h-2">
-                  <div
-                    className={cn('h-2 rounded-full transition-all duration-500',
-                      batteryPct > 50 ? 'bg-green-500' : batteryPct > 20 ? 'bg-primary' : 'bg-red-500'
-                    )}
-                    style={{ width: `${batteryPct}%` }}
-                  />
+          <div className="h-px bg-outline-variant" />
+
+          <div className="flex items-center gap-3 p-5">
+            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+              <Battery className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-on-surface">{t('checkin.batteryLevel')}</p>
+              {batteryPct !== null ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 bg-surface-container-high rounded-full h-2">
+                    <div
+                      className={cn('h-2 rounded-full transition-all duration-500',
+                        batteryPct > 50 ? 'bg-tsi-low' : batteryPct > 20 ? 'bg-primary' : 'bg-sos'
+                      )}
+                      style={{ width: `${batteryPct}%` }}
+                    />
+                  </div>
+                  <span className={cn('text-sm font-bold',
+                    batteryPct > 50 ? 'text-tsi-low' : batteryPct > 20 ? 'text-primary' : 'text-sos-dark'
+                  )}>{batteryPct}%</span>
                 </div>
-                <span className={cn('text-sm font-bold',
-                  batteryPct > 50 ? 'text-green-600' : batteryPct > 20 ? 'text-primary' : 'text-red-600'
-                )}>{batteryPct}%</span>
-              </div>
-            ) : (
-              <p className="text-xs text-on-surface-variant">{t('checkin.notAvailableDevice')}</p>
+              ) : (
+                <p className="text-xs text-on-surface-variant">{t('checkin.notAvailableDevice')}</p>
+              )}
+            </div>
+            {batteryPct !== null && batteryPct < 20 && (
+              <span className="text-xs text-sos-dark font-bold bg-sos-light px-2 py-1 rounded-full flex-shrink-0">{t('checkin.low')}</span>
             )}
           </div>
-          {batteryPct !== null && batteryPct < 20 && (
-            <span className="text-xs text-red-600 font-bold bg-red-50 px-2 py-1 rounded-full">{t('checkin.low')}</span>
-          )}
         </div>
 
         {/* Optional message */}
@@ -155,11 +157,11 @@ export default function CheckinPage() {
         </div>
 
         {dms && dms.status === 'ACTIVE' && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+          <div className="bg-tsi-low/10 border border-tsi-low/30 rounded-2xl p-4 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-tsi-low flex-shrink-0" />
             <div>
-              <p className="text-sm font-bold text-green-700">{t('checkin.dmsWillReset')}</p>
-              <p className="text-xs text-green-600">{t('checkin.dmsResetDesc')}</p>
+              <p className="text-sm font-bold text-tsi-low">{t('checkin.dmsWillReset')}</p>
+              <p className="text-xs text-tsi-low/80">{t('checkin.dmsResetDesc')}</p>
             </div>
           </div>
         )}
@@ -167,7 +169,7 @@ export default function CheckinPage() {
         <Button
           onClick={() => checkIn()}
           disabled={isPending || !locationReady}
-          className="w-full h-14 bg-green-600 hover:bg-green-700 text-white rounded-full font-semibold text-lg shadow-glass flex items-center justify-center gap-2"
+          className="w-full h-14 bg-tsi-low hover:brightness-110 text-white rounded-full font-semibold text-lg shadow-glass flex items-center justify-center gap-2"
         >
           {isPending ? <Loader2 className="w-6 h-6 animate-spin" /> : <><CheckCircle2 className="w-5 h-5" /> {t('checkin.imSafeButton')}</>}
         </Button>
@@ -184,8 +186,8 @@ export default function CheckinPage() {
             <div className="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
               {recentCheckins.map((c, i) => (
                 <div key={c.id} className={cn('flex items-center gap-3 px-5 py-3', i > 0 && 'border-t border-outline-variant')}>
-                  <div className="w-7 h-7 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    {c.type === 'DMS_RESET' ? <RotateCcw className="w-4 h-4 text-green-600" /> : <CheckCircle2 className="w-4 h-4 text-green-600" />}
+                  <div className="w-7 h-7 bg-tsi-low/10 rounded-full flex items-center justify-center flex-shrink-0">
+                    {c.type === 'DMS_RESET' ? <RotateCcw className="w-4 h-4 text-tsi-low" /> : <CheckCircle2 className="w-4 h-4 text-tsi-low" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-on-surface">
