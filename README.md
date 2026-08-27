@@ -7,7 +7,7 @@
 
 [![Status](https://img.shields.io/badge/status-demo--ready-brightgreen)]()
 [![Portals](https://img.shields.io/badge/portals-4-blue)]()
-[![API](https://img.shields.io/badge/API%20endpoints-97-orange)]()
+[![API](https://img.shields.io/badge/API%20endpoints-101-orange)]()
 [![Tables](https://img.shields.io/badge/DB%20tables-23-orange)]()
 [![Offline SOS](https://img.shields.io/badge/offline%20SOS-2G%20capable-red)]()
 [![Digital ID](https://img.shields.io/badge/digital%20ID-hash--chained-9cf)]()
@@ -52,6 +52,7 @@ real-time data model instead of four disconnected apps.
 - [API surface](#api-surface)
 - [Testing](#testing)
 - [Production readiness](#production-readiness)
+- [Legal & Compliance](#legal--compliance)
 - [Documentation map](#documentation-map)
 - [Roadmap](#roadmap)
 
@@ -97,6 +98,8 @@ slides.
 | "Report a crime" ends at a crowd-sourced warning post | A real **E-FIR triage workflow** — a formal, case-numbered report routed to a role-based officer queue with an actual investigation ladder (Filed → Assigned → Under Investigation → Resolved), not just a community bulletin board |
 | "We tested it" meaning the happy path worked once | A security pass that found and closed a **live unauthenticated privilege-escalation path** to govt SUPER\_ADMIN, pinned every JWT verification against algorithm-confusion attacks, and fixed a rate-limiter that silently ignored its own configuration |
 | Flat 2D maps vs. competitors' VR/3D showpieces, or a rescue queue sorted by raw distance alone | **Real 3D elevation terrain** on the govt map (free, keyless, no CesiumJS bloat) so a dispatcher can see the mountain ridge between a rescuer and an SOS, plus **weighted dispatch scoring** that ranks a rescuer by category fit and reputation, not distance alone |
+| "Govt ID verified" meaning a regex checked the digit count | The actual **Verhoeff checksum** — the real algorithm UIDAI uses to generate an Aadhaar number's 12th digit — run client-independent, server-side, at registration |
+| Privacy as a paragraph in a slide deck | Working **DPDP Act 2023 data rights** — a tourist can view exactly what's collected and why, export every record held about them as a real file download, and request deletion, which anonymizes their row in place (never a raw `DELETE`, so legally-retainable SOS/E-FIR history survives) and is refused automatically while an open SOS or E-FIR exists |
 
 ---
 
@@ -169,6 +172,8 @@ slides.
 - **Travel Safety Index (TSI)** — a 0–100 score per destination, rule-based from route difficulty, altitude, connectivity, season, and live OpenWeatherMap data, recalculated hourly by a cron job and pushed live over Socket.IO
 - **Offline SOS** — the mechanism this whole platform is built around: a tourist with zero data coverage sends a structured SMS (`AARAKSHA_SOS|ID:...|LAT:...|LNG:...|CAT:...|BATT:...|TIME:...`), a Twilio inbound webhook parses it, and a full SOS event is created exactly as if it came through the app
 - **Emergency contact OTP verification** — contacts confirm consent before being registered, closing a real privacy gap
+- **Verhoeff-validated Aadhaar** — registration checks the actual UIDAI checksum algorithm on the 12th digit, catching a mistyped Aadhaar number that format-only regex validation would silently accept
+- **Privacy & Data Rights page** — see [DPDP Act compliance](#legal--compliance) below
 - **Rescue team ETA** — once a team is dispatched, the tourist sees live status and estimated arrival, not silence
 - **Weather-triggered risk alerts** — a sudden weather-driven TSI drop pushes a real-time alert to anyone with that destination on their itinerary
 - **Web push notifications** — critical alerts reach tourists even when the app isn't open
@@ -440,9 +445,9 @@ the [production readiness report](./PRODUCTION_READINESS_REPORT.html).
 | | |
 |---|---|
 | **Portals** | 4 (Tourist PWA, Govt Command Center, Guardian Portal, Rescuer App) |
-| **API endpoints** | 97, across 15 route groups |
+| **API endpoints** | 101, across 15 route groups |
 | **Database tables** | 23 |
-| **Migrations** | 13, applied incrementally — every schema change is a reviewable, named diff, never a hand-edited table |
+| **Migrations** | 15, applied incrementally — every schema change is a reviewable, named diff, never a hand-edited table |
 | **Destinations seeded** | 10, across Assam, Meghalaya, Nagaland, Arunachal Pradesh, Sikkim, Manipur — each with real altitude, connectivity, ILP, and hospital data |
 | **Curated news items** | ~45, hand-written per destination, auto-rotating |
 | **Tourist app screens** | 15 (landing, auth, dashboard, trip planning + detail with 6 tabs, check-in, SOS, incident reporting, community, advisory, profile) |
@@ -617,12 +622,12 @@ page) into `/track/:token` on the guardian app.
 
 ## API surface
 
-97 REST endpoints across 15 route groups, all under `/api`:
+101 REST endpoints across 15 route groups, all under `/api`:
 
 | Prefix | Covers |
 |---|---|
 | `/auth` | Tourist + govt registration/login, forgot-password OTP flow (with a visible in-app fallback if Twilio delivery fails), phone verification — govt registration is role-gated, no self-service SUPER\_ADMIN |
-| `/tourists` | Profile, emergency-contact OTP verification, checkpoint QR code, public guardian view |
+| `/tourists` | Profile, emergency-contact OTP verification, checkpoint QR code, public guardian view, DPDP data rights (privacy notice, data export, deletion request + history) |
 | `/trips` | Itinerary CRUD, stops, group trips (join/invite/members/leave), per-trip news, TSI, AI safety-advisory briefing |
 | `/sos` | Create SOS, history, active rescue info, mark false alarm |
 | `/dms` | Dead Man's Switch create/reset/status |
@@ -717,6 +722,42 @@ fixed:
   answer to "what happens when SMS delivery fails," not a silent dead end.
 
 Eight real defects found and fixed across both passes.
+
+---
+
+## Legal & Compliance
+
+Two Indian regulatory frameworks apply directly to a platform that handles government ID numbers
+and runs a public-sector command center — both are treated as real requirements, not slide bullets.
+
+**DPDP Act 2023** (India's Digital Personal Data Protection Act, in force since 13 November 2025)
+governs every tourist record this platform holds. The tourist app's **Privacy & Data Rights page**
+gives each of its statutory rights a real, working control:
+
+| Right | What it does here |
+|---|---|
+| Right to notice | A plain-language breakdown of exactly what's collected, per category, and why |
+| Right to access | **Export My Data** — a real file download of every trip, check-in, SOS event, E-FIR, and checkpoint scan tied to the account |
+| Right to correction | Edit your own profile at any time |
+| Right to erasure | **Delete My Account** — anonymizes the row in place (name, phone, blood group, medical notes, and the government-ID hash and suffix are all scrubbed, `is_active` set false) rather than a raw `DELETE`, so legally-retainable audit records (resolved SOS history, closed E-FIRs) survive without still identifying the person. Automatically **refused** while an open SOS or E-FIR exists, with the reason stated back to the requester |
+| Right to grievance redressal | A named contact point on the same page |
+
+The government ID hash itself gets the same treatment on deletion: a bare SHA-256 of a 12-digit
+number is brute-forceable in hours, so "anonymizing" a row without also replacing that hash would
+leave a supposedly-deleted account re-identifiable to anyone with database access. It's replaced,
+not left behind.
+
+**GIGW 3.0** (Guidelines for Indian Government Websites) mandates WCAG 2.1 Level AA for government
+portals — directly applicable to the Govt Command Center, which is exactly that. An accessibility
+pass covers icon-only controls (`aria-label`), keyboard focus visibility, dark-theme text contrast,
+modal keyboard handling (Escape to close), image alt text, and form labeling across every govt
+screen.
+
+**Aadhaar validation** goes one level past format checking: registration runs the real **Verhoeff
+checksum algorithm** — the actual arithmetic UIDAI uses to generate an Aadhaar number's 12th digit
+— against the submitted number. This is honestly scoped: it catches a mistyped digit the way the
+real system would, but it is *not* live UIDAI eKYC verification, and nothing in the product claims
+otherwise.
 
 ---
 
