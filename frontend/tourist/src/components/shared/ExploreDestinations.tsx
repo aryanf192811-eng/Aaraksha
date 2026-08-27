@@ -98,7 +98,7 @@ export function ExploreDestinations() {
                 className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-sm active:scale-[0.97] transition-transform cursor-pointer text-left"
               >
                 <img
-                  src={getDestinationImage(dest.name, { w: 500, q: 75 })}
+                  src={getDestinationImage(dest.name, { w: 800, q: 80 })}
                   alt=""
                   loading="lazy"
                   className="absolute inset-0 w-full h-full object-cover"

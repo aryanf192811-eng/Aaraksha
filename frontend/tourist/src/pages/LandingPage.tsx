@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Shield, ShieldCheck, Map, ArrowRight, Users,
+  Shield, ShieldCheck, ArrowRight, Users,
   Radio, Siren, Timer, BarChart3, WifiOff, MessageSquareWarning,
   MapPinned, ClipboardList, CheckCircle2, FlagTriangleRight,
 } from 'lucide-react'
@@ -150,7 +150,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="pb-24 md:pb-16">
+      <main>
         {/* ── Hero — full-bleed splash, tourist-only: no outbound portal link ── */}
         <section className="relative min-h-[100dvh] md:min-h-[88vh] flex flex-col justify-end overflow-hidden isolate">
           <img src={HERO_PHOTO} alt="A trekker on a misty mountain trail in Northeast India" loading="eager"
@@ -193,14 +193,15 @@ export default function LandingPage() {
               Aaraksha tracks the terrain you're actually entering, and keeps working even
               where the signal doesn't.
             </p>
-            <div className="flex flex-col items-start gap-4 pt-7">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-7 w-full sm:w-auto">
               <Button onClick={() => navigate('/auth?tab=register')}
                 className="bg-primary text-primary-foreground px-8 h-14 rounded-full font-semibold text-base shadow-glass active:scale-95 transition-all">
                 Get Started <ArrowRight className="ml-1.5 w-4 h-4" />
               </Button>
-              <button onClick={() => navigate('/auth')} className="text-sm text-white/85">
-                Already have an account? <span className="font-semibold text-primary underline underline-offset-2">Log in</span>
-              </button>
+              <Button onClick={() => navigate('/auth')} variant="outline"
+                className="bg-white/10 text-white border-white/30 backdrop-blur-md px-8 h-14 rounded-full font-semibold text-base hover:bg-white/20 hover:text-white active:scale-95 transition-all">
+                Log In
+              </Button>
             </div>
           </div>
         </section>
@@ -229,7 +230,7 @@ export default function LandingPage() {
               <div key={stop.city}
                 className="group relative rounded-2xl overflow-hidden aspect-[4/5] shadow-sm hover:shadow-lg transition-shadow cursor-pointer border border-outline-variant"
                 onClick={() => navigate('/auth?tab=register')}>
-                <img src={getDestinationImage(stop.city, { w: 700 })} alt={stop.city}
+                <img src={getDestinationImage(stop.city, { w: 1000, q: 82 })} alt={stop.city}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
                 <div className={`absolute top-3 right-3 px-2.5 py-1 rounded-full border text-[10px] font-extrabold backdrop-blur-sm ${ZONE_STYLES[stop.zone]}`}>
@@ -427,28 +428,6 @@ export default function LandingPage() {
           Aaraksha © 2025 · SIH 2025 · Smart Tourism · Safe Journey · Northeast India
         </footer>
       </main>
-
-      {/* ── BottomNavBar (mobile) ─────────────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 w-full z-50 rounded-t-2xl bg-surface border-t border-outline-variant shadow-lg">
-        <div className="flex justify-around items-center px-2 py-2.5 w-full pb-safe">
-          <button onClick={() => navigate('/')} className="flex flex-col items-center justify-center bg-primary text-primary-foreground rounded-full px-4 py-1.5">
-            <Shield className="w-5 h-5" />
-            <span className="text-[10px] font-semibold mt-1">Home</span>
-          </button>
-          <button onClick={() => navigate(isAuthenticated ? '/trips' : '/auth')} className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5">
-            <Map className="w-5 h-5" />
-            <span className="text-[10px] font-semibold mt-1">Trips</span>
-          </button>
-          <button onClick={() => navigate(isAuthenticated ? '/checkin' : '/auth')} className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5">
-            <WifiOff className="w-5 h-5" />
-            <span className="text-[10px] font-semibold mt-1">Check-In</span>
-          </button>
-          <button onClick={() => navigate(isAuthenticated ? '/profile' : '/auth')} className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5">
-            <Users className="w-5 h-5" />
-            <span className="text-[10px] font-semibold mt-1">Profile</span>
-          </button>
-        </div>
-      </nav>
     </div>
   )
 }

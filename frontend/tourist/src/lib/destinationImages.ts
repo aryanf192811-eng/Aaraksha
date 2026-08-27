@@ -28,6 +28,8 @@ export function getDestinationImage(cityName: string | undefined | null, opts?: 
   return `https://images.unsplash.com/photo-${photoId}?w=${w}&q=${q}&auto=format&fit=crop`
 }
 
-// Hero-grade banner photo — dramatic misty mountain trekking scene, used for
-// the landing page hero and any full-bleed section not tied to one city.
-export const HERO_PHOTO = 'https://images.unsplash.com/photo-1671404478922-a50366b728d0?w=1920&q=85&auto=format&fit=crop'
+// Hero-grade banner photo — sharp snow-capped Himalayan range, used for the
+// landing page hero and any full-bleed section not tied to one city.
+// Verified reachable directly (not routed through getDestinationImage's
+// fuzzy name match) since it's not standing in for any one destination.
+export const HERO_PHOTO = 'https://images.unsplash.com/photo-1616942986550-ea6469c08530?w=1920&q=85&auto=format&fit=crop'

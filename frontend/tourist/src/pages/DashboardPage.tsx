@@ -68,7 +68,7 @@ export default function DashboardPage() {
 
   const trips = tripsData?.data || []
   const activeTrip = trips.find(t => t.status === TRIP_STATUSES.ACTIVE)
-  const heroPhoto = getDestinationImage(activeTrip?.stops?.[0]?.city, { w: 1000, q: 78 })
+  const heroPhoto = getDestinationImage(activeTrip?.stops?.[0]?.city, { w: 1400, q: 82 })
 
   const { data: latestNews } = useQuery({
     queryKey: ['trips', activeTrip?.id, 'news'],
@@ -193,7 +193,7 @@ export default function DashboardPage() {
                   onClick={() => navigate('/trips/new')}
                   className="relative w-full h-64 rounded-[2rem] overflow-hidden shadow-glass-lg text-left cursor-pointer"
                 >
-                  <img src={getDestinationImage(undefined, { w: 1000, q: 78 })} alt="" loading="eager" className="absolute inset-0 w-full h-full object-cover" />
+                  <img src={getDestinationImage(undefined, { w: 1400, q: 82 })} alt="" loading="eager" className="absolute inset-0 w-full h-full object-cover" />
                   <div className="absolute inset-0 photo-scrim" />
                   <div className="relative h-full p-5 flex flex-col justify-end">
                     <p className="font-display font-extrabold text-white text-3xl leading-[1.1] max-w-[80%]">
@@ -326,7 +326,7 @@ function QuickActionsRow({ navigate, t }: { navigate: (route: string) => void; t
 
 function TripCard({ trip, onClick }: { trip: Trip; onClick: () => void }) {
   const { t } = useTranslation()
-  const photo = getDestinationImage(trip.stops?.[0]?.city, { w: 300, q: 65 })
+  const photo = getDestinationImage(trip.stops?.[0]?.city, { w: 400, q: 80 })
   return (
     <div onClick={onClick} role="button"
       className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-3 flex items-center gap-4 active:scale-[0.98] transition-transform cursor-pointer">

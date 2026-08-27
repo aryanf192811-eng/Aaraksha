@@ -174,16 +174,16 @@ export default function TripDetailPage() {
       {/* Hero — full-bleed destination photo, rounded into a "card" at the
           bottom edge, with a floating liquid-glass toolbar capsule over it. */}
       <div className="relative h-80 sm:h-96 rounded-b-[32px] overflow-hidden shadow-glass-lg">
-        <img src={getDestinationImage(heroCity, { w: 1200 })} alt={heroCity || trip.title}
+        <img src={getDestinationImage(heroCity, { w: 1600, q: 82 })} alt={heroCity || trip.title}
           className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-slate-950/35" />
 
         <div className="relative flex items-center justify-between px-5 pt-12">
           <button onClick={() => navigate(-1)}
-            className="w-10 h-10 rounded-full bg-white/15 backdrop-blur-xl border border-white/25 flex items-center justify-center shadow-glass hover:bg-white/25 transition-colors">
+            className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center shadow-glass hover:bg-white/30 transition-colors">
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
-          <div className="flex items-center gap-1 bg-white/15 backdrop-blur-xl border border-white/25 rounded-full p-1.5 shadow-glass">
+          <div className="flex items-center gap-1 bg-white/20 backdrop-blur-xl border border-white/30 rounded-full p-1.5 shadow-glass">
             <button onClick={handleShare} title="Share trip"
               className="w-9 h-9 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors">
               <Share2 className="w-4 h-4" />
@@ -316,7 +316,7 @@ export default function TripDetailPage() {
             {stops.length === 0 && <p className="text-center text-on-surface-variant py-8">{t('tripDetail.noStopsYet')}</p>}
             {stops.map((stop, idx) => (
               <div key={idx} className="bg-surface-container-lowest rounded-3xl shadow-sm overflow-hidden flex">
-                <img src={getDestinationImage(stop.city, { w: 200 })} alt={stop.city}
+                <img src={getDestinationImage(stop.city, { w: 400, q: 80 })} alt={stop.city}
                   className="w-24 sm:w-28 flex-shrink-0 object-cover" />
                 <div className="p-4 flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-2">

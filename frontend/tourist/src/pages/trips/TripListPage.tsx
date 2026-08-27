@@ -110,7 +110,7 @@ export default function TripListPage() {
                 description={t('trips.noTripsDescription')}
                 className="text-white [&_h3]:text-white [&_p]:text-white/70 [&_svg]:text-white/60"
                 action={
-                  <Button onClick={() => navigate('/trips/new')} className="bg-primary hover:brightness-95 text-primary-foreground rounded-full px-6 font-bold shadow-glow-amber">
+                  <Button onClick={() => navigate('/trips/new')} className="bg-primary hover:brightness-95 text-primary-foreground rounded-full px-6 font-bold shadow-glass">
                     <Plus className="w-4 h-4 mr-2" /> {t('dashboard.planNewTrip')}
                   </Button>
                 }
@@ -126,7 +126,7 @@ export default function TripListPage() {
               className="group relative rounded-3xl overflow-hidden shadow-md hover:shadow-glass-lg active:scale-[0.98] transition-all bg-surface-container-lowest cursor-pointer">
               {/* Photo */}
               <div className="relative h-40 overflow-hidden">
-                <img src={getDestinationImage(firstStopCity, { w: 900 })} alt={firstStopCity || trip.title}
+                <img src={getDestinationImage(firstStopCity, { w: 1200, q: 82 })} alt={firstStopCity || trip.title}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-black/10" />
                 <span className={cn('absolute top-3 left-3 text-[11px] font-bold px-2.5 py-1 rounded-full backdrop-blur-xl', STATUS_STYLES[trip.status] || STATUS_STYLES.PLANNED)}>
