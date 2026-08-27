@@ -51,24 +51,6 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'aaraksha-backend', timestamp: new Date().toISOString() })
 })
 
-// TEMP-ONE-TIME: triggers `npm run seed` as a separate process (never
-// require the script directly — it calls pool.end() on the shared
-// singleton pool, which would break every subsequent request on this
-// server). Gated by a throwaway token known only here. Remove after use.
-app.post('/debug-seed', (req, res) => {
-  if (req.query.token !== 'aaraksha-seed-2f8c1e9d4b') {
-    return res.status(404).json({ success: false, message: 'Not found' })
-  }
-  const { exec } = require('node:child_process')
-  exec('npm run seed', { cwd: __dirname + '/..', timeout: 60000 }, (error, stdout, stderr) => {
-    if (error) {
-      console.error('SEED FAILED:', error.message, stderr)
-      return res.status(500).json({ ok: false, error: error.message, stderr, stdout })
-    }
-    res.json({ ok: true, stdout })
-  })
-})
-
 // ── API routes ────────────────────────────────────────────────────────
 app.use('/api', routes)
 
