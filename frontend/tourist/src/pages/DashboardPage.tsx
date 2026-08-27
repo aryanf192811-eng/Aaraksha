@@ -1,11 +1,16 @@
 // src/pages/DashboardPage.tsx
-// Layout: sticky header -> hero status -> quick actions -> active trip -> DMS card -> recent trips
+// v2 layout, rebuilt against direct feedback on v1 (too boxy, too safe,
+// didn't match the reference travel-app patterns): bolder greeting type,
+// a tighter single-register safety panel instead of a tall stacked block,
+// and Explore promoted to a real search+filter+grid section instead of a
+// cramped horizontal rail. All data hooks are unchanged from the original
+// dashboard — this is still a visual/structural pass only.
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Plus, Map, Shield, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper } from 'lucide-react'
+import { Plus, Map, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper, Compass } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed } from '../components/shared'
+import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed, ExploreDestinations } from '../components/shared'
 import { RescueReadinessChecklist } from '../components/shared/RescueReadinessChecklist'
 import { SafetyTimeline, useEscalationLevel } from '../components/shared/SafetyTimeline'
 import { useAuthStore } from '../store/auth.store'
@@ -15,6 +20,7 @@ import tripApi from '../api/trip.api'
 import newsApi from '../api/news.api'
 import type { Trip } from '../types/api.types'
 import { formatDate, cn } from '../lib/utils'
+import { getDestinationImage } from '../lib/destinationImages'
 import { tEnum } from '../lib/i18nEnums'
 import { TRIP_STATUSES } from '../constants/enums'
 
@@ -26,9 +32,9 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 const QUICK_ACTIONS = [
-  { Icon: MapPin,        labelKey: 'dashboard.checkIn',  route: '/checkin',  color: 'bg-green-50 border-green-200' },
-  { Icon: Map,            labelKey: 'dashboard.myTrips',  route: '/trips',    color: 'bg-amber-50 border-amber-200' },
-  { Icon: AlertTriangle, labelKey: 'dashboard.advisory', route: '/advisory', color: 'bg-orange-50 border-orange-200' },
+  { Icon: MapPin,        labelKey: 'dashboard.checkIn',  route: '/checkin' },
+  { Icon: Map,           labelKey: 'dashboard.myTrips',  route: '/trips' },
+  { Icon: AlertTriangle, labelKey: 'dashboard.advisory', route: '/advisory' },
 ]
 
 export default function DashboardPage() {
@@ -47,6 +53,7 @@ export default function DashboardPage() {
 
   const trips = tripsData?.data || []
   const activeTrip = trips.find(t => t.status === TRIP_STATUSES.ACTIVE)
+  const heroPhoto = getDestinationImage(activeTrip?.stops?.[0]?.city, { w: 1000, q: 78 })
 
   const { data: latestNews } = useQuery({
     queryKey: ['trips', activeTrip?.id, 'news'],
@@ -55,76 +62,120 @@ export default function DashboardPage() {
     staleTime: 2 * 60_000,
   })
 
+  const firstName = tourist?.full_name?.split(' ')[0] || t('dashboard.travelerFallback')
+
   return (
     <div className="min-h-screen bg-surface pb-28 font-sans">
       <OfflineBanner />
 
-      {/* ── Hero Header ──────────────────────────────────────────── */}
-      <div className="bg-surface-container-lowest px-5 pt-12 pb-6 shadow-sm border-b border-outline-variant/60">
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <p className="text-xs font-extrabold text-primary uppercase tracking-widest">Aaraksha</p>
-            <h1 className="font-display text-2xl font-black text-on-surface leading-tight mt-0.5">
-              {t('dashboard.welcome', { name: tourist?.full_name?.split(' ')[0] || t('dashboard.travelerFallback') })}
-            </h1>
-            <p className="text-sm text-on-surface-variant mt-0.5">{t('dashboard.tagline')}</p>
+      {/* ── Header ───────────────────────────────────────────────── */}
+      <div className="px-5 pt-12 pb-1 flex items-center justify-between">
+        <p className="text-xs font-extrabold text-primary-dark uppercase tracking-widest">Aaraksha</p>
+        <button className="flex-shrink-0" onClick={() => navigate('/profile')} aria-label={t('profile.title')}>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-primary-foreground font-display font-bold shadow-glow-amber">
+            {tourist?.full_name?.[0]?.toUpperCase() || 'T'}
           </div>
-          <button className="relative p-2" onClick={() => navigate('/profile')}>
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
-              {tourist?.full_name?.[0]?.toUpperCase() || 'T'}
+        </button>
+      </div>
+      <div className="px-5 pb-4">
+        <h1 className="font-display text-[2rem] font-extrabold text-on-surface leading-[1.1]">
+          {t('dashboard.welcome', { name: firstName })}
+        </h1>
+      </div>
+
+      {/* ── Hero: photo-backed trip, or a bold discovery prompt ────── */}
+      <div className="px-5">
+        {activeTrip ? (
+          <button
+            onClick={() => navigate(`/trips/${activeTrip.id}`)}
+            className="relative w-full h-56 rounded-[2rem] overflow-hidden shadow-glass-lg text-left cursor-pointer"
+          >
+            <img src={heroPhoto} alt="" loading="eager" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 photo-scrim" />
+            <div className="relative h-full p-5 flex flex-col justify-end">
+              <p className="text-[11px] font-extrabold text-primary uppercase tracking-wide mb-1">{t('dashboard.activeTrip')}</p>
+              <div className="flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-display font-extrabold text-white text-2xl leading-tight truncate">{activeTrip.title}</p>
+                  <p className="text-sm text-white/75 mt-1">{formatDate(activeTrip.start_date)} → {formatDate(activeTrip.end_date)}</p>
+                </div>
+                <div className="flex-shrink-0 bg-white rounded-2xl p-1.5 shadow-md">
+                  <TSIBadge score={activeTrip.tsi_score} size="sm" />
+                </div>
+              </div>
             </div>
           </button>
-        </div>
-
-        {/* Active trip TSI */}
-        {activeTrip && (
-          <div className="glass-card rounded-2xl p-4 flex items-center gap-4 cursor-pointer relative overflow-hidden"
-            onClick={() => navigate(`/trips/${activeTrip.id}`)}
-            role="button">
-            <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
-            <TSIBadge score={activeTrip.tsi_score} size="md" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-extrabold text-primary uppercase tracking-wide">{t('dashboard.activeTrip')}</p>
-              <p className="font-bold text-on-surface truncate">{activeTrip.title}</p>
-              <p className="text-xs text-on-surface-variant">{formatDate(activeTrip.start_date)} → {formatDate(activeTrip.end_date)}</p>
+        ) : (
+          <button
+            onClick={() => navigate('/trips/new')}
+            className="relative w-full h-64 rounded-[2rem] overflow-hidden shadow-glass-lg text-left cursor-pointer"
+          >
+            <img src={getDestinationImage(undefined, { w: 1000, q: 78 })} alt="" loading="eager" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 photo-scrim" />
+            <div className="relative h-full p-5 flex flex-col justify-end">
+              <p className="font-display font-extrabold text-white text-3xl leading-[1.1] max-w-[80%]">
+                {t('dashboard.discoverHeroTitle')}
+              </p>
+              <p className="text-sm text-white/80 mt-2 mb-4 max-w-[85%]">{t('dashboard.discoverHeroSubtitle')}</p>
+              <span className="inline-flex items-center gap-1.5 self-start bg-primary text-primary-foreground text-sm font-extrabold px-5 py-3 rounded-full">
+                <Compass className="w-4.5 h-4.5" /> {t('dashboard.startPlanning')}
+              </span>
             </div>
-            <ChevronRight className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
+          </button>
+        )}
+      </div>
+
+      {/* ── Safety strip — a single-row band, not a tall stacked block. */}
+      {/*    Still its own teal register so "this is the civic-safety   */}
+      {/*    part" reads instantly against the amber discovery moments. */}
+      <div className="px-5 mt-4">
+        <div className="rounded-3xl bg-gradient-to-r from-trust-dark to-trust p-4 flex items-center gap-3.5 shadow-glow-teal">
+          <SOSButton onTrigger={() => navigate('/sos')} isActive={!!activeSOSId} size="compact" />
+          <div className="flex-1 min-w-0">
+            <p className="font-display font-bold text-white text-base">{t('dashboard.safety')}</p>
+            <p className="text-xs text-white/75 mt-0.5 leading-snug">
+              {activeSOSId ? t('dashboard.sosActiveBanner') : dms ? t('dashboard.dmsRunning') : t('dashboard.holdToAlert')}
+            </p>
+          </div>
+          <button onClick={() => navigate('/sos')} className="flex-shrink-0 text-xs font-bold text-white bg-white/15 px-3.5 py-2.5 rounded-full cursor-pointer whitespace-nowrap">
+            {t('dashboard.safetyCenter')}
+          </button>
+        </div>
+        {dms && (
+          <div className="mt-2">
+            <DMSCard dms={dms} />
           </div>
         )}
       </div>
 
-      {/* ── Safety Section ────────────────────────────────────────── */}
-      <div className="px-5 mt-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-black text-on-surface">{t('dashboard.safety')}</h2>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/sos')} className="text-primary font-semibold">
-            <Shield className="w-4 h-4 mr-1" /> {t('dashboard.safetyCenter')}
-          </Button>
-        </div>
+      {/* ── Explore: search + safety-zone filter + a generous grid ─── */}
+      <div className="px-5 mt-7">
+        <h2 className="font-display text-2xl font-extrabold text-on-surface mb-1">{t('dashboard.exploreTitle')}</h2>
+        <p className="text-sm text-on-surface-variant mb-4">{t('dashboard.exploreSubtitle')}</p>
+        <ExploreDestinations />
+      </div>
 
-        {/* Big SOS button */}
-        <div className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant p-6 flex flex-col items-center gap-4">
-          <SOSButton onTrigger={() => navigate('/sos')} isActive={!!activeSOSId} size="default" />
-          {activeSOSId && (
-            <div className="bg-sos-light border border-sos/30 rounded-xl px-4 py-2 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-sos flex-shrink-0" />
-              <p className="text-sm font-bold text-sos-dark">{t('dashboard.sosActiveBanner')}</p>
-            </div>
-          )}
+      {/* ── Quick Actions ─────────────────────────────────────────── */}
+      <div className="px-5 mt-7">
+        <div className="grid grid-cols-3 gap-3">
+          {QUICK_ACTIONS.map(({ Icon, labelKey, route }) => (
+            <button key={labelKey} onClick={() => navigate(route)}
+              className="rounded-2xl py-4 flex flex-col items-center gap-2 font-bold text-xs text-on-surface bg-surface-container-lowest active:scale-95 transition-all cursor-pointer">
+              <Icon className="w-6 h-6 text-primary-dark" />
+              {t(labelKey)}
+            </button>
+          ))}
         </div>
-
-        {/* DMS Card */}
-        <DMSCard dms={dms || null} />
       </div>
 
       {/* ── Latest Alerts ─────────────────────────────────────────── */}
       {activeTrip && latestNews && latestNews.length > 0 && (
-        <div className="px-5 mt-5">
+        <div className="px-5 mt-7">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display text-lg font-black text-on-surface flex items-center gap-1.5">
-              <Newspaper className="w-4.5 h-4.5" /> {t('dashboard.latestAlerts')}
+            <h2 className="font-display text-xl font-extrabold text-on-surface flex items-center gap-1.5">
+              <Newspaper className="w-5 h-5" /> {t('dashboard.latestAlerts')}
             </h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate(`/trips/${activeTrip.id}`)} className="text-primary font-semibold">
+            <Button variant="ghost" size="sm" onClick={() => navigate(`/trips/${activeTrip.id}`)} className="text-primary-dark font-semibold">
               {t('common.viewAll')}
             </Button>
           </div>
@@ -132,24 +183,11 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Quick Actions ─────────────────────────────────────────── */}
-      <div className="px-5 mt-5">
-        <div className="grid grid-cols-3 gap-3">
-          {QUICK_ACTIONS.map(({ Icon, labelKey, route, color }) => (
-            <button key={labelKey} onClick={() => navigate(route)}
-              className={cn('rounded-2xl border p-4 flex flex-col items-center gap-2 font-semibold text-xs text-on-surface bg-surface-container-lowest shadow-sm hover:shadow-md active:scale-95 transition-all', color)}>
-              <Icon className="w-6 h-6" />
-              {t(labelKey)}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* ── Recent Trips ──────────────────────────────────────────── */}
-      <div className="px-5 mt-6">
+      <div className="px-5 mt-7">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-lg font-black text-on-surface">{t('dashboard.myTrips')}</h2>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/trips')} className="text-primary font-semibold">
+          <h2 className="font-display text-xl font-extrabold text-on-surface">{t('dashboard.myTrips')}</h2>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/trips')} className="text-primary-dark font-semibold">
             {t('common.viewAll')}
           </Button>
         </div>
@@ -183,14 +221,14 @@ export default function DashboardPage() {
 
       {/* ── Safety Timeline (only renders once something has escalated) ── */}
       {escalationLevel > 0 && (
-        <div className="px-5 mt-6">
+        <div className="px-5 mt-7">
           <SafetyTimeline dms={dms} />
         </div>
       )}
 
       {/* ── Rescue Readiness ─────────────────────────────────────── */}
       {tourist && (
-        <div className="px-5 mt-6">
+        <div className="px-5 mt-7">
           <RescueReadinessChecklist tourist={tourist} activeTrip={activeTrip} dms={dms} />
         </div>
       )}
@@ -200,10 +238,12 @@ export default function DashboardPage() {
 
 function TripCard({ trip, onClick }: { trip: Trip; onClick: () => void }) {
   const { t } = useTranslation()
+  const photo = getDestinationImage(trip.stops?.[0]?.city, { w: 300, q: 65 })
   return (
     <div onClick={onClick} role="button"
-      className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant p-5 flex items-center gap-4 active:scale-[0.98] transition-transform cursor-pointer">
-      {trip.tsi_score !== null && <TSIBadge score={trip.tsi_score} size="sm" showRing={false} />}
+      className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant p-3 flex items-center gap-4 active:scale-[0.98] transition-transform cursor-pointer">
+      <img src={photo} alt="" loading="lazy" width={56} height={56}
+        className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="font-bold text-on-surface truncate">{trip.title}</p>
         <p className="text-xs text-on-surface-variant mt-0.5">{formatDate(trip.start_date)} → {formatDate(trip.end_date)}</p>
@@ -216,6 +256,7 @@ function TripCard({ trip, onClick }: { trip: Trip; onClick: () => void }) {
           </span>
         </div>
       </div>
+      {trip.tsi_score !== null && <TSIBadge score={trip.tsi_score} size="sm" showRing={false} />}
       <ChevronRight className="w-5 h-5 text-on-surface-variant flex-shrink-0" />
     </div>
   )

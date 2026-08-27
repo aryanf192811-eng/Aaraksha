@@ -10,7 +10,11 @@ export default {
         // performance and because it's the "familiar on mobile" choice
         // called out in the design system's typography rationale.
         sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-        display: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        // Plus Jakarta Sans for headline/display roles — a warmer, rounder
+        // geometric grotesk than Inter, used only at heading weights so the
+        // page keeps one voice for chrome/body (Inter) and a distinct one
+        // for the "travel" moments (hero titles, section headers).
+        display: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {
@@ -83,6 +87,15 @@ export default {
         },
         safe:    '#22c55e',     // green-500
         warning: '#f59e0b',     // amber-500
+        // Second brand accent — trust/civic-safety moments (route lines,
+        // "explore" tags, the safety panel) get their own hue so they read
+        // as distinct from the amber "discovery/inspiration" moments
+        // instead of competing for the same color's attention.
+        trust: {
+          DEFAULT: '#0d9488', // teal-600
+          dark:    '#115e59', // teal-800
+          light:   '#ccfbf1', // teal-100
+        },
         // TSI badge colors
         tsi: {
           low:      '#15803d', // green-700
@@ -136,6 +149,7 @@ export default {
         glass:      '0 8px 32px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255,255,255,0.5)',
         'glass-lg': '0 24px 64px -12px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255,255,255,0.4)',
         'glow-amber': '0 8px 40px -8px rgba(245, 158, 11, 0.45)',
+        'glow-teal': '0 8px 40px -8px rgba(13, 148, 136, 0.45)',
       },
     },
   },
