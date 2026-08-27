@@ -9,12 +9,13 @@ export default {
         // headline roles, native system-ui stack for body copy — both for
         // performance and because it's the "familiar on mobile" choice
         // called out in the design system's typography rationale.
-        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-        // Plus Jakarta Sans for headline/display roles — a warmer, rounder
-        // geometric grotesk than Inter, used only at heading weights so the
-        // page keeps one voice for chrome/body (Inter) and a distinct one
-        // for the "travel" moments (hero titles, section headers).
-        display: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        // One family for everything, varying only weight/size — matching
+        // how SF Pro is actually used on iOS (Apple never pairs a second
+        // display face against it). An earlier pass paired Plus Jakarta
+        // Sans for headlines against Inter for body; reverted, since
+        // mixing two grotesks is exactly what reads as "not quite Apple."
+        display: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {

@@ -92,7 +92,7 @@ export default function DashboardPage() {
       <div className="px-5 pt-12 pb-1 flex items-center justify-between">
         <p className="text-xs font-extrabold text-primary-dark uppercase tracking-widest">Aaraksha</p>
         <button className="flex-shrink-0" onClick={() => navigate('/profile')} aria-label={t('profile.title')}>
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-primary-foreground font-display font-bold shadow-glow-amber">
+          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-display font-bold">
             {tourist?.full_name?.[0]?.toUpperCase() || 'T'}
           </div>
         </button>
@@ -164,7 +164,7 @@ export default function DashboardPage() {
               <SafetyStrip dms={dms} activeSOSId={activeSOSId} onOpen={() => navigate('/sos')} t={t} />
 
               {latestNews && latestNews.length > 0 && (
-                <div className="px-5 mt-7">
+                <div className="px-5 mt-8">
                   <div className="flex items-center justify-between mb-3">
                     <h2 className="font-display text-xl font-extrabold text-on-surface flex items-center gap-1.5">
                       <Newspaper className="w-5 h-5" /> {t('dashboard.latestAlerts')}
@@ -179,7 +179,7 @@ export default function DashboardPage() {
 
               <QuickActionsRow navigate={navigate} t={t} />
 
-              <div className="px-5 mt-7">
+              <div className="px-5 mt-8">
                 <h2 className="font-display text-xl font-extrabold text-on-surface mb-1">{t('dashboard.exploreTitle')}</h2>
                 <p className="text-sm text-on-surface-variant mb-4">{t('dashboard.exploreSubtitleSecondary')}</p>
                 <ExploreDestinations />
@@ -209,7 +209,7 @@ export default function DashboardPage() {
 
               <SafetyStrip dms={dms} activeSOSId={activeSOSId} onOpen={() => navigate('/sos')} t={t} minimal />
 
-              <div className="px-5 mt-7">
+              <div className="px-5 mt-8">
                 <h2 className="font-display text-2xl font-extrabold text-on-surface mb-1">{t('dashboard.exploreTitle')}</h2>
                 <p className="text-sm text-on-surface-variant mb-4">{t('dashboard.exploreSubtitle')}</p>
                 <ExploreDestinations />
@@ -220,7 +220,7 @@ export default function DashboardPage() {
           )}
 
           {/* ── Recent Trips ──────────────────────────────────────────── */}
-          <div className="px-5 mt-7">
+          <div className="px-5 mt-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-extrabold text-on-surface">{t('dashboard.myTrips')}</h2>
               <Button variant="ghost" size="sm" onClick={() => navigate('/trips')} className="text-primary-dark font-semibold">
@@ -257,14 +257,14 @@ export default function DashboardPage() {
 
           {/* ── Safety Timeline (only once something has escalated) ──── */}
           {escalationLevel > 0 && (
-            <div className="px-5 mt-7">
+            <div className="px-5 mt-8">
               <SafetyTimeline dms={dms} />
             </div>
           )}
 
           {/* ── Rescue Readiness ─────────────────────────────────────── */}
           {tourist && (
-            <div className="px-5 mt-7">
+            <div className="px-5 mt-8">
               <RescueReadinessChecklist tourist={tourist} activeTrip={activeTrip} dms={dms} />
             </div>
           )}
@@ -286,16 +286,16 @@ function SafetyStrip({ dms, activeSOSId, onOpen, t, minimal }: {
   minimal?: boolean
 }) {
   return (
-    <div className="px-5 mt-4">
-      <div className="rounded-3xl bg-gradient-to-r from-trust-dark to-trust p-4 flex items-center gap-3.5 shadow-glow-teal">
+    <div className="px-5 mt-5">
+      <div className="rounded-3xl bg-surface-container-lowest border border-outline-variant p-4 flex items-center gap-3.5">
         <SOSButton onTrigger={onOpen} isActive={!!activeSOSId} size="compact" />
         <div className="flex-1 min-w-0">
-          <p className="font-display font-bold text-white text-base">{t('dashboard.safety')}</p>
-          <p className="text-xs text-white/75 mt-0.5 leading-snug">
+          <p className="font-display font-bold text-on-surface text-base">{t('dashboard.safety')}</p>
+          <p className="text-xs text-on-surface-variant mt-0.5 leading-snug">
             {dms ? t('dashboard.dmsRunning') : minimal ? t('dashboard.safetyReady') : t('dashboard.holdToAlert')}
           </p>
         </div>
-        <button onClick={onOpen} className="flex-shrink-0 text-xs font-bold text-white bg-white/15 px-3.5 py-2.5 rounded-full cursor-pointer whitespace-nowrap">
+        <button onClick={onOpen} className="flex-shrink-0 text-xs font-bold text-trust-dark bg-trust-light px-3.5 py-2.5 rounded-full cursor-pointer whitespace-nowrap">
           {t('dashboard.safetyCenter')}
         </button>
       </div>
@@ -310,7 +310,7 @@ function SafetyStrip({ dms, activeSOSId, onOpen, t, minimal }: {
 
 function QuickActionsRow({ navigate, t }: { navigate: (route: string) => void; t: (key: string) => string }) {
   return (
-    <div className="px-5 mt-7">
+    <div className="px-5 mt-8">
       <div className="grid grid-cols-3 gap-3">
         {QUICK_ACTIONS.map(({ Icon, labelKey, route }) => (
           <button key={labelKey} onClick={() => navigate(route)}
@@ -329,7 +329,7 @@ function TripCard({ trip, onClick }: { trip: Trip; onClick: () => void }) {
   const photo = getDestinationImage(trip.stops?.[0]?.city, { w: 300, q: 65 })
   return (
     <div onClick={onClick} role="button"
-      className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant p-3 flex items-center gap-4 active:scale-[0.98] transition-transform cursor-pointer">
+      className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-3 flex items-center gap-4 active:scale-[0.98] transition-transform cursor-pointer">
       <img src={photo} alt="" loading="lazy" width={56} height={56}
         className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
       <div className="flex-1 min-w-0">
