@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft, Plus, Trash2, Loader2, ChevronRight, ChevronLeft, MapPin,
-  User, Users, Mountain, Landmark, Briefcase, Rocket,
+  User, Users, Mountain, Landmark, Briefcase, Rocket, Check, Calendar, Wallet,
 } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -21,6 +21,8 @@ import tripApi, { type CreateTripPayload } from '../../api/trip.api'
 import destinationApi from '../../api/destination.api'
 import { queryClient } from '../../lib/queryClient'
 import { tEnum } from '../../lib/i18nEnums'
+import { getDestinationImage } from '../../lib/destinationImages'
+import { cn } from '../../lib/utils'
 import type { TravelType } from '../../constants/enums'
 import type { Destination } from '../../types/api.types'
 
@@ -136,9 +138,28 @@ export default function CreateTripPage() {
         </div>
       </div>
 
-      {/* Progress */}
-      <div className="flex px-5 pt-4 gap-1.5">
-        {[1, 2, 3].map(s => <div key={s} className={`h-1 flex-1 rounded-full ${s <= step ? 'bg-primary' : 'bg-surface-container-highest'}`} />)}
+      {/* Progress — numbered nodes + connecting line, matching the "How it
+          works" stepper motif used on Landing, not a generic flat bar. */}
+      <div className="flex items-center px-6 pt-5 pb-1">
+        {[
+          { n: 1, labelKey: 'createTrip.tripNameLabel' },
+          { n: 2, labelKey: 'createTrip.addDestinations' },
+          { n: 3, labelKey: 'createTrip.review' },
+        ].map(({ n }, i, arr) => (
+          <div key={n} className={cn('flex items-center', i < arr.length - 1 && 'flex-1')}>
+            <div className={cn(
+              'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-black transition-colors',
+              n < step ? 'bg-primary text-primary-foreground' :
+              n === step ? 'bg-primary/15 text-primary border-2 border-primary' :
+              'bg-surface-container-high text-on-surface-variant'
+            )}>
+              {n < step ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : n}
+            </div>
+            {i < arr.length - 1 && (
+              <div className={cn('flex-1 h-0.5 mx-1.5 rounded-full transition-colors', n < step ? 'bg-primary' : 'bg-surface-container-highest')} />
+            )}
+          </div>
+        ))}
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="px-5 mt-5 space-y-5">
@@ -148,7 +169,7 @@ export default function CreateTripPage() {
             <div className="space-y-1.5">
               <Label className="font-semibold">{t('createTrip.tripNameLabel')}</Label>
               <Input placeholder={t('createTrip.tripNamePlaceholder')} className="h-12 rounded-xl" {...register('title')} />
-              {errors.title && <p className="text-xs text-red-500">{errors.title.message}</p>}
+              {errors.title && <p className="text-xs text-sos-dark">{errors.title.message}</p>}
             </div>
 
             <div className="space-y-2">
@@ -157,7 +178,14 @@ export default function CreateTripPage() {
                 {TRAVEL_TYPE_CONFIG.map(({ value, Icon }) => (
                   <button key={value} type="button"
                     onClick={() => setValue('travelType', value as TravelType)}
-                    className={`rounded-xl border-2 p-3 flex flex-col items-center gap-1 transition-all ${watchedData.travelType === value ? 'border-amber-500 bg-primary/10' : 'border-outline-variant bg-surface-container-lowest'}`}>
+                    className={cn('relative rounded-2xl border-2 p-3 flex flex-col items-center gap-1.5 transition-all',
+                      watchedData.travelType === value ? 'border-primary bg-primary/10' : 'border-outline-variant bg-surface-container-lowest'
+                    )}>
+                    {watchedData.travelType === value && (
+                      <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                        <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
+                      </span>
+                    )}
                     <Icon className="w-5 h-5 text-on-surface" />
                     <span className="text-xs font-semibold text-on-surface">{tEnum(t, 'travelType', value)}</span>
                   </button>
@@ -170,13 +198,13 @@ export default function CreateTripPage() {
                 <Label className="font-semibold">{t('createTrip.startDateLabel')}</Label>
                 <Input type="date" className="h-12 rounded-xl" {...register('startDate')}
                   min={new Date().toISOString().split('T')[0]} />
-                {errors.startDate && <p className="text-xs text-red-500">{errors.startDate.message}</p>}
+                {errors.startDate && <p className="text-xs text-sos-dark">{errors.startDate.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label className="font-semibold">{t('createTrip.endDateLabel')}</Label>
                 <Input type="date" className="h-12 rounded-xl" {...register('endDate')}
                   min={watchedData.startDate || new Date().toISOString().split('T')[0]} />
-                {errors.endDate && <p className="text-xs text-red-500">{errors.endDate.message}</p>}
+                {errors.endDate && <p className="text-xs text-sos-dark">{errors.endDate.message}</p>}
               </div>
             </div>
 
@@ -205,7 +233,7 @@ export default function CreateTripPage() {
               {destinations.map(dest => (
                 <button key={dest.id} type="button"
                   onClick={() => addQuickStop(dest)}
-                  className="flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant rounded-full px-3 py-1.5 text-sm font-medium text-on-surface hover:border-amber-400 hover:bg-primary/10 transition-colors">
+                  className="flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant rounded-full px-3 py-1.5 text-sm font-medium text-on-surface hover:border-primary/50 hover:bg-primary/10 transition-colors">
                   <MapPin className="w-3 h-3 text-primary" /> {dest.name}
                 </button>
               ))}
@@ -215,9 +243,12 @@ export default function CreateTripPage() {
             {stops.map((field, idx) => (
               <div key={field.id} className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-on-surface">{t('createTrip.stopLabel', { n: idx + 1 })}</span>
+                  <span className="inline-flex items-center gap-2 text-sm font-bold text-on-surface">
+                    <span className="w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] font-black flex items-center justify-center flex-shrink-0">{idx + 1}</span>
+                    {t('createTrip.stopLabel', { n: idx + 1 })}
+                  </span>
                   <button type="button" onClick={() => remove(idx)}>
-                    <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
+                    <Trash2 className="w-4 h-4 text-sos/60 hover:text-sos-dark transition-colors" />
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -256,25 +287,48 @@ export default function CreateTripPage() {
               <p className="text-sm text-on-surface-variant">{t('createTrip.reviewTripSubtitle')}</p>
             </div>
 
-            <div className="bg-surface-container-lowest rounded-2xl p-5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-on-surface">{watchedData.title}</span>
-                <span className="text-xs bg-amber-100 text-primary px-2 py-0.5 rounded-full font-semibold">{tEnum(t, 'travelType', watchedData.travelType)}</span>
+            <div className="bg-surface-container-lowest rounded-3xl shadow-sm overflow-hidden">
+              {/* Photo header — the review reads as a trip preview, not a
+                  form-data dump */}
+              <div className="relative h-32">
+                <img src={getDestinationImage(stops[0]?.city, { w: 800, q: 80 })} alt=""
+                  className="absolute inset-0 w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+                <span className="absolute top-3 right-3 text-xs bg-white/15 backdrop-blur-md text-white px-2.5 py-1 rounded-full font-semibold border border-white/20">
+                  {tEnum(t, 'travelType', watchedData.travelType)}
+                </span>
+                <p className="absolute bottom-3 left-4 right-4 font-display font-black text-lg text-white leading-tight truncate">{watchedData.title}</p>
               </div>
-              <p className="text-sm text-on-surface-variant">{watchedData.startDate} → {watchedData.endDate}</p>
-              {watchedData.budgetInr != null && watchedData.budgetInr !== '' && (
-                <p className="text-sm text-on-surface-variant">{t('createTrip.budgetSummary', { amount: Number(watchedData.budgetInr).toLocaleString('en-IN') })}</p>
-              )}
-              {stops.length > 0 && (
-                <div className="pt-2 border-t border-outline-variant space-y-1">
-                  <p className="text-xs font-bold text-on-surface mb-1">{t('createTrip.stopsLabel')}</p>
-                  {stops.map((s, i) => (
-                    <p key={i} className="flex items-center gap-1.5 text-sm text-on-surface-variant">
-                      <MapPin className="w-3.5 h-3.5 text-on-surface-variant flex-shrink-0" /> {t('createTrip.stopSummary', { city: s.city, state: s.state, days: String(s.days) })}
-                    </p>
-                  ))}
+
+              <div className="p-5 space-y-3.5">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Calendar className="w-4 h-4 text-primary" />
+                  </div>
+                  <p className="text-sm text-on-surface font-medium">{watchedData.startDate} → {watchedData.endDate}</p>
                 </div>
-              )}
+
+                {watchedData.budgetInr != null && watchedData.budgetInr !== '' && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Wallet className="w-4 h-4 text-primary" />
+                    </div>
+                    <p className="text-sm text-on-surface font-medium">{t('createTrip.budgetSummary', { amount: Number(watchedData.budgetInr).toLocaleString('en-IN') })}</p>
+                  </div>
+                )}
+
+                {stops.length > 0 && (
+                  <div className="pt-3.5 border-t border-outline-variant space-y-2.5">
+                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">{t('createTrip.stopsLabel')}</p>
+                    {stops.map((s, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <span className="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant text-xs font-black flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                        <p className="text-sm text-on-surface font-medium">{t('createTrip.stopSummary', { city: s.city, state: s.state, days: String(s.days) })}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-3">
