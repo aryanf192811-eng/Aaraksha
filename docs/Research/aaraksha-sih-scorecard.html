@@ -425,6 +425,49 @@ footer p { margin: 0 0 0.5rem; }
     </ul>
   </section>
 
+  <section>
+    <h2>Corrections to a second-opinion critique</h2>
+    <div class="prose">
+      <p>A separate external review raised two "remaining gaps" worth checking against the actual repository before repeating them to a judge — both turn out to already be closed, and presenting them as open would cost points rather than win them.</p>
+    </div>
+    <div class="criterion" style="padding: 1.4rem 1.6rem;">
+      <div class="crit-body">
+        <div class="crit-row"><span class="crit-tag gap" style="background:#FB718518;color:var(--gap);border-color:#FB718530;">Claimed</span><p>"Command center relies on flat 2D Leaflet mapping" — no 3D or spatial computing.</p></div>
+        <div class="crit-row"><span class="crit-tag earns">Actual</span><p>The Govt Command Center has a one-tap 2D/3D toggle rendering real elevation relief — <code>TerrainMap.tsx</code> (MapLibre GL JS + free AWS-hosted Terrarium elevation tiles, no paid API key), wired into <code>LiveMapPage.tsx</code>'s <code>viewMode</code> state. A rescuer's live GPS marker already moves across genuine mountain-ridge topology, not a flat plane.</p></div>
+      </div>
+    </div>
+    <div class="criterion" style="padding: 1.4rem 1.6rem;">
+      <div class="crit-body">
+        <div class="crit-row"><span class="crit-tag gap" style="background:#FB718518;color:var(--gap);border-color:#FB718530;">Claimed</span><p>Gemini is used "strictly to explain pre-computed scores and generate packing lists" — no real machine learning, a scoring risk against winners running deep-tech ML.</p></div>
+        <div class="crit-row"><span class="crit-tag earns">Actual</span><p>There's a genuinely trained model behind that: <code>backend/src/ml/logisticRegression.js</code> — hand-rolled batch gradient descent with L2 regularization, trained on a 4,000-example synthetic-but-domain-grounded corpus, printed loss curve, held-out accuracy/precision/recall, shown per-destination on the Risk Overview page next to (not instead of) the rule-based TSI. The critique is correct that Gemini itself never scores anything — that's a deliberate design choice, not the whole AI story.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Demo &amp; Q&amp;A playbook</h2>
+    <div class="prose"><p>What's genuinely worth rehearsing from that critique — the correct half of it — is narrative, not code.</p></div>
+
+    <div class="criterion">
+      <div class="crit-head"><div class="crit-title"><h3 style="font-size:1.05rem;">The AI-layering defense</h3></div></div>
+      <div class="prose">
+        <p>Don't claim AI was rejected — claim it was placed correctly, which is the stronger and more accurate position: <em>"We use three different techniques because they solve three different problems. Anomaly detection and SOS triggers are deterministic, threshold-based rules — a false negative there is a life-safety failure, and every threshold has to be auditable, not a black box. The Predictive Risk Score is a real trained model — gradient descent, held-out test accuracy, printed loss curve — because it's advisory, shown alongside the rule-based score, never gating an alert on its own. Gemini only ever explains a score that's already been computed by one of those two — it never decides anything, and there's an offline fallback if the call fails. That's not fear of AI. That's knowing which layer probabilistic reasoning belongs in and which layer it doesn't."</em></p>
+        <p>If pressed on why not a deep-tech agentic planner: <em>"An agentic planner optimizes for capability. A dispatch system in a life-safety context optimizes for the worst case being explainable to the family and the officer who acted on it. Those are different design goals, and we chose the one this problem actually has."</em></p>
+      </div>
+    </div>
+
+    <div class="criterion">
+      <div class="crit-head"><div class="crit-title"><h3 style="font-size:1.05rem;">The airplane-mode runbook</h3></div></div>
+      <div class="crit-body">
+        <div class="crit-row"><span class="crit-tag earns">01</span><p>Open the tourist app on the demo phone with the govt dashboard already visible on the main screen, live map centered on the demo tourist's last known position.</p></div>
+        <div class="crit-row"><span class="crit-tag earns">02</span><p>Physically enable Airplane Mode on the phone, on camera — no cutting away. State out loud that GPS still works without a data connection.</p></div>
+        <div class="crit-row"><span class="crit-tag earns">03</span><p>Trigger SOS. Narrate what's happening while it sends: satellite coordinates dropping to a structured SMS (<code>AARAKSHA_SOS|ID:...|LAT:...|LNG:...</code>), no app server round-trip required.</p></div>
+        <div class="crit-row"><span class="crit-tag earns">04</span><p>Cut to the govt dashboard. The Twilio inbound webhook should already have parsed the SMS and created a real SOS event — point at the marker appearing on the live map, not a canned screenshot.</p></div>
+        <div class="crit-row"><span class="crit-tag earns">05</span><p>Close the loop: assign a rescuer from the dashboard, switch the map to 3D, and let the panel watch the live GPS marker move along a real OSRM road route toward the SOS — this is where the "novel/immersive" critique gets answered without saying a word about it.</p></div>
+      </div>
+    </div>
+  </section>
+
   <footer>
     <p>Compiled 2026-08-27 as an independent research pass, not a leaked or official scoring key. Treat the per-criterion numbers as a calibrated estimate for team prep, not a guarantee — actual panels weigh presentation and Q&amp;A performance the codebase itself cannot predict.</p>
   </footer>
