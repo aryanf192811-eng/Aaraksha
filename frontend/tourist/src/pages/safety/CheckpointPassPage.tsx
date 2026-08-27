@@ -24,10 +24,10 @@ import { formatDate, cn } from '../../lib/utils'
 import { TRIP_STATUSES } from '../../constants/enums'
 
 const TSI_STYLE: Record<string, string> = {
-  'Low Risk':      'bg-green-100 text-green-700',
-  'Moderate Risk': 'bg-amber-100 text-amber-700',
-  'High Risk':     'bg-orange-100 text-orange-700',
-  'Extreme Risk':  'bg-red-100 text-red-700',
+  'Low Risk':      'bg-tsi-low/10 text-tsi-low',
+  'Moderate Risk': 'bg-tsi-moderate/10 text-tsi-moderate',
+  'High Risk':     'bg-tsi-high/10 text-tsi-high',
+  'Extreme Risk':  'bg-tsi-extreme/10 text-tsi-extreme',
 }
 
 export default function CheckpointPassPage() {
