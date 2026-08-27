@@ -23,6 +23,12 @@ services:
         fromDatabase:
           name: aaraksha-db
           property: connectionString
+      # The pg default of 2s is too tight for Render's free-tier Postgres —
+      # idle connections get dropped between requests and re-establishing
+      # one occasionally exceeds 2s, surfacing as a bare "Internal server
+      # error" on the very first DB-touching request after any idle gap.
+      - key: DATABASE_CONNECTION_TIMEOUT_MS
+        value: 10000
       - key: TOURIST_FRONTEND_URL
         value: https://aaraksha-tourist.vercel.app
       - key: GOVT_FRONTEND_URL

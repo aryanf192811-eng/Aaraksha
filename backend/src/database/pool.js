@@ -14,6 +14,13 @@ function getPool() {
       max:                  config.db.maxConnections,
       idleTimeoutMillis:    config.db.idleTimeoutMs,
       connectionTimeoutMillis: config.db.connectionTimeoutMs,
+      // Managed Postgres (Render, Heroku, etc.) terminates plaintext
+      // connections and presents a certificate not in Node's default CA
+      // bundle — rejectUnauthorized:false trusts it without verifying the
+      // chain, which is the standard accepted tradeoff for these hosts.
+      // Local/dev Postgres has no SSL listener at all, so this must stay
+      // off outside production.
+      ssl: config.isProd ? { rejectUnauthorized: false } : false,
     })
 
     pool.on('connect', () => {
