@@ -58,7 +58,7 @@ describe('getTSIColors', () => {
 
 describe('getZoneColor', () => {
   it('maps a known zone type to its color class', () => {
-    expect(getZoneColor('RESTRICTED')).toBe('text-red-600')
+    expect(getZoneColor('RESTRICTED')).toBe('text-sos-dark')
   })
   it('falls back to a neutral color for an unknown zone type', () => {
     expect(getZoneColor('UNKNOWN')).toBe('text-slate-600')

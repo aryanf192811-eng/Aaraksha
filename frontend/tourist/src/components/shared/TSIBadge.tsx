@@ -21,11 +21,14 @@ export function TSIBadge({ score, label, size = 'md', showRing = true, className
   const s = SIZES[size]
   const circumference = 2 * Math.PI * 38 // radius=38, viewBox=100
   const strokeDash = score !== null ? (score / 100) * circumference : 0
+  // Matches the tsi.low/moderate/high/extreme hexes in tailwind.config.js —
+  // an SVG stroke can't reference a Tailwind class, so these are kept in
+  // sync by hand with the token values used everywhere else.
   const strokeColor = score === null ? '#94a3b8'
-    : score >= 80 ? '#16a34a'
-    : score >= 60 ? '#ca8a04'
-    : score >= 40 ? '#ea580c'
-    : '#dc2626'
+    : score >= 80 ? '#15803d'
+    : score >= 60 ? '#a16207'
+    : score >= 40 ? '#c2410c'
+    : '#b91c1c'
 
   return (
     <div className={cn('flex flex-col items-center gap-1', className)}>

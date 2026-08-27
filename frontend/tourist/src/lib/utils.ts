@@ -24,20 +24,20 @@ export function formatINR(amount: number): string {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount)
 }
 
-// TSI color utility — returns Tailwind classes based on score
+// TSI color utility — returns design-token Tailwind classes based on score
 export function getTSIColors(score: number | null): { bg: string; text: string; border: string; label: string } {
   if (score === null) return { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-300', label: 'Not calculated' }
-  if (score >= 80) return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', label: 'Low Risk' }
-  if (score >= 60) return { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', label: 'Moderate Risk' }
-  if (score >= 40) return { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', label: 'High Risk' }
-  return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', label: 'Extreme Risk' }
+  if (score >= 80) return { bg: 'bg-tsi-low/10', text: 'text-tsi-low', border: 'border-tsi-low/30', label: 'Low Risk' }
+  if (score >= 60) return { bg: 'bg-tsi-moderate/10', text: 'text-tsi-moderate', border: 'border-tsi-moderate/30', label: 'Moderate Risk' }
+  if (score >= 40) return { bg: 'bg-tsi-high/10', text: 'text-tsi-high', border: 'border-tsi-high/30', label: 'High Risk' }
+  return { bg: 'bg-tsi-extreme/10', text: 'text-tsi-extreme', border: 'border-tsi-extreme/30', label: 'Extreme Risk' }
 }
 
 // Zone type color
 export function getZoneColor(zoneType: string): string {
   const map: Record<string, string> = {
-    SAFE: 'text-green-600', CAUTION: 'text-amber-600',
-    HIGH_RISK: 'text-orange-600', RESTRICTED: 'text-red-600', ILP_REQUIRED: 'text-purple-600',
+    SAFE: 'text-tsi-low', CAUTION: 'text-primary-dark',
+    HIGH_RISK: 'text-tsi-high', RESTRICTED: 'text-sos-dark', ILP_REQUIRED: 'text-purple-600',
   }
   return map[zoneType] || 'text-slate-600'
 }
