@@ -48,21 +48,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 // ── Health check (no auth, no rate limit) ────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'aaraksha-backend', timestamp: new Date().toISOString(), buildMarker: 'DIAG-MARKER-002' })
-})
-
-// TEMP-DEBUG: isolated diagnostic route, bypasses routes/index.js and
-// errorHandler.js entirely, logs via plain console.error (no pino) —
-// remove once the Render deploy 500s are diagnosed.
-app.get('/debug-query', async (_req, res) => {
-  try {
-    const { getPool } = require('./database/pool')
-    const result = await getPool().query('SELECT COUNT(*)::int AS count FROM destinations')
-    res.json({ ok: true, count: result.rows[0].count })
-  } catch (err) {
-    console.error('DEBUG-QUERY FAILURE:', err.message, err.code, err.stack)
-    res.status(500).json({ ok: false, message: err.message, code: err.code, stack: err.stack })
-  }
+  res.json({ status: 'ok', service: 'aaraksha-backend', timestamp: new Date().toISOString() })
 })
 
 // ── API routes ────────────────────────────────────────────────────────
