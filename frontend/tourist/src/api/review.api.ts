@@ -25,6 +25,9 @@ export interface DestinationReview {
   tips_text: string | null
   visited_date: string | null
   created_at: string
+  // Present only on the cross-destination /destinations/reviews/recent feed.
+  destination_name?: string
+  destination_state?: string
 }
 
 export interface ReviewAggregate {
@@ -61,6 +64,11 @@ const reviewApi = {
     api.get<APIResponse<{ reviews: DestinationReview[]; total: number; aggregate: ReviewAggregate }>>(
       `/destinations/${destinationId}/reviews`
     ),
+
+  // No aggregate is computed server-side for the cross-destination feed —
+  // typed optional so callers can share one code path with getForDestination.
+  getRecent: () =>
+    api.get<APIResponse<{ reviews: DestinationReview[]; total: number; aggregate?: ReviewAggregate }>>('/destinations/reviews/recent'),
 
   create: (destinationId: string, data: CreateReviewPayload) => {
     const form = new FormData()

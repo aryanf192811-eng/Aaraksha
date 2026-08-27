@@ -41,6 +41,22 @@ class ReviewRepository extends BaseRepository {
     return { rows, total }
   }
 
+  // Flat, cross-destination feed for the community tab's "All destinations"
+  // view — same row shape as findByDestinationId, with the destination
+  // attached since it's no longer implicit from a single selection.
+  async findRecent(limit = 30) {
+    return this.query(`
+      SELECT dr.*, t.full_name as tourist_name,
+             d.name as destination_name, d.state as destination_state
+      FROM destination_reviews dr
+      JOIN tourists t ON t.id = dr.tourist_id
+      JOIN destinations d ON d.id = dr.destination_id
+      ORDER BY dr.created_at DESC
+      LIMIT $1`,
+      [limit]
+    )
+  }
+
   async getAggregate(destinationId) {
     return this.queryOne(`
       SELECT

@@ -18,4 +18,9 @@ const getReviews = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
-module.exports = { createReview, getReviews }
+const getRecentReviews = async (req, res, next) => {
+  try { sendSuccess(res, await reviewService.getRecentReviews()) }
+  catch (err) { next(err) }
+}
+
+module.exports = { createReview, getReviews, getRecentReviews }

@@ -33,6 +33,28 @@ class ScamRepository extends BaseRepository {
     return { total, byCategory }
   }
 
+  // Flat, cross-destination feed — same rows findByDestination returns, just
+  // not filtered to one place and with the destination attached to each row
+  // so the "All" view in the community tab can still say where each report
+  // happened.
+  async findRecent(limit = 50) {
+    return this.query(`
+      SELECT sr.id, sr.category, sr.description, sr.incident_date, sr.verified, sr.created_at,
+             d.id as destination_id, d.name as destination_name, d.state as destination_state
+      FROM scam_reports sr
+      JOIN destinations d ON d.id = sr.destination_id
+      ORDER BY sr.created_at DESC LIMIT $1`,
+      [limit]
+    )
+  }
+
+  async countAll() {
+    const rows = await this.query(`SELECT category, COUNT(*)::int as count FROM scam_reports GROUP BY category`)
+    const total = rows.reduce((s, r) => s + r.count, 0)
+    const byCategory = rows.reduce((acc, r) => ({ ...acc, [r.category]: r.count }), {})
+    return { total, byCategory }
+  }
+
   // Cross-destination ranking — a tourist has no way to discover "which
   // destinations have active reports right now" without already knowing to
   // look at one specific place. Same underlying data as findByDestination/

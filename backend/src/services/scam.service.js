@@ -17,6 +17,16 @@ async function getByDestination(destinationId) {
   return { reports, aggregate }
 }
 
+// Same shape as getByDestination — the "All destinations" view in the
+// community tab, not filtered to one place.
+async function getRecent() {
+  const [reports, aggregate] = await Promise.all([
+    new ScamRepository().findRecent(),
+    new ScamRepository().countAll(),
+  ])
+  return { reports, aggregate }
+}
+
 // "Community Safety Intelligence" — the existing scam-report data, reframed
 // as a cross-destination ranking instead of something you can only see once
 // you already know to check one specific place.
@@ -24,4 +34,4 @@ async function getHotspots() {
   return new ScamRepository().getHotspots()
 }
 
-module.exports = { createReport, getByDestination, getHotspots }
+module.exports = { createReport, getByDestination, getRecent, getHotspots }

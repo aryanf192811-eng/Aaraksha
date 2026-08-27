@@ -86,7 +86,11 @@ export default function CommunityPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<'reports' | 'experiences'>('reports')
-  const [selectedDest, setSelectedDest] = useState('')
+  // 'ALL' is the default — Community should never be a blank "pick a
+  // destination first" wall. Reports/reviews come from the cross-destination
+  // feed until the tourist filters down to one specific place.
+  const [selectedDest, setSelectedDest] = useState('ALL')
+  const isAllSelected = selectedDest === 'ALL'
   const [showReportForm, setShowReportForm] = useState(false)
   const [showReviewForm, setShowReviewForm] = useState(false)
 
@@ -98,29 +102,31 @@ export default function CommunityPage() {
 
   const { data: reportsData, isLoading } = useQuery({
     queryKey: ['scam-reports', selectedDest],
-    queryFn: () => scamApi.getByDestination(selectedDest).then(r => r.data.data),
-    enabled: !!selectedDest && activeTab === 'reports',
+    queryFn: () => (isAllSelected ? scamApi.getRecent() : scamApi.getByDestination(selectedDest)).then(r => r.data.data),
+    enabled: activeTab === 'reports',
   })
 
   // Cross-destination ranking — the "distributed safety sensor network"
   // reframing of the same report data: which destinations have active
   // reports right now, discoverable without already knowing where to look.
+  // Shown as a "trending" summary above the full flat feed while "All" is
+  // selected.
   const { data: hotspots } = useQuery({
     queryKey: ['scam-reports', 'hotspots'],
     queryFn: () => scamApi.getHotspots().then(r => r.data.data),
-    enabled: activeTab === 'reports' && !selectedDest,
+    enabled: activeTab === 'reports' && isAllSelected,
     staleTime: 2 * 60_000,
   })
 
   const { data: reviewsData, isLoading: reviewsLoading } = useQuery({
     queryKey: ['destinations', selectedDest, 'reviews'],
-    queryFn: () => reviewApi.getForDestination(selectedDest).then(r => r.data.data),
-    enabled: !!selectedDest && activeTab === 'experiences',
+    queryFn: () => (isAllSelected ? reviewApi.getRecent() : reviewApi.getForDestination(selectedDest)).then(r => r.data.data),
+    enabled: activeTab === 'experiences',
   })
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<ScamForm>({
     resolver: zodResolver(ScamSchema),
-    defaultValues: { destinationId: selectedDest },
+    defaultValues: { destinationId: isAllSelected ? undefined : selectedDest },
   })
   const watchedCategory = watch('category')
 
@@ -128,7 +134,7 @@ export default function CommunityPage() {
     mutationFn: (data: ScamForm) => scamApi.createReport(data),
     onSuccess: () => {
       toast.success(t('community.toastReportSubmitted'))
-      queryClient.invalidateQueries({ queryKey: ['scam-reports', selectedDest] })
+      queryClient.invalidateQueries({ queryKey: ['scam-reports'] })
       reset()
       setShowReportForm(false)
     },
@@ -156,7 +162,7 @@ export default function CommunityPage() {
               <Plus className="w-3 h-3 mr-1" /> {t('community.report')}
             </Button>
           ) : (
-            <Button size="sm" onClick={() => selectedDest ? setShowReviewForm(true) : toast.info(t('community.selectDestinationFirst'))}
+            <Button size="sm" onClick={() => !isAllSelected ? setShowReviewForm(true) : toast.info(t('community.selectDestinationFirst'))}
               className="bg-primary hover:brightness-95 text-on-surface rounded-full text-xs px-3 font-bold">
               <Plus className="w-3 h-3 mr-1" /> {t('community.writeReview')}
             </Button>
@@ -179,11 +185,14 @@ export default function CommunityPage() {
       </div>
 
       <div className="px-5 mt-4 space-y-4">
-        <Select value={selectedDest} onValueChange={v => { setSelectedDest(v); setValue('destinationId', v) }}>
+        <Select value={selectedDest} onValueChange={v => { setSelectedDest(v); if (v !== 'ALL') setValue('destinationId', v) }}>
           <SelectTrigger className="h-11 rounded-xl bg-surface-container-lowest">
-            <SelectValue placeholder={activeTab === 'reports' ? t('community.selectDestPlaceholderReports') : t('community.selectDestPlaceholderExperiences')} />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="ALL">
+              <Globe className="w-3.5 h-3.5" /> {t('community.allDestinations')}
+            </SelectItem>
             {(destinations || []).map((d) => (
               <SelectItem key={d.id} value={d.id}>{d.name}, {d.state}</SelectItem>
             ))}
@@ -193,10 +202,13 @@ export default function CommunityPage() {
         {/* ── Safety Reports Tab ─────────────────────────────── */}
         {activeTab === 'reports' && (
           <>
-            {selectedDest && aggregate.total > 0 && (
+            {aggregate.total > 0 && (
               <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4">
                 <p className="text-sm font-bold text-primary-dark mb-2 flex items-center gap-1.5">
-                  <AlertCircle className="w-4 h-4" /> {t('community.reportsForDestination', { count: aggregate.total })}
+                  <AlertCircle className="w-4 h-4" />
+                  {isAllSelected
+                    ? t('community.reportsAcrossAll', { count: aggregate.total })
+                    : t('community.reportsForDestination', { count: aggregate.total })}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(aggregate.byCategory).map(([cat, count]) => {
@@ -211,7 +223,7 @@ export default function CommunityPage() {
               </div>
             )}
 
-            {!selectedDest && hotspots && hotspots.length > 0 && (
+            {isAllSelected && hotspots && hotspots.length > 0 && (
               <div>
                 <p className="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-2 px-0.5">
                   <Flame className="w-3.5 h-3.5 text-tsi-high" /> {t('community.hotspotsTitle')}
@@ -240,24 +252,14 @@ export default function CommunityPage() {
               </div>
             )}
 
-            {!selectedDest && (!hotspots || hotspots.length === 0) && (
-              <div className="text-center py-10 bg-surface-container-lowest rounded-2xl shadow-sm">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                  <Globe className="w-7 h-7 text-primary" />
-                </div>
-                <p className="font-bold text-on-surface">{t('community.selectDestinationTitle')}</p>
-                <p className="text-sm text-on-surface-variant">{t('community.selectDestinationReportsDesc')}</p>
-              </div>
-            )}
+            {isLoading && <div className="space-y-3">{[1, 2].map(i => <div key={i} className="h-24 bg-surface-container-lowest rounded-2xl animate-pulse" />)}</div>}
 
-            {selectedDest && isLoading && <div className="space-y-3">{[1, 2].map(i => <div key={i} className="h-24 bg-surface-container-lowest rounded-2xl animate-pulse" />)}</div>}
-
-            {selectedDest && !isLoading && reports.length === 0 && (
+            {!isLoading && reports.length === 0 && (
               <div className="text-center py-10 bg-surface-container-lowest rounded-2xl shadow-sm">
                 <div className="w-16 h-16 rounded-full bg-tsi-low/10 flex items-center justify-center mx-auto mb-3">
                   <CheckCircle2 className="w-7 h-7 text-tsi-low" />
                 </div>
-                <p className="font-bold text-on-surface">{t('community.noReportsTitle')}</p>
+                <p className="font-bold text-on-surface">{isAllSelected ? t('community.noReportsTitleAll') : t('community.noReportsTitle')}</p>
                 <p className="text-sm text-on-surface-variant">{t('community.noReportsDesc')}</p>
               </div>
             )}
@@ -277,6 +279,9 @@ export default function CommunityPage() {
                   </div>
                   <p className="text-sm text-on-surface mb-2">{report.description}</p>
                   <div className="flex items-center gap-2 text-xs text-on-surface-variant">
+                    {isAllSelected && report.destination_name && (
+                      <span className="font-semibold text-on-surface">{report.destination_name}, {report.destination_state} ·</span>
+                    )}
                     <span>{formatTimeAgo(report.created_at)}</span>
                     {report.incident_date && <span>· {t('community.incidentLabel', { date: report.incident_date })}</span>}
                   </div>
@@ -289,19 +294,9 @@ export default function CommunityPage() {
         {/* ── Experiences Tab ────────────────────────────────── */}
         {activeTab === 'experiences' && (
           <>
-            {!selectedDest && (
-              <div className="text-center py-10 bg-surface-container-lowest rounded-2xl shadow-sm">
-                <div className="w-16 h-16 rounded-full bg-trust/10 flex items-center justify-center mx-auto mb-3">
-                  <Sparkles className="w-7 h-7 text-trust" />
-                </div>
-                <p className="font-bold text-on-surface">{t('community.selectDestinationTitle')}</p>
-                <p className="text-sm text-on-surface-variant">{t('community.selectDestinationExperiencesDesc')}</p>
-              </div>
-            )}
+            {reviewsLoading && <div className="space-y-3">{[1, 2].map(i => <div key={i} className="h-32 bg-surface-container-lowest rounded-2xl animate-pulse" />)}</div>}
 
-            {selectedDest && reviewsLoading && <div className="space-y-3">{[1, 2].map(i => <div key={i} className="h-32 bg-surface-container-lowest rounded-2xl animate-pulse" />)}</div>}
-
-            {selectedDest && reviewAgg && reviewAgg.review_count > 0 && (
+            {!isAllSelected && reviewAgg && reviewAgg.review_count > 0 && (
               <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <p className="text-3xl font-black text-on-surface">{reviewAgg.avg_rating}</p>
@@ -333,7 +328,7 @@ export default function CommunityPage() {
               </div>
             )}
 
-            {selectedDest && !reviewsLoading && reviews.length === 0 && (
+            {!reviewsLoading && reviews.length === 0 && (
               <div className="text-center py-10 bg-surface-container-lowest rounded-2xl shadow-sm">
                 <div className="w-16 h-16 rounded-full bg-trust/10 flex items-center justify-center mx-auto mb-3">
                   <MessageSquare className="w-7 h-7 text-trust" />
@@ -350,6 +345,9 @@ export default function CommunityPage() {
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <p className="font-bold text-on-surface text-sm">{r.tourist_name}</p>
+                      {isAllSelected && r.destination_name && (
+                        <p className="text-xs font-semibold text-primary-dark">{r.destination_name}, {r.destination_state}</p>
+                      )}
                       <p className="text-xs text-on-surface-variant">
                         {r.visited_date ? t('community.visitedOn', { date: r.visited_date }) : formatTimeAgo(r.created_at)}
                       </p>
@@ -424,7 +422,7 @@ export default function CommunityPage() {
             <form onSubmit={handleSubmit(d => submitReport(d))} className="space-y-4">
               <div className="space-y-1.5">
                 <Label className="font-semibold text-sm">{t('community.destinationLabel')}</Label>
-                <Select onValueChange={v => setValue('destinationId', v)} defaultValue={selectedDest}>
+                <Select onValueChange={v => setValue('destinationId', v)} defaultValue={isAllSelected ? undefined : selectedDest}>
                   <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder={t('community.selectDestination')} /></SelectTrigger>
                   <SelectContent>
                     {(destinations || []).map((d) => (
@@ -536,6 +534,7 @@ function ReviewFormSheet({ destinationId, onClose }: { destinationId: string; on
     onSuccess: () => {
       toast.success(t('community.toastReviewSubmitted'))
       queryClient.invalidateQueries({ queryKey: ['destinations', destinationId, 'reviews'] })
+      queryClient.invalidateQueries({ queryKey: ['destinations', 'ALL', 'reviews'] })
       onClose()
     },
     onError: (err: any) => toast.error(err?.response?.data?.message || t('community.toastReviewFailed')),

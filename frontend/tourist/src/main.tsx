@@ -35,6 +35,12 @@ import PrivacyPage from './pages/profile/PrivacyPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const hasHydrated = useAuthStore(s => s.hasHydrated)
+  // The auth store now rehydrates from IndexedDB (async) instead of
+  // sessionStorage (sync) — without this gate, a genuinely logged-in
+  // tourist would get bounced to /auth for one frame on every cold start,
+  // before the IndexedDB read has resolved.
+  if (!hasHydrated) return null
   return isAuthenticated ? <>{children}</> : <Navigate to="/auth" replace />
 }
 

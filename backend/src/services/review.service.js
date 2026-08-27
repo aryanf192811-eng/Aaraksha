@@ -50,4 +50,12 @@ async function getReviewsForDestination(destinationId, filters = {}) {
   return { reviews: rows, total, aggregate }
 }
 
-module.exports = { createReview, getReviewsForDestination }
+// The community tab's "All destinations" view — recent reviews across every
+// destination, not filtered to one place. No single-destination aggregate
+// makes sense here, so the caller just gets the flat feed.
+async function getRecentReviews() {
+  const reviews = await new ReviewRepository().findRecent()
+  return { reviews, total: reviews.length }
+}
+
+module.exports = { createReview, getReviewsForDestination, getRecentReviews }

@@ -10,6 +10,7 @@ const { CreateReviewSchema } = require('../validators/review.validator')
 
 router.get('/',              ctrl.getAllDestinations)
 router.get('/risk-overview', ctrl.getRiskOverview) // before /:id — otherwise "risk-overview" matches as an id param
+router.get('/reviews/recent', reviewCtrl.getRecentReviews) // ditto — before /:id
 router.get('/:id',           ctrl.getDestinationById)
 router.get('/:id/news',      ctrl.getDestinationNews)
 router.get('/:id/reviews',   reviewCtrl.getReviews)

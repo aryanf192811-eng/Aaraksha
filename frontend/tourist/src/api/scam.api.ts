@@ -29,6 +29,12 @@ const scamApi = {
       aggregate: { total: number; byCategory: Record<string, number> }
     }>>(`/scam-reports/${destinationId}`),
 
+  getRecent: () =>
+    api.get<APIResponse<{
+      reports: ScamReport[]
+      aggregate: { total: number; byCategory: Record<string, number> }
+    }>>('/scam-reports/recent'),
+
   getHotspots: () =>
     api.get<APIResponse<ScamHotspot[]>>('/scam-reports/hotspots'),
 }

@@ -34,10 +34,20 @@ export interface CachedTrip {
   updatedAt: number
 }
 
+// ── Generic key/value store — currently just the auth session, so the
+// tourist stays logged in across an app close/reopen (an installed PWA
+// otherwise loses sessionStorage the moment it's fully closed, forcing a
+// re-login every time). IndexedDB survives that; sessionStorage doesn't.
+export interface KeyValueRecord {
+  key: string
+  value: string
+}
+
 class AarakshaDB extends Dexie {
   offlineSOSQueue!: Table<OfflineSOSItem>
   cachedLocations!: Table<CachedLocation>
   cachedTrips!:     Table<CachedTrip>
+  keyValueStore!:   Table<KeyValueRecord>
 
   constructor() {
     super('aaraksha-tourist')
@@ -45,6 +55,12 @@ class AarakshaDB extends Dexie {
       offlineSOSQueue: '++id, timestamp, synced',
       cachedLocations: 'touristId, updatedAt',
       cachedTrips:     'id, updatedAt',
+    })
+    this.version(2).stores({
+      offlineSOSQueue: '++id, timestamp, synced',
+      cachedLocations: 'touristId, updatedAt',
+      cachedTrips:     'id, updatedAt',
+      keyValueStore:   'key',
     })
   }
 }
@@ -75,4 +91,23 @@ export async function getCachedTrip(tripId: string) {
   const record = await db.cachedTrips.get(tripId)
   if (!record) return null
   return JSON.parse(record.data)
+}
+
+// Zustand's `persist` StateStorage interface — getItem/setItem/removeItem
+// may return a value directly or a Promise, so a plain async implementation
+// backed by IndexedDB works as a drop-in for whatever storage was used
+// before (see auth.store.ts). Used instead of sessionStorage/localStorage
+// specifically so login survives a full close-and-reopen of the installed
+// PWA, not just a page reload.
+export const indexedDBStorage = {
+  getItem: async (name: string): Promise<string | null> => {
+    const record = await db.keyValueStore.get(name)
+    return record?.value ?? null
+  },
+  setItem: async (name: string, value: string): Promise<void> => {
+    await db.keyValueStore.put({ key: name, value })
+  },
+  removeItem: async (name: string): Promise<void> => {
+    await db.keyValueStore.delete(name)
+  },
 }

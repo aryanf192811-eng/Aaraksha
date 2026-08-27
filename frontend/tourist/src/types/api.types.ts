@@ -303,6 +303,9 @@ export interface ScamReport {
   incident_date: string | null
   verified: boolean
   created_at: string
+  // Present only on the cross-destination /scam-reports/recent feed.
+  destination_name?: string
+  destination_state?: string
 }
 
 // ── Guardian view (public, privacy-safe subset — tourist.service.js#getGuardianView) ──
