@@ -1,0 +1,432 @@
+<title>Aaraksha Scorecard</title>
+<meta name="description" content="An independent self-assessment of Aaraksha against the Smart India Hackathon evaluation rubric, criterion by criterion, with evidence and honest gaps.">
+<style>
+@font-face {
+  font-family: 'Newsreader';
+  src: local('Newsreader');
+  font-display: swap;
+}
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #0A0F1A;
+  --surface: #121A2B;
+  --surface-2: #17203590;
+  --border: #26314D;
+  --border-soft: #1D2740;
+  --ink: #E8ECF4;
+  --ink-soft: #9BA8C4;
+  --ink-faint: #6C7893;
+  --accent: #F0A93D;
+  --accent-ink: #1A1206;
+  --measure: #2DD4BF;
+  --good: #34D399;
+  --gap: #FB7185;
+
+  --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html { color-scheme: dark; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 900px 500px at 12% -10%, #F0A93D14, transparent),
+    radial-gradient(ellipse 700px 500px at 100% 10%, #2DD4BF10, transparent);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: #F0A93D33; color: var(--ink); }
+
+a { color: var(--measure); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--measure); outline-offset: 3px; border-radius: 2px; }
+
+.wrap {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 4.5rem 1.5rem 6rem;
+}
+
+/* ---------- Masthead ---------- */
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 1.1rem;
+}
+.eyebrow::before { content: "◆ "; color: var(--accent); }
+
+h1 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(2.1rem, 5vw, 3.1rem);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0 0 1rem;
+  text-wrap: balance;
+  color: #fff;
+}
+h1 em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.dek {
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  max-width: 56ch;
+  margin: 0 0 2.6rem;
+}
+
+.headline-score {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.6rem;
+  flex-wrap: wrap;
+  padding: 1.7rem 1.8rem;
+  background: linear-gradient(150deg, var(--surface), #101828);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 3.2rem;
+}
+.headline-score .num {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 3.6rem;
+  line-height: 1;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.headline-score .num sub {
+  font-size: 1.3rem;
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+.headline-score .verdict {
+  flex: 1;
+  min-width: 220px;
+  padding-bottom: 0.35rem;
+}
+.headline-score .verdict .label {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 0.35rem;
+}
+.headline-score .verdict p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+}
+
+/* ---------- Section chrome ---------- */
+
+section { margin-bottom: 3.2rem; }
+
+h2 {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.5rem;
+  color: #fff;
+  margin: 0 0 0.9rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.prose p { color: var(--ink-soft); margin: 0 0 1rem; }
+.prose p:last-child { margin-bottom: 0; }
+.prose strong { color: var(--ink); font-weight: 600; }
+.prose code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  padding: 0.05em 0.4em;
+  border-radius: 3px;
+  color: #C9D4EA;
+}
+
+.source-list {
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+.source-list li {
+  font-size: 0.88rem;
+  color: var(--ink-faint);
+  padding-left: 1.1rem;
+  position: relative;
+}
+.source-list li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: var(--border);
+}
+.source-list a { color: var(--ink-soft); text-decoration-color: var(--border); }
+.source-list a:hover { color: var(--measure); }
+
+/* ---------- Criterion cards ---------- */
+
+.criterion {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 4px;
+  padding: 1.6rem 1.7rem 1.8rem;
+  margin-bottom: 1.1rem;
+}
+
+.crit-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.3rem;
+}
+.crit-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+.crit-num {
+  font-family: var(--mono);
+  color: var(--accent);
+  font-size: 0.95rem;
+}
+.crit-title h3 {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 1.22rem;
+  color: #fff;
+  margin: 0;
+}
+.crit-score {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.crit-score .of { color: var(--ink-faint); }
+
+.bar-track {
+  height: 6px;
+  background: var(--border-soft);
+  border-radius: 999px;
+  margin: 0.85rem 0 1.3rem;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--measure), #7DE8D8);
+  border-radius: 999px;
+}
+
+.crit-body { display: grid; gap: 0.9rem; }
+.crit-row { display: flex; gap: 0.7rem; }
+.crit-tag {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  height: fit-content;
+  margin-top: 0.15rem;
+}
+.crit-tag.earns { background: #34D39918; color: var(--good); border: 1px solid #34D39930; }
+.crit-tag.gap { background: #FB718518; color: var(--gap); border: 1px solid #FB718530; }
+.crit-row p { margin: 0; color: var(--ink-soft); font-size: 0.94rem; }
+.crit-row p code { font-size: 0.85em; }
+
+/* ---------- Checklist ---------- */
+
+.checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+.checklist li {
+  display: flex;
+  gap: 0.85rem;
+  padding: 0.95rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 3px;
+}
+.checklist .n {
+  font-family: var(--mono);
+  color: var(--accent);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  padding-top: 0.1rem;
+}
+.checklist div p { margin: 0; color: var(--ink-soft); font-size: 0.93rem; }
+.checklist div strong { color: var(--ink); }
+
+/* ---------- Cross-check ---------- */
+
+.crosscheck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.7rem;
+  margin: 1.1rem 0;
+}
+.cc-item {
+  text-align: center;
+  padding: 0.9rem 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.cc-item .label { font-size: 0.76rem; color: var(--ink-faint); margin-bottom: 0.3rem; }
+.cc-item .mark { font-family: var(--serif); font-style: italic; color: var(--measure); font-size: 1.05rem; }
+
+/* ---------- Footer ---------- */
+
+footer {
+  margin-top: 4rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--border-soft);
+  font-size: 0.82rem;
+  color: var(--ink-faint);
+}
+footer p { margin: 0 0 0.5rem; }
+
+@media (max-width: 520px) {
+  .wrap { padding: 3rem 1.15rem 4rem; }
+  .headline-score { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+}
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">Independent self-assessment · not an official SIH document</p>
+  <h1>Aaraksha against the <em>SIH</em> rubric</h1>
+  <p class="dek">A criterion-by-criterion audit of the tourist-safety platform against the actual evaluation categories the Smart India Hackathon uses — scored honestly, with the evidence and the gaps both on the record.</p>
+
+  <div class="headline-score">
+    <div class="num">87<sub>&nbsp;/&nbsp;100</sub></div>
+    <div class="verdict">
+      <p class="label">Calibrated estimate, not a target hit</p>
+      <p>Strong across every technical category; the gap to a near-perfect score is almost entirely off-repo — a business/deployment story and real field validation, not more code.</p>
+    </div>
+  </div>
+
+  <section class="prose">
+    <h2>Methodology</h2>
+    <p>No single numeric SIH rubric with published weightages is public. Three independent sources converge on the same shape, so that's what this is scored against: the <strong>idea-portal's five-category framework</strong> — Innovation, Invention, Technical Feasibility, Impact and Benefits, Architecture — which is the actual field labels used for both problem-statement shortlisting and internal-hackathon evaluation; and the <strong>grand-finale live-judging model</strong>, where panels score 1–20 per factor across three rounds, combined into a total out of 100. A prior gap-analysis pass (the research PDF this project's earlier work was based on) independently converged on the same five-way split. Each category below is scored out of 20 on that confirmed scale, summed to the headline number — the same arithmetic the finale itself uses.</p>
+    <ul class="source-list">
+      <li><a href="https://www.sih.gov.in" target="_blank" rel="noopener">sih.gov.in</a> — official portal; problem-statement idea-submission fields (Innovation / Invention / Technical Feasibility / Impact & Benefits / Architecture Diagram)</li>
+      <li>Cross-referenced evaluation summaries describing a 1–20-per-factor, three-round, /100 grand-finale scoring model across solution appearance, impact, technology, execution, and UX</li>
+      <li>The team's own prior gap-analysis research (SIH Tourism Project Gap Analysis) — independently arrived at the same five-category shape</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Criterion by criterion</h2>
+
+    <div class="criterion">
+      <div class="crit-head">
+        <div class="crit-title"><span class="crit-num">01</span><h3>Innovation</h3></div>
+        <div class="crit-score">18<span class="of">/20</span></div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:90%"></div></div>
+      <div class="crit-body">
+        <div class="crit-row"><span class="crit-tag earns">Earns it</span><p>A tamper-evident <strong>Journey Integrity Hash</strong> — a real SHA-256 chain over itinerary, check-ins, SOS events, and government checkpoint scans, independently recomputable live via one API call — answers the "blockchain-based Digital ID" requirement most teams meet with a static ID card image. Offline SOS over raw structured SMS, a rule-based anomaly detector that flags a gone-quiet or off-route tourist <em>before</em> anyone presses a button, and a unified Rapido-style rescuer network merging official teams and citizen volunteers into one live-tracked, weighted-dispatch pool are each genuinely uncommon in this problem space.</p></div>
+        <div class="crit-row"><span class="crit-tag gap">Gap</span><p>No single feature is a from-scratch invention — the strength is in assembling several honestly-built real techniques (hash chains, gradient descent, on-device CV, real road routing) rather than one unprecedented idea. A judge looking for "the one thing nobody else thought of" will find a system, not a single hook.</p></div>
+      </div>
+    </div>
+
+    <div class="criterion">
+      <div class="crit-head">
+        <div class="crit-title"><span class="crit-num">02</span><h3>Invention</h3></div>
+        <div class="crit-score">16<span class="of">/20</span></div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:80%"></div></div>
+      <div class="crit-body">
+        <div class="crit-row"><span class="crit-tag earns">Earns it</span><p>The clearest invention is a <strong>stance</strong>, not a component: a genuinely trained logistic-regression Predictive Risk Model runs <em>alongside</em> — never instead of — an honestly rule-based Travel Safety Index, both explicitly labeled for what they are. Most competing "AI" claims are an LLM call with a prompt attached; this is real gradient descent with a printed loss curve and held-out test accuracy the team is willing to show, including its weaknesses.</p></div>
+        <div class="crit-row"><span class="crit-tag gap">Gap</span><p>Individually, SOS buttons, Dead Man's Switches, and TSI-style scores already exist in prior SIH Travel & Tourism winners (per the team's own gap-analysis research). The novelty is in the combination and the honesty, not in any one primitive being unseen before.</p></div>
+      </div>
+    </div>
+
+    <div class="criterion">
+      <div class="crit-head">
+        <div class="crit-title"><span class="crit-num">03</span><h3>Technical Feasibility</h3></div>
+        <div class="crit-score">19<span class="of">/20</span></div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:95%"></div></div>
+      <div class="crit-body">
+        <div class="crit-row"><span class="crit-tag earns">Earns it</span><p>Not a mockup: <strong>101 real endpoints</strong> across a 23-table Postgres schema, four working portals, and a backend that survived a deliberate adversarial pass — rate-limit bypass attempts, SQLi payloads, forced transaction rollbacks, a concurrent double-resolve race — with eight real defects found and fixed, including a live unauthenticated path to govt <code>SUPER_ADMIN</code>. Every external integration (Twilio, Gemini, OpenWeatherMap) degrades gracefully when unconfigured rather than failing the request. Every feature this session was verified live against a running server and database, not asserted.</p></div>
+        <div class="crit-row"><span class="crit-tag gap">Gap</span><p>Single Postgres instance with no documented horizontal-scaling story, and live road routing depends on the public OSRM demo server — free and unowned infrastructure, not something a state government could depend on at scale without standing up its own instance. A judge probing "what happens at 10,000 concurrent tourists" will find an honest gap here, not a bad answer, but a gap.</p></div>
+      </div>
+    </div>
+
+    <div class="criterion">
+      <div class="crit-head">
+        <div class="crit-title"><span class="crit-num">04</span><h3>Impact and Benefits</h3></div>
+        <div class="crit-score">17<span class="of">/20</span></div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:85%"></div></div>
+      <div class="crit-body">
+        <div class="crit-row"><span class="crit-tag earns">Earns it</span><p>Targets the named problem directly — Northeast Indian terrain where signal genuinely disappears — with a mechanism built for exactly that (offline SOS over SMS, not a feature that quietly assumes connectivity). DPDP Act 2023 data rights and a GIGW 3.0 / WCAG 2.1 AA accessibility pass on the government-facing portal are real legal- and inclusion-impact stories a judging panel can be shown, not just claimed. Four cooperating portals reflect the real stakeholder ecosystem — tourist, family, government, rescuer — rather than optimizing for one audience.</p></div>
+        <div class="crit-row"><span class="crit-tag gap">Gap</span><p>Every account and scenario is a seeded demo. There is no field data — no real tourist, district officer, or volunteer has used this outside the team. Impact is architecturally credible, not empirically validated, and a panel that asks "who has actually used this" has a true but unsatisfying answer.</p></div>
+      </div>
+    </div>
+
+    <div class="criterion">
+      <div class="crit-head">
+        <div class="crit-title"><span class="crit-num">05</span><h3>Architecture</h3></div>
+        <div class="crit-score">17<span class="of">/20</span></div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:85%"></div></div>
+      <div class="crit-body">
+        <div class="crit-row"><span class="crit-tag earns">Earns it</span><p>A consistently layered backend (Route → Middleware → Controller → Service → Repository) across all 15 route groups, 15 schema migrations applied as reviewable named diffs rather than hand-edited tables, and a production-readiness report with hand-drawn diagrams tracing the real request pipeline, transaction boundaries, and SOS/DMS/TSI lifecycles from actual source code — not a stock architecture slide.</p></div>
+        <div class="crit-row"><span class="crit-tag gap">Gap</span><p>No documented business or deployment model — funding path, state-government procurement route, or rough cost-per-tourist economics. The system architecture is thoroughly documented; the <em>business</em> architecture around it is not, and SIH panels routinely ask for both.</p></div>
+      </div>
+    </div>
+
+  </section>
+
+  <section>
+    <h2>Cross-check: the grand-finale live model</h2>
+    <div class="prose"><p>Re-reading the same evidence against the finale's own five judging factors mostly reinforces the picture above rather than changing it. One factor sits outside anything a codebase can produce:</p></div>
+    <div class="crosscheck-grid">
+      <div class="cc-item"><div class="label">Solution appearance</div><div class="mark">strong</div></div>
+      <div class="cc-item"><div class="label">Impact</div><div class="mark">strong</div></div>
+      <div class="cc-item"><div class="label">Technology</div><div class="mark">strong</div></div>
+      <div class="cc-item"><div class="label">Execution</div><div class="mark">strong</div></div>
+      <div class="cc-item"><div class="label">UX</div><div class="mark">untested live</div></div>
+    </div>
+    <div class="prose"><p>"UX" here reads strong in isolation (mobile-first tourist app, dark-ops govt dashboard, zero-login guardian link) but has never been watched being used by someone who isn't the team — the same field-validation gap as Impact above. None of the five factors capture pitch delivery itself: a rehearsed, timed demo narrative is a human skill the repository cannot supply.</p></div>
+  </section>
+
+  <section>
+    <h2>What would actually move the number</h2>
+    <ul class="checklist">
+      <li><span class="n">1</span><div><p><strong>A one-slide business/deployment model.</strong> State-government procurement pathway, rough cost-per-tourist, who operates the Govt Command Center in production. This is the single largest gap and the only one that isn't a code problem.</p></div></li>
+      <li><span class="n">2</span><div><p><strong>Any real field signal.</strong> Even five to ten informal testers walking the offline-SOS flow with airplane mode on beats another polished feature — panels notice the difference between "built for" and "used by."</p></div></li>
+      <li><span class="n">3</span><div><p><strong>Rehearse the accessibility answer.</strong> The GIGW 3.0 / WCAG 2.1 AA pass on the Govt Command Center has now shipped — contrast tokens, keyboard-accessible modals, labeled form fields. The remaining work is being ready to demonstrate it live if a judge asks, not building more of it.</p></div></li>
+      <li><span class="n">4</span><div><p><strong>A rehearsed 90-second opening.</strong> Lead the demo with the hash-chain reveal, the offline-SMS SOS, and the honest rule-based-vs-trained-model distinction — the most differentiated material shouldn't surface on question five.</p></div></li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>Compiled 2026-08-27 as an independent research pass, not a leaked or official scoring key. Treat the per-criterion numbers as a calibrated estimate for team prep, not a guarantee — actual panels weigh presentation and Q&amp;A performance the codebase itself cannot predict.</p>
+  </footer>
+
+</div>

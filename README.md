@@ -749,9 +749,9 @@ not left behind.
 
 **GIGW 3.0** (Guidelines for Indian Government Websites) mandates WCAG 2.1 Level AA for government
 portals — directly applicable to the Govt Command Center, which is exactly that. An accessibility
-pass covers icon-only controls (`aria-label`), keyboard focus visibility, dark-theme text contrast,
-modal keyboard handling (Escape to close), image alt text, and form labeling across every govt
-screen.
+pass covers icon-only controls (`aria-label`), keyboard focus visibility, text-contrast tokens that
+were failing AA's 4.5:1 minimum, modal keyboard handling (Escape to close, focus-on-open), image
+alt text, and form labeling across every govt screen.
 
 **Aadhaar validation** goes one level past format checking: registration runs the real **Verhoeff
 checksum algorithm** — the actual arithmetic UIDAI uses to generate an Aadhaar number's 12th digit
