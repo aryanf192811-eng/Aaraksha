@@ -133,20 +133,20 @@ export default function LandingPage() {
             <h1 className="font-display text-xl font-black text-primary tracking-tight">Aaraksha</h1>
           </div>
           <nav className="hidden md:flex gap-2 items-center">
-            <a className="text-xs font-extrabold uppercase tracking-wider text-primary hover:bg-surface-container/70 transition-colors px-4 py-2 rounded-full" href="#terrain">Terrain</a>
-            <a className="text-xs font-extrabold uppercase tracking-wider text-on-surface-variant hover:bg-surface-container/70 transition-colors px-4 py-2 rounded-full" href="#features">Features</a>
-            <a className="text-xs font-extrabold uppercase tracking-wider text-on-surface-variant hover:bg-surface-container/70 transition-colors px-4 py-2 rounded-full" href="#steps">How it Works</a>
+            <a className="text-sm font-semibold text-primary hover:bg-surface-container/70 transition-colors px-4 py-2 rounded-full" href="#terrain">Terrain</a>
+            <a className="text-sm font-semibold text-on-surface-variant hover:bg-surface-container/70 transition-colors px-4 py-2 rounded-full" href="#features">Features</a>
+            <a className="text-sm font-semibold text-on-surface-variant hover:bg-surface-container/70 transition-colors px-4 py-2 rounded-full" href="#steps">How it Works</a>
           </nav>
           {isAuthenticated ? (
             <Button onClick={() => navigate('/dashboard')}
-              className="bg-primary text-primary-foreground rounded-full px-6 font-extrabold text-xs uppercase tracking-wider">
+              className="bg-primary text-primary-foreground rounded-full px-6 font-semibold text-sm">
               Dashboard
             </Button>
           ) : (
             <div className="flex items-center gap-2">
-              <Button variant="ghost" onClick={() => navigate('/auth')} className="hidden sm:inline-flex text-on-surface-variant">Log In</Button>
+              <Button variant="ghost" onClick={() => navigate('/auth')} className="hidden sm:inline-flex text-on-surface-variant font-semibold">Log In</Button>
               <Button onClick={() => navigate('/auth?tab=register')}
-                className="bg-primary text-primary-foreground px-6 rounded-full font-extrabold text-xs uppercase tracking-wider shadow-md hover:scale-[1.02] active:scale-95 transition-all">
+                className="bg-primary text-primary-foreground px-6 rounded-full font-semibold text-sm hover:scale-[1.02] active:scale-95 transition-all">
                 Get Started
               </Button>
             </div>
@@ -174,12 +174,12 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-wrap gap-3 pt-1">
                 <Button onClick={() => navigate('/auth?tab=register')}
-                  className="bg-primary text-primary-foreground px-8 h-14 rounded-full font-extrabold text-sm uppercase tracking-wide shadow-lg active:scale-95 transition-all">
+                  className="bg-primary text-primary-foreground px-8 h-14 rounded-full font-semibold text-base shadow-glass active:scale-95 transition-all">
                   Start Your Safe Journey
                 </Button>
                 <a href={GOVT_PORTAL_URL} target="_blank" rel="noopener noreferrer">
                   <Button variant="outline"
-                    className="bg-surface text-on-surface border-outline-variant px-8 h-14 rounded-full font-extrabold text-sm uppercase tracking-wide active:scale-95 transition-all flex items-center gap-2">
+                    className="bg-surface text-on-surface border-outline-variant px-8 h-14 rounded-full font-semibold text-base active:scale-95 transition-all flex items-center gap-2">
                     <Play className="w-4 h-4" fill="currentColor" /> Government Portal
                   </Button>
                 </a>
@@ -188,7 +188,7 @@ export default function LandingPage() {
 
             {/* Visual: hand-authored terrain + trail + TSI ring */}
             <div className="w-full md:w-1/2 relative">
-              <div className="aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl border border-outline-variant relative">
+              <div className="aspect-[4/3] rounded-2xl overflow-hidden shadow-glass-lg border border-outline-variant relative">
                 <TerrainPeak />
                 {/* TSI ring, anchored to the summit flag it's scoring */}
                 <div className="absolute top-[26%] left-[30%] glass-card rounded-xl p-3 flex items-center gap-2.5 shadow-lg">
@@ -427,7 +427,7 @@ export default function LandingPage() {
           <p className="text-on-surface-variant mb-8">Register with your Government ID and start your safe journey today.</p>
           <Button
             onClick={() => navigate('/auth?tab=register')}
-            className="bg-primary text-primary-foreground font-extrabold rounded-full h-14 px-10 text-sm uppercase tracking-wide shadow-lg"
+            className="bg-primary text-primary-foreground font-semibold rounded-full h-14 px-10 text-base shadow-glass"
           >
             Register Now — It's Free <ArrowRight className="ml-2 w-4 h-4" />
           </Button>
@@ -444,19 +444,19 @@ export default function LandingPage() {
         <div className="flex justify-around items-center px-2 py-2.5 w-full pb-safe">
           <button onClick={() => navigate('/')} className="flex flex-col items-center justify-center bg-primary text-primary-foreground rounded-full px-4 py-1.5">
             <Shield className="w-5 h-5" />
-            <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1">Home</span>
+            <span className="text-[10px] font-semibold mt-1">Home</span>
           </button>
           <button onClick={() => navigate(isAuthenticated ? '/trips' : '/auth')} className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5">
             <Map className="w-5 h-5" />
-            <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1">Trips</span>
+            <span className="text-[10px] font-semibold mt-1">Trips</span>
           </button>
           <button onClick={() => navigate(isAuthenticated ? '/checkin' : '/auth')} className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5">
             <WifiOff className="w-5 h-5" />
-            <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1">Check-In</span>
+            <span className="text-[10px] font-semibold mt-1">Check-In</span>
           </button>
           <button onClick={() => navigate(isAuthenticated ? '/profile' : '/auth')} className="flex flex-col items-center justify-center text-on-surface-variant px-4 py-1.5">
             <Users className="w-5 h-5" />
-            <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1">Profile</span>
+            <span className="text-[10px] font-semibold mt-1">Profile</span>
           </button>
         </div>
       </nav>
