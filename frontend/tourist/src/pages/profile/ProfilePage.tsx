@@ -141,14 +141,14 @@ export default function ProfilePage() {
               <span className="font-bold text-on-surface">{t('profile.rescueReadiness')}</span>
             </div>
             <span className={cn('font-black text-lg',
-              profile.rescue_readiness_score >= 80 ? 'text-green-600' :
-              profile.rescue_readiness_score >= 50 ? 'text-primary' : 'text-red-600'
+              profile.rescue_readiness_score >= 80 ? 'text-tsi-low' :
+              profile.rescue_readiness_score >= 50 ? 'text-primary' : 'text-sos-dark'
             )}>{profile.rescue_readiness_score}%</span>
           </div>
           <div className="w-full bg-surface-container-high rounded-full h-3">
             <div className={cn('h-3 rounded-full transition-all duration-700',
-              profile.rescue_readiness_score >= 80 ? 'bg-green-500' :
-              profile.rescue_readiness_score >= 50 ? 'bg-primary' : 'bg-red-500'
+              profile.rescue_readiness_score >= 80 ? 'bg-tsi-low' :
+              profile.rescue_readiness_score >= 50 ? 'bg-primary' : 'bg-sos'
             )} style={{ width: `${profile.rescue_readiness_score}%` }} />
           </div>
           <p className="text-xs text-on-surface-variant mt-2">
@@ -159,12 +159,12 @@ export default function ProfilePage() {
         {/* Health info */}
         <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 space-y-3">
           <h3 className="font-bold text-on-surface flex items-center gap-2">
-            <Droplet className="w-4 h-4 text-red-500" /> {t('profile.healthInformation')}
+            <Droplet className="w-4 h-4 text-sos" /> {t('profile.healthInformation')}
           </h3>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-red-50 rounded-xl p-3 text-center">
-              <p className="text-2xl font-black text-red-600">{profile.blood_group || '—'}</p>
-              <p className="text-xs text-red-600 font-semibold mt-0.5">{t('profile.bloodGroup')}</p>
+            <div className="bg-sos/10 rounded-xl p-3 text-center">
+              <p className="text-2xl font-black text-sos-dark">{profile.blood_group || '—'}</p>
+              <p className="text-xs text-sos-dark font-semibold mt-0.5">{t('profile.bloodGroup')}</p>
             </div>
             <div className="bg-surface-container rounded-xl p-3">
               <p className="text-xs text-on-surface-variant font-semibold mb-1">{t('profile.medicalInfo')}</p>
@@ -182,7 +182,7 @@ export default function ProfilePage() {
           <div className="flex items-center gap-3">
             <span className="text-xs bg-surface-container-high text-on-surface-variant px-3 py-1.5 rounded-full font-semibold">{profile.govt_id_type}</span>
             <span className="text-on-surface font-mono font-bold">•••• •••• {profile.govt_id_suffix}</span>
-            <span className="text-xs text-green-600 ml-auto flex items-center gap-1 font-semibold">
+            <span className="text-xs text-tsi-low ml-auto flex items-center gap-1 font-semibold">
               <Lock className="w-3 h-3" /> {t('profile.encrypted')}
             </span>
           </div>
@@ -201,19 +201,19 @@ export default function ProfilePage() {
             {(profile.emergency_contacts || []).map((c, i) => (
               <div key={c.id || i} className="flex items-center gap-3 py-2 border-b border-outline-variant last:border-0">
                 <div className={cn('w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white',
-                  c.tier === 1 ? 'bg-green-500' : 'bg-primary'
+                  c.tier === 1 ? 'bg-tsi-low' : 'bg-primary'
                 )}>T{c.tier}</div>
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-on-surface">{c.name}</p>
                   <p className="text-xs text-on-surface-variant">{c.relation} · {c.phone}</p>
                 </div>
                 {c.notifyOnSOS && (
-                  <span className="text-xs text-green-600 font-semibold flex items-center gap-0.5">
+                  <span className="text-xs text-sos-dark font-semibold flex items-center gap-0.5">
                     <Siren className="w-3 h-3" /> SOS
                   </span>
                 )}
                 {c.verified ? (
-                  <span className="text-xs text-green-600 font-semibold flex items-center gap-0.5">
+                  <span className="text-xs text-tsi-low font-semibold flex items-center gap-0.5">
                     <ShieldCheck className="w-3.5 h-3.5" /> {t('profile.verified')}
                   </span>
                 ) : (
@@ -287,7 +287,7 @@ export default function ProfilePage() {
 
         {/* Logout */}
         <Button variant="outline" onClick={handleLogout}
-          className="w-full h-12 rounded-full border-red-200 text-red-600 hover:bg-red-50 font-bold">
+          className="w-full h-12 rounded-full border-sos/30 text-sos-dark hover:bg-sos/10 font-bold">
           <LogOut className="w-4 h-4 mr-2" /> {t('common.signOut')}
         </Button>
 
@@ -316,7 +316,7 @@ export default function ProfilePage() {
           ) : (
             <>
               {debugOtp && (
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <p className="text-xs text-primary-dark bg-primary/10 border border-primary/25 rounded-lg px-3 py-2">
                   {t('profile.demoOtpNotice')} <span className="font-mono font-bold">{debugOtp}</span>
                 </p>
               )}
