@@ -12,14 +12,15 @@ import {
 import { Input } from '../../components/ui/input'
 import { WeatherBadge } from '../../components/shared'
 import destinationApi from '../../api/destination.api'
+import { getDestinationImage } from '../../lib/destinationImages'
 import { tEnum } from '../../lib/i18nEnums'
 import { cn } from '../../lib/utils'
 
 const ZONE_CONFIG: Record<string, { icon: ComponentType<{ className?: string }>; color: string }> = {
-  SAFE:         { icon: CheckCircle2, color: 'bg-green-50 border-green-200 text-green-700' },
+  SAFE:         { icon: CheckCircle2, color: 'bg-tsi-low/10 border-tsi-low/30 text-tsi-low' },
   CAUTION:      { icon: AlertTriangle, color: 'bg-primary/10 border-primary/20 text-primary' },
-  HIGH_RISK:    { icon: ShieldAlert,  color: 'bg-orange-50 border-orange-200 text-orange-700' },
-  RESTRICTED:   { icon: Ban,          color: 'bg-red-50 border-red-200 text-red-700' },
+  HIGH_RISK:    { icon: ShieldAlert,  color: 'bg-tsi-high/10 border-tsi-high/30 text-tsi-high' },
+  RESTRICTED:   { icon: Ban,          color: 'bg-sos/10 border-sos/30 text-sos-dark' },
   ILP_REQUIRED: { icon: ClipboardList, color: 'bg-purple-50 border-purple-200 text-purple-700' },
 }
 
@@ -96,44 +97,50 @@ export default function AdvisoryPage() {
           const activity = activityByDest.get(dest.id) ?? activityByDest.get(dest.name.toUpperCase())
           return (
             <div key={dest.id} className="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-black text-on-surface text-base">{dest.name}</h3>
+              <div className="flex items-start gap-3 p-5 pb-3">
+                <img src={getDestinationImage(dest.name, { w: 200, q: 78 })} alt=""
+                  className="w-14 h-14 rounded-2xl object-cover flex-shrink-0" />
+                <div className="flex-1 min-w-0 flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="font-black text-on-surface text-base truncate">{dest.name}</h3>
                     <p className="text-xs text-on-surface-variant">{dest.state}</p>
                   </div>
-                  <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full border flex items-center gap-1', zone.color)}>
+                  <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full border flex items-center gap-1 flex-shrink-0', zone.color)}>
                     <ZoneIcon className="w-3.5 h-3.5" /> {tEnum(t, 'zoneType', dest.zone_type)}
                   </span>
                 </div>
+              </div>
 
+              <div className="px-5 pb-5">
                 {activity && activity.total > 0 && (
                   <div className="bg-surface-container rounded-xl px-3 py-2 mb-3 flex items-center gap-2">
                     <Users className="w-3.5 h-3.5 text-on-surface-variant flex-shrink-0" />
                     <p className="text-xs text-on-surface-variant">
                       <span className="font-bold text-on-surface">{t('advisory.touristsHereNow', { count: activity.total })}</span> {t('advisory.hereRightNow')}
                       {activity.highRisk > 0 && (
-                        <span className="text-orange-600 font-semibold"> {t('advisory.flaggedHighRisk', { count: activity.highRisk })}</span>
+                        <span className="text-tsi-high font-semibold"> {t('advisory.flaggedHighRisk', { count: activity.highRisk })}</span>
                       )}
                     </p>
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  <div className="bg-surface-container rounded-xl p-2.5 text-center">
-                    <Activity className="w-4 h-4 text-on-surface-variant mx-auto mb-1" />
-                    <p className="text-xs font-bold text-on-surface">{tEnum(t, 'difficulty', dest.difficulty)}</p>
-                    <p className="text-[10px] text-on-surface-variant">{t('advisory.difficulty')}</p>
-                  </div>
-                  <div className="bg-surface-container rounded-xl p-2.5 text-center">
-                    <MapPin className="w-4 h-4 text-on-surface-variant mx-auto mb-1" />
-                    <p className="text-xs font-bold text-on-surface">{dest.altitude_m > 0 ? `${dest.altitude_m}m` : t('advisory.lowAltitude')}</p>
-                    <p className="text-[10px] text-on-surface-variant">{t('advisory.altitude')}</p>
-                  </div>
-                  <div className="bg-surface-container rounded-xl p-2.5 text-center">
-                    <Shield className="w-4 h-4 text-on-surface-variant mx-auto mb-1" />
-                    <p className="text-xs font-bold text-on-surface">{tEnum(t, 'connectivity', dest.connectivity)}</p>
-                    <p className="text-[10px] text-on-surface-variant">{t('advisory.signal')}</p>
+                <div className="rounded-xl border border-outline-variant overflow-hidden mb-3">
+                  <div className="grid grid-cols-3 divide-x divide-outline-variant">
+                    <div className="p-2.5 text-center">
+                      <Activity className="w-4 h-4 text-on-surface-variant mx-auto mb-1" />
+                      <p className="text-xs font-bold text-on-surface">{tEnum(t, 'difficulty', dest.difficulty)}</p>
+                      <p className="text-[10px] text-on-surface-variant">{t('advisory.difficulty')}</p>
+                    </div>
+                    <div className="p-2.5 text-center">
+                      <MapPin className="w-4 h-4 text-on-surface-variant mx-auto mb-1" />
+                      <p className="text-xs font-bold text-on-surface">{dest.altitude_m > 0 ? `${dest.altitude_m}m` : t('advisory.lowAltitude')}</p>
+                      <p className="text-[10px] text-on-surface-variant">{t('advisory.altitude')}</p>
+                    </div>
+                    <div className="p-2.5 text-center">
+                      <Shield className="w-4 h-4 text-on-surface-variant mx-auto mb-1" />
+                      <p className="text-xs font-bold text-on-surface">{tEnum(t, 'connectivity', dest.connectivity)}</p>
+                      <p className="text-[10px] text-on-surface-variant">{t('advisory.signal')}</p>
+                    </div>
                   </div>
                 </div>
 
