@@ -56,7 +56,7 @@ export function LoginForm({ onSwitch }: { onSwitch: () => void }) {
             {...register('phone')}
           />
         </div>
-        {errors.phone && <p className="text-xs text-red-500">{errors.phone.message}</p>}
+        {errors.phone && <p className="text-xs text-sos-dark">{errors.phone.message}</p>}
       </div>
 
       <div className="space-y-1.5">
@@ -71,7 +71,7 @@ export function LoginForm({ onSwitch }: { onSwitch: () => void }) {
           className="h-12 rounded-xl border-outline-variant focus:border-primary focus:ring-primary/20"
           {...register('password')}
         />
-        {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
+        {errors.password && <p className="text-xs text-sos-dark">{errors.password.message}</p>}
       </div>
 
       <Button type="submit" disabled={isPending}

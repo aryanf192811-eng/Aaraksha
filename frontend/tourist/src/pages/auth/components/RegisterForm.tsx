@@ -138,7 +138,7 @@ export function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
               <Input placeholder="Aryan Kumar" className="pl-10 h-12 rounded-xl" {...step1.register('fullName')} />
             </div>
-            {step1.formState.errors.fullName && <p className="text-xs text-red-500">{step1.formState.errors.fullName.message}</p>}
+            {step1.formState.errors.fullName && <p className="text-xs text-sos-dark">{step1.formState.errors.fullName.message}</p>}
           </div>
 
           <div className="space-y-1.5">
@@ -147,7 +147,7 @@ export function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-on-surface-variant">+91</span>
               <Input placeholder="9876543210" className="pl-12 h-12 rounded-xl" type="tel" {...step1.register('phone')} />
             </div>
-            {step1.formState.errors.phone && <p className="text-xs text-red-500">{step1.formState.errors.phone.message}</p>}
+            {step1.formState.errors.phone && <p className="text-xs text-sos-dark">{step1.formState.errors.phone.message}</p>}
           </div>
 
           <div className="space-y-1.5">
@@ -159,12 +159,12 @@ export function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
             <div className="space-y-1.5">
               <Label className="text-sm font-semibold">Password</Label>
               <PasswordInput placeholder="Min 8 chars" className="h-12 rounded-xl" {...step1.register('password')} />
-              {step1.formState.errors.password && <p className="text-xs text-red-500">{step1.formState.errors.password.message}</p>}
+              {step1.formState.errors.password && <p className="text-xs text-sos-dark">{step1.formState.errors.password.message}</p>}
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm font-semibold">Confirm</Label>
               <PasswordInput showLockIcon={false} placeholder="Repeat" className="h-12 rounded-xl" {...step1.register('confirmPassword')} />
-              {step1.formState.errors.confirmPassword && <p className="text-xs text-red-500">{step1.formState.errors.confirmPassword.message}</p>}
+              {step1.formState.errors.confirmPassword && <p className="text-xs text-sos-dark">{step1.formState.errors.confirmPassword.message}</p>}
             </div>
           </div>
 
@@ -215,7 +215,7 @@ export function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
                 {...step2.register('govtIdNumber')}
               />
             </div>
-            {step2.formState.errors.govtIdNumber && <p className="text-xs text-red-500">{step2.formState.errors.govtIdNumber.message}</p>}
+            {step2.formState.errors.govtIdNumber && <p className="text-xs text-sos-dark">{step2.formState.errors.govtIdNumber.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -260,7 +260,7 @@ export function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
                   </span>
                   {idx > 0 && (
                     <button type="button" onClick={() => remove(idx)}>
-                      <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
+                      <Trash2 className="w-4 h-4 text-sos/60 hover:text-sos-dark transition-colors" />
                     </button>
                   )}
                 </div>
@@ -272,7 +272,7 @@ export function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
                 {(() => {
                   const err = step3.formState.errors.emergencyContacts?.[idx]
                   const message = err?.name?.message || err?.phone?.message || err?.relation?.message
-                  return message ? <p className="text-xs text-red-500">{message}</p> : null
+                  return message ? <p className="text-xs text-sos-dark">{message}</p> : null
                 })()}
               </div>
             ))}
