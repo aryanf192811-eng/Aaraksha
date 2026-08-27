@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Shield, ShieldCheck, ArrowRight, Users,
   Radio, Siren, Timer, BarChart3, WifiOff, MessageSquareWarning,
-  MapPinned, ClipboardList, CheckCircle2, FlagTriangleRight,
+  MapPinned, ClipboardList, CheckCircle2, FlagTriangleRight, Navigation,
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { useAuthStore } from '../store/auth.store'
@@ -250,7 +250,7 @@ export default function LandingPage() {
         <section id="features" className="py-14 md:py-20 scroll-mt-20 max-w-6xl mx-auto px-5 md:px-6">
           <div className="mb-10">
             <h3 className="font-display text-3xl font-black text-on-surface mb-2">How the safety net actually works</h3>
-            <p className="text-on-surface-variant max-w-lg">Four mechanisms, shown as they run — not just named.</p>
+            <p className="text-on-surface-variant max-w-lg">Five mechanisms, shown as they run — not just named.</p>
           </div>
 
           <div className="flex flex-col divide-y divide-outline-variant">
@@ -280,9 +280,9 @@ export default function LandingPage() {
                 <Timer className="w-7 h-7 text-primary mb-3" />
                 <h4 className="text-xl font-bold text-on-surface mb-1.5">Dead Man's Switch</h4>
                 <p className="text-sm text-on-surface-variant max-w-md leading-relaxed">
-                  Set a check-in interval before you head into low-connectivity terrain. Miss it, and
-                  your emergency contacts and the nearest govt response unit get your last known
-                  location automatically — no manual SOS needed.
+                  Set a check-in interval before you head into low-connectivity terrain. Miss it,
+                  and your emergency contacts and the nearest rescuer — official team or verified
+                  local volunteer — get your last known location automatically, no manual SOS needed.
                 </p>
               </div>
               <div className="md:order-1 flex md:justify-start">
@@ -300,18 +300,50 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* TSI */}
+            {/* Live Rescuer Tracking */}
             <div className="py-7 grid md:grid-cols-2 gap-6 items-center">
               <div>
+                <Navigation className="w-7 h-7 text-primary mb-3" />
+                <h4 className="text-xl font-bold text-on-surface mb-1.5">Live Rescuer Tracking</h4>
+                <p className="text-sm text-on-surface-variant max-w-md leading-relaxed">
+                  Whoever's closest gets sent — an official rescue team or a govt-verified local
+                  volunteer, whichever can reach you faster. Once assigned, you and your family
+                  watch them close the distance on a live map with a real road route, not a
+                  straight line.
+                </p>
+              </div>
+              <div className="flex md:justify-end">
+                <div className="glass-card rounded-xl p-4 w-64 shadow-md">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-1.5 h-1.5 rounded-full bg-safe animate-pulse" />
+                    <span className="text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant">Live · Rescuer en route</span>
+                  </div>
+                  <svg viewBox="0 0 220 90" className="w-full h-16" aria-hidden="true">
+                    <path d="M14,70 C 60,20 130,75 206,18" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="1 7" strokeLinecap="round" />
+                    <circle cx="14" cy="70" r="5" fill="#4d7c5f" />
+                    <circle cx="206" cy="18" r="5" fill="#f59e0b" />
+                  </svg>
+                  <div className="flex justify-between mt-1">
+                    <p className="text-[11px] font-bold text-on-surface">You</p>
+                    <p className="text-[11px] font-bold text-on-surface">1.8 km · 6 min</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* TSI */}
+            <div className="py-7 grid md:grid-cols-2 gap-6 items-center">
+              <div className="md:order-2">
                 <BarChart3 className="w-7 h-7 text-primary mb-3" />
                 <h4 className="text-xl font-bold text-on-surface mb-1.5">Travel Safety Index</h4>
                 <p className="text-sm text-on-surface-variant max-w-md leading-relaxed">
-                  A 0–100 score per destination, recalculated hourly from live weather, terrain
-                  difficulty, connectivity, and standing government advisories — the same score
-                  shown to district authorities on the command center map.
+                  A 0–100 score per destination, recalculated hourly from live weather and terrain
+                  data, cross-checked against a real trained risk model — not fixed rules — with
+                  its top contributing factors always shown. The same score district authorities
+                  see on the command center map.
                 </p>
               </div>
-              <div className="flex md:justify-end items-center gap-3">
+              <div className="md:order-1 flex md:justify-start items-center gap-3">
                 {[
                   { label: 'Kaziranga', score: 91, cls: 'text-tsi-low' },
                   { label: 'Sohra', score: 68, cls: 'text-tsi-moderate' },
@@ -336,7 +368,7 @@ export default function LandingPage() {
 
             {/* Guides */}
             <div className="py-7 grid md:grid-cols-2 gap-6 items-center">
-              <div className="md:order-2">
+              <div>
                 <MapPinned className="w-7 h-7 text-on-surface mb-3" />
                 <h4 className="text-xl font-bold text-on-surface mb-1.5">Contextual Safety Guides</h4>
                 <p className="text-sm text-on-surface-variant max-w-md leading-relaxed">
@@ -344,7 +376,7 @@ export default function LandingPage() {
                   distances and phone numbers included — cached for the exact moment you lose signal.
                 </p>
               </div>
-              <div className="md:order-1 flex md:justify-start">
+              <div className="flex md:justify-end">
                 <div className="glass-card rounded-xl p-4 w-64 shadow-md">
                   <div className="flex items-center gap-2 mb-2">
                     <WifiOff className="w-3.5 h-3.5 text-on-surface-variant" />
@@ -399,7 +431,7 @@ export default function LandingPage() {
                 { num: '10+', label: 'NER Destinations Tracked' },
                 { num: '4', label: 'Portals — Tourist · Govt · Guardian · Rescuer' },
                 { num: '2G', label: 'Offline SOS Capable' },
-                { num: '24/7', label: 'Rescue Readiness' },
+                { num: 'SHA-256', label: 'Verifiable Journey Passport' },
               ].map(({ num, label }) => (
                 <div key={label}>
                   <p className="font-display text-4xl font-black text-on-surface mb-1">{num}</p>
