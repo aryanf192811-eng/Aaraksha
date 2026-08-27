@@ -12,6 +12,7 @@
     "migrate:create": "node-pg-migrate -m src/migrations create",
     "seed": "node scripts/seed.js",
     "seed:reset": "node scripts/seed.js --reset",
+    "train:risk-model": "node scripts/trainRiskModel.js",
     "setup": "node scripts/preflight.js && npm run migrate && npm run seed",
     "test": "vitest run",
     "test:watch": "vitest",

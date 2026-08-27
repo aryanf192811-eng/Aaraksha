@@ -34,6 +34,27 @@ export interface RiskOverviewEntry {
   ilpRequired: boolean
   latitude: number | null
   longitude: number | null
+  // A genuinely distinct signal from zoneType/TSI above — a real trained
+  // logistic regression (see backend/scripts/trainRiskModel.js), not a
+  // rule-based score. Null until the model has been trained.
+  predictedRisk: PredictedRisk | null
+}
+
+export interface PredictedRisk {
+  probability: number
+  percentage: number
+  label: 'Low' | 'Moderate' | 'Elevated'
+  topFactors: Array<{ feature: string; contribution: number }>
+}
+
+export interface RiskModelInfo {
+  version: number
+  trainedAt: string
+  trainingSamples: number
+  testSamples: number
+  testMetrics: { accuracy: number; precision: number; recall: number; f1: number }
+  featureWeights: Array<{ feature: string; weight: number }>
+  labelSourceNote: string
 }
 
 export interface AnalyticsResponse {
@@ -238,6 +259,9 @@ const govtApi = {
 
   getRiskOverview: () =>
     api.get<APIResponse<RiskOverviewEntry[]>>('/govt/risk-overview'),
+
+  getRiskModelInfo: () =>
+    api.get<APIResponse<RiskModelInfo | null>>('/govt/risk-model/info'),
 
   getRescueTeams: () =>
     api.get<APIResponse<RescueTeam[]>>('/govt/rescue-teams'),

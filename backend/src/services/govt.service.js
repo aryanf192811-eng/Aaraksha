@@ -15,6 +15,7 @@ const { SOS_STATUSES, TEAM_STATUSES, VOLUNTEER_STATUSES } = require('../constant
 const { ERRORS } = require('../constants/errors')
 const { hashPassword, hashGovtId, generateTempPassword, normalizePhone, extractSuffix } = require('../utils/crypto')
 const { estimateRescueEtaMinutes } = require('../utils/geo')
+const riskModelService = require('./riskModel.service')
 const logger = require('../utils/logger')
 
 async function getDashboard() {
@@ -250,8 +251,16 @@ async function getRiskOverview() {
       // plot each destination as a weighted circle rather than a card.
       latitude:           dest?.latitude != null ? Number(dest.latitude) : null,
       longitude:          dest?.longitude != null ? Number(dest.longitude) : null,
+      // A second, genuinely distinct signal from zoneType/TSI above — see
+      // riskModel.service.js's header comment for why these are kept
+      // separate rather than blended into one number.
+      predictedRisk:      dest ? riskModelService.predictForDestination(dest) : null,
     }
   })
+}
+
+function getRiskModelInfo() {
+  return riskModelService.getModelInfo()
 }
 
 async function getRescueTeams() {
@@ -328,6 +337,6 @@ async function verifyVolunteer(volunteerId) {
 
 module.exports = {
   getDashboard, getActiveSOS, assignRescue, resolveSOS, getNearbyRescuers, getActiveRescuers,
-  getLiveTourists, getRiskOverview, getRescueTeams, updateTeamStatus, getAnalytics,
+  getLiveTourists, getRiskOverview, getRiskModelInfo, getRescueTeams, updateTeamStatus, getAnalytics,
   getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer,
 }

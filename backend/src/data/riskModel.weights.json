@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "trainedAt": "2026-08-27T06:14:52.386Z",
+  "trainingSamples": 3200,
+  "testSamples": 800,
+  "seed": 42,
+  "featureNames": [
+    "connectivity_NONE",
+    "connectivity_POOR",
+    "connectivity_MODERATE",
+    "connectivity_GOOD",
+    "connectivity_EXCELLENT",
+    "difficulty_EASY",
+    "difficulty_MODERATE",
+    "difficulty_HARD",
+    "difficulty_EXTREME",
+    "zone_SAFE",
+    "zone_CAUTION",
+    "zone_ILP_REQUIRED",
+    "zone_HIGH_RISK",
+    "zone_RESTRICTED",
+    "altitude_norm",
+    "hospital_distance_norm",
+    "monsoon_season"
+  ],
+  "weights": [
+    0.46471373030034735,
+    0.06722088500827604,
+    -0.3480726446147759,
+    -0.2716814763007687,
+    0,
+    -0.4720196176753426,
+    -0.199277708664875,
+    0.2780239353401793,
+    0.3054538853931172,
+    -0.2836824096454817,
+    -0.24687235742227734,
+    -0.021978468839509612,
+    0.3054538853931172,
+    0.15925984490722994,
+    0.13622292650061157,
+    0.21852794679111637,
+    0.47041635713230656
+  ],
+  "bias": -0.6476372964280693,
+  "trainMetrics": {
+    "accuracy": 0.7491,
+    "precision": 0.6827,
+    "recall": 0.4754,
+    "f1": 0.5605,
+    "confusionMatrix": {
+      "tp": 512,
+      "fp": 238,
+      "tn": 1885,
+      "fn": 565
+    }
+  },
+  "testMetrics": {
+    "accuracy": 0.7562,
+    "precision": 0.6898,
+    "recall": 0.485,
+    "f1": 0.5695,
+    "confusionMatrix": {
+      "tp": 129,
+      "fp": 58,
+      "tn": 476,
+      "fn": 137
+    }
+  },
+  "lossHistory": [
+    {
+      "epoch": 0,
+      "loss": 0.6931
+    },
+    {
+      "epoch": 200,
+      "loss": 0.5463
+    },
+    {
+      "epoch": 400,
+      "loss": 0.5449
+    },
+    {
+      "epoch": 600,
+      "loss": 0.5446
+    },
+    {
+      "epoch": 800,
+      "loss": 0.5445
+    },
+    {
+      "epoch": 1000,
+      "loss": 0.5445
+    },
+    {
+      "epoch": 1200,
+      "loss": 0.5445
+    },
+    {
+      "epoch": 1400,
+      "loss": 0.5445
+    },
+    {
+      "epoch": 1600,
+      "loss": 0.5444
+    },
+    {
+      "epoch": 1800,
+      "loss": 0.5444
+    },
+    {
+      "epoch": 1999,
+      "loss": 0.5444
+    }
+  ],
+  "labelSource": "synthetic-domain-grounded",
+  "labelSourceNote": "No public India tourist-incident dataset exists at destination granularity. Labels were generated from a probabilistic incident-rate function over real destination risk factors (connectivity, difficulty, altitude, zone classification, hospital access, monsoon season), not fabricated real-world records. The training pipeline is unchanged and re-runnable against real incident data the moment it is available.",
+  "categoryLevels": {
+    "connectivity": [
+      "NONE",
+      "POOR",
+      "MODERATE",
+      "GOOD",
+      "EXCELLENT"
+    ],
+    "difficulty": [
+      "EASY",
+      "MODERATE",
+      "HARD",
+      "EXTREME"
+    ],
+    "zone": [
+      "SAFE",
+      "CAUTION",
+      "ILP_REQUIRED",
+      "HIGH_RISK",
+      "RESTRICTED"
+    ]
+  }
+}

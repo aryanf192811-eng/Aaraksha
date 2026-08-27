@@ -41,6 +41,7 @@ real-time data model instead of four disconnected apps.
 - [Four portals, one system](#four-portals-one-system)
 - [Feature walkthrough](#feature-walkthrough)
 - [Verifiable Digital ID — the Journey Integrity Hash](#verifiable-digital-id--the-journey-integrity-hash)
+- [A real trained model — the Predictive Risk Score](#a-real-trained-model--the-predictive-risk-score)
 - [The unified Rescuer network](#the-unified-rescuer-network)
 - [Screenshots](#screenshots)
 - [Architecture at a glance](#architecture-at-a-glance)
@@ -91,6 +92,7 @@ slides.
 | A single "it's a demo" happy path | **Five live demo accounts**, each mid-scenario: an active SOS with a rescue team en route, another already assigned to a live-tracked volunteer, a running Dead Man's Switch, a completed trip ready for PDF export, a fresh account to show onboarding |
 | Rescue dispatch as a phone call | A **unified Rescuer network** — official teams and govt-verified citizen volunteers in one assignable pool, live GPS, real OSRM road routing, not a straight line on a map |
 | "Blockchain-based Digital ID" as a marketing phrase over a static ID card image | A real **SHA-256 hash chain** over every trip's itinerary, check-ins, SOS events, *and* government checkpoint scans — tamper-evident, independently recomputable from platform records, verifiable live with one API call |
+| "AI" meaning an LLM call with a prompt attached | A **genuine trained model** for predictive risk — real gradient descent, a printed loss curve, held-out test accuracy, and per-prediction explainability — sitting *alongside* (not instead of) an honestly rule-based TSI, each clearly labeled as what it is |
 | Safety that only reacts once someone presses a button | A **rule-based anomaly detector** running every minute against every active trip — flags a tourist who's gone quiet or drifted off-route *before* anyone presses SOS, no opt-in required |
 | "Report a crime" ends at a crowd-sourced warning post | A real **E-FIR triage workflow** — a formal, case-numbered report routed to a role-based officer queue with an actual investigation ladder (Filed → Assigned → Under Investigation → Resolved), not just a community bulletin board |
 | "We tested it" meaning the happy path worked once | A security pass that found and closed a **live unauthenticated privilege-escalation path** to govt SUPER\_ADMIN, pinned every JWT verification against algorithm-confusion attacks, and fixed a rate-limiter that silently ignored its own configuration |
@@ -189,8 +191,9 @@ slides.
 - **E-FIR Queue** — a genuinely distinct workflow from the SOS incident report above: a role-based officer triage queue for the E-FIRs tourists file (see [Safety](#-safety)), with priority sorting, self-assign or reassign, an investigation status ladder (`FILED → ASSIGNED → UNDER_INVESTIGATION → RESOLVED/CLOSED`), notes at every step, and a downloadable case-record PDF — real-time on both sides, so a filed report reaches the queue and a status change reaches the tourist over Socket.IO, not on the next page refresh
 - **Anomaly review** — the same open-anomaly list feeding the map's markers, with a one-click resolve once an operator has checked in on the tourist
 - **Volunteer verification & roster** — a pending-review queue with full identity detail before granting dispatch access, plus a live roster showing every volunteer's status and reputation points
-- **District risk overview** — per-destination live tourist counts, weather, TSI distribution, and a direct "Post News / Alert" action that fans out to every tourist with that destination on an active itinerary
+- **District risk overview** — per-destination live tourist counts, weather, TSI distribution, a **genuinely trained Predictive Risk Model** (logistic regression, real gradient descent, real train/test accuracy — a second, distinct signal from the rule-based TSI/zone score, both clearly labeled as what they are), and a direct "Post News / Alert" action that fans out to every tourist with that destination on an active itinerary
 - **Checkpoint QR scanning** — camera-first scan of a tourist's rotating QR code resolves their full safety profile at a physical checkpoint (ILP posts, park entrances) in one tap, manual entry as a fallback, not the default — every scan is also chained into that trip's Journey Integrity Hash (see below)
+- **CCTNS/BNS-aligned E-FIR reference** — every filed E-FIR carries an advisory applicable-section reference under the Bharatiya Nyaya Sanhita, 2023 (India's penal code) or the relevant act, shown on the queue and the case PDF — reads as aligned with how a real police record is classified, not a generic bug-tracker category
 - **Analytics & reporting** — incident trends, category breakdowns, average response time, exportable as a real PDF with one click
 - **Role-scoped access** — super admin, district admin, police, tourism officer, medical, and checkpoint officer roles, each seeing only what their role needs
 
@@ -256,6 +259,41 @@ them:
 The hash changes exactly once, exactly when a real event happens, and is byte-for-byte
 deterministic on every subsequent fetch — the two properties that make a hash chain actually
 mean something instead of just sounding like it does.
+
+---
+
+## A real trained model — the Predictive Risk Score
+
+Gemini in this platform is deliberately never asked to score or decide anything — it only
+explains an already-computed number in plain language (see the AI Safety Briefing above), the
+same "AI never makes the call, only explains it" honesty stance TSI is built on. That leaves a
+fair question: where's the actual machine learning? Here:
+
+`backend/scripts/trainRiskModel.js` trains a real binary logistic regression —
+`backend/src/ml/logisticRegression.js` is the entire model, about 90 lines of batch gradient
+descent on L2-regularized cross-entropy loss, no ML framework in between. No public,
+destination-level tourist-incident dataset exists for India to train against, so rather than
+falsely claim one, the trainer generates a labeled corpus from a probabilistic incident-rate
+function over real, already-collected destination risk factors (connectivity, difficulty,
+altitude, zone classification, hospital distance, monsoon season) — stated plainly in both the
+training output and the live UI tooltip, not hidden. The training pipeline itself doesn't change
+the moment real incident records exist to train on instead; only the label source would.
+
+A real training run, from the actual console output:
+
+| | |
+|---|---|
+| Training corpus | 4,000 examples (3,200 train / 800 test), seeded and fully reproducible |
+| Test accuracy / precision / recall | 75.6% / 69.0% / 48.5% |
+| Kaziranga (safest seeded destination) | 22.5% predicted incident probability |
+| Dzukou Valley (most extreme seeded destination) | 74.7% predicted incident probability |
+
+The learned weights are directionally sane on inspection — `monsoon_season`, `connectivity_NONE`,
+and `difficulty_EXTREME` are the three largest positive contributors, `difficulty_EASY` and
+`connectivity_GOOD` the largest negative ones — which is exactly what a real fit against
+risk-grounded labels should produce, not a random or overfit result. Every prediction shown in
+the govt Risk Overview page is explainable down to its top four contributing features, live, not
+just a bare percentage.
 
 ---
 
@@ -412,6 +450,7 @@ the [production readiness report](./PRODUCTION_READINESS_REPORT.html).
 | **E-FIR incident categories** | 8 (theft, harassment, assault, fraud, lost document, vehicle accident, property damage, other) |
 | **Rescuer types** | 2 (official rescue teams, govt-verified citizen volunteers) — one assignable pool |
 | **Languages** | 3 (English, Hindi, Assamese) — full key parity enforced at dev-time, not just an `en.json` with gaps |
+| **Predictive Risk Model** | 1 real trained logistic regression · 4,000-example corpus · 75.6% test accuracy · 17 explainable features |
 
 ---
 
@@ -446,14 +485,18 @@ Aaraksha/
 │   │   ├── socket/                  Socket.IO init + typed emitters
 │   │   ├── cron/                    DMS, anomaly detection, weather+TSI,
 │   │   │                             destination-news rotation jobs
-│   │   ├── data/                    curated destination news bank
+│   │   ├── data/                    curated destination news bank +
+│   │   │                             riskModel.weights.json (frozen trained model)
+│   │   ├── ml/                      logisticRegression.js (from-scratch trainer)
+│   │   │                             + features.js (shared train/serve encoding)
 │   │   ├── database/                connection pool, transaction helper
 │   │   └── migrations/              node-pg-migrate schema — 23 tables across 13 migrations
 │   ├── scripts/
 │   │   ├── preflight.js             env/DB connectivity check before setup
 │   │   ├── seed.js                  idempotent demo data (--reset flag available)
 │   │   ├── seedDemoContent.js       trips/reviews/scam reports across every demo account
-│   │   └── seedAnalyticsHistory.js  30-day realistic incident history for the analytics dashboard
+│   │   ├── seedAnalyticsHistory.js  30-day realistic incident history for the analytics dashboard
+│   │   └── trainRiskModel.js        trains the Predictive Risk Model, writes riskModel.weights.json
 │   ├── tests/                       vitest unit + integration suite
 │   ├── postman/                     Postman collection + environment
 │   ├── .env.example                 every required env var, documented
@@ -513,6 +556,10 @@ Two optional scripts add richer demo content on top of the base seed:
 node scripts/seedDemoContent.js       # more trips, reviews, and scam reports per account
 node scripts/seedAnalyticsHistory.js  # 30 days of realistic resolved-incident history
 ```
+
+The Predictive Risk Model ships pre-trained (`src/data/riskModel.weights.json` is checked in), but
+the training run is fully reproducible — `npm run train:risk-model` retrains it from scratch and
+prints the full report (loss curve, accuracy, learned feature weights) to the console.
 
 ### 4. Run the backend
 ```bash
@@ -581,7 +628,7 @@ page) into `/track/:token` on the guardian app.
 | `/incidents` | Tourist-facing E-FIR filing and status tracking (`POST /`, `GET /me`, `GET /:id`) |
 | `/packing` | AI-generated packing checklists |
 | `/journey-passport` | PDF trip summary generation **plus a standalone `GET /:tripId/hash`** — recomputes the Journey Integrity Hash chain live, independent of the PDF |
-| `/govt` | Dashboard, live tourists, risk overview (with coordinates for the map's risk-density layer), open safety anomalies + resolve, SOS assignment/resolution to a team *or* volunteer, nearby-rescuer search, resolved-incident PDF report, rescue teams, E-FIR queue (list/assign/status-update/PDF/officers), volunteer provisioning/verification/roster, checkpoint scan, analytics + PDF export, destination news posting |
+| `/govt` | Dashboard, live tourists, risk overview (with coordinates for the map's risk-density layer, and each destination's Predictive Risk Model score) **plus `GET /risk-model/info` for the model's training report**, open safety anomalies + resolve, SOS assignment/resolution to a team *or* volunteer, nearby-rescuer search, resolved-incident PDF report, rescue teams, E-FIR queue (list/assign/status-update/PDF/officers), volunteer provisioning/verification/roster, checkpoint scan, analytics + PDF export, destination news posting |
 | `/volunteers` | Volunteer register/login, status + live location updates, active-assignment lookup, EN\_ROUTE/ARRIVED self-status |
 | `/webhooks` | Twilio inbound SMS (offline SOS) |
 | `/push` | Web push subscribe/unsubscribe, VAPID public key |

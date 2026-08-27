@@ -5,7 +5,7 @@
 // already had but never surfaced (see govt.service.js getRiskOverview fix).
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Shield, ChevronDown, MapPin, HeartPulse, Mountain, Users, AlertTriangle, FileText, Megaphone, Loader2 } from 'lucide-react'
+import { Shield, ChevronDown, MapPin, HeartPulse, Mountain, Users, AlertTriangle, FileText, Megaphone, Loader2, BrainCircuit, Info } from 'lucide-react'
 import { Sun, Cloud, CloudRain, CloudSnow, CloudFog, CloudLightning } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
@@ -34,6 +34,24 @@ const WEATHER_ICONS: Record<string, typeof Sun> = {
 }
 
 const FILTERS = ['ALL', 'SAFE', 'CAUTION', 'HIGH_RISK', 'RESTRICTED', 'ILP_REQUIRED'] as const
+
+const PREDICTED_RISK_META: Record<string, { badge: string; bar: string }> = {
+  Low:      { badge: 'bg-emerald-100 text-emerald-700', bar: '#10b981' },
+  Moderate: { badge: 'bg-amber-100 text-amber-700',     bar: '#f59e0b' },
+  Elevated: { badge: 'bg-red-100 text-red-700',          bar: '#dc2626' },
+}
+
+// "connectivity_NONE" -> "No connectivity" — readable labels for the
+// model's raw feature names, shown in the explainability breakdown.
+function humanizeFeature(feature: string): string {
+  const [group, ...rest] = feature.split('_')
+  const value = rest.join('_')
+  const groupLabel = group === 'connectivity' ? 'Connectivity' : group === 'difficulty' ? 'Difficulty'
+    : group === 'zone' ? 'Zone' : group === 'altitude' ? 'Altitude' : group === 'hospital' ? 'Hospital distance'
+    : group === 'monsoon' ? 'Monsoon season' : group
+  if (feature === 'altitude_norm' || feature === 'hospital_distance_norm' || feature === 'monsoon_season') return groupLabel
+  return `${groupLabel}: ${value.replace('_', ' ')}`
+}
 
 // Composite 0-100 zone risk score from zone classification, live tourist
 // mix, and current weather risk — the backend only returns each factor
@@ -84,6 +102,12 @@ export default function RiskOverviewPage() {
     refetchInterval: 60_000,
   })
 
+  const { data: modelInfo } = useQuery({
+    queryKey: ['govt', 'risk-model', 'info'],
+    queryFn: () => govtApi.getRiskModelInfo().then(r => r.data.data),
+    staleTime: 10 * 60_000,
+  })
+
   const resetAlertForm = () => {
     setAlertTarget(null)
     setCategory('ADVISORY')
@@ -111,11 +135,30 @@ export default function RiskOverviewPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-full overflow-x-hidden">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-black text-on-surface">Risk Overview</h1>
           <p className="text-on-surface-variant text-sm">Destination-level tourist risk assessment, live weather, and local emergency infrastructure</p>
         </div>
+        {modelInfo && (
+          <div className="group relative">
+            <div className="flex items-center gap-2 bg-violet-50 border border-violet-200 rounded-full pl-3 pr-3.5 py-1.5 text-xs font-semibold text-violet-700 cursor-help">
+              <BrainCircuit className="w-3.5 h-3.5" />
+              Predictive Risk Model · {(modelInfo.testMetrics.accuracy * 100).toFixed(0)}% test accuracy
+              <Info className="w-3 h-3 opacity-60" />
+            </div>
+            <div className="absolute right-0 top-full mt-2 w-80 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg p-3.5 text-xs text-on-surface-variant opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+              <p className="font-bold text-on-surface mb-1.5">A real trained model, not a rule-based score</p>
+              <p className="mb-2">
+                A logistic regression trained on {modelInfo.trainingSamples.toLocaleString()} examples
+                (held out {modelInfo.testSamples.toLocaleString()} for testing) — precision{' '}
+                {(modelInfo.testMetrics.precision * 100).toFixed(0)}%, recall {(modelInfo.testMetrics.recall * 100).toFixed(0)}%.
+                Distinct from the Travel Safety Index above, which is rule-based by design.
+              </p>
+              <p className="text-[11px] italic">{modelInfo.labelSourceNote}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filter chips */}
@@ -225,6 +268,27 @@ export default function RiskOverviewPage() {
                       {zone.difficulty ? `${zone.difficulty} difficulty` : 'Difficulty not rated'} · {zone.connectivity} connectivity
                     </span>
                   </div>
+                  {zone.predictedRisk && (() => {
+                    const rm = PREDICTED_RISK_META[zone.predictedRisk.label] || PREDICTED_RISK_META.Moderate
+                    return (
+                      <div className="bg-violet-50/60 border border-violet-200 rounded-lg p-2.5 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-1.5 text-[11px] font-bold text-violet-700 uppercase tracking-wide">
+                            <BrainCircuit className="w-3.5 h-3.5" /> Predicted Incident Risk
+                          </span>
+                          <span className={cn('text-[11px] font-bold px-2 py-0.5 rounded-full', rm.badge)}>
+                            {zone.predictedRisk.percentage}% · {zone.predictedRisk.label}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-violet-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${zone.predictedRisk.percentage}%`, background: rm.bar }} />
+                        </div>
+                        <p className="text-[10px] text-on-surface-variant">
+                          Top factors: {zone.predictedRisk.topFactors.slice(0, 3).map(f => humanizeFeature(f.feature)).join(', ')}
+                        </p>
+                      </div>
+                    )
+                  })()}
                   {zone.govtAdvisory && (
                     <div className="flex items-start gap-2 text-xs bg-amber-50 border border-amber-200 rounded-lg p-2.5">
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 mt-0.5" />

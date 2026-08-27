@@ -14,6 +14,13 @@ const logger = require('../utils/logger')
 const getDashboard    = async (req, res, next) => { try { sendSuccess(res, await govtService.getDashboard()) } catch (err) { next(err) } }
 const getLiveTourists = async (req, res, next) => { try { sendSuccess(res, await govtService.getLiveTourists()) } catch (err) { next(err) } }
 const getRiskOverview = async (req, res, next) => { try { sendSuccess(res, await govtService.getRiskOverview()) } catch (err) { next(err) } }
+const getRiskModelInfo = async (req, res, next) => {
+  try {
+    const info = govtService.getRiskModelInfo()
+    if (!info) return sendSuccess(res, null, 'Risk model not trained yet — run scripts/trainRiskModel.js')
+    sendSuccess(res, info)
+  } catch (err) { next(err) }
+}
 const getRescueTeams  = async (req, res, next) => { try { sendSuccess(res, await govtService.getRescueTeams()) } catch (err) { next(err) } }
 const getAnalytics    = async (req, res, next) => { try { sendSuccess(res, await govtService.getAnalytics(req.query.period)) } catch (err) { next(err) } }
 
@@ -175,7 +182,7 @@ const verifyVolunteer = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
-module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRescueTeams,
+module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRiskModelInfo, getRescueTeams,
   getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, getNearbyRescuers, getActiveRescuers,
   resolveSOS, updateTeamStatus, downloadIncidentReport,
   scanCheckpoint, getRecentCheckpointScans, postDestinationNews,

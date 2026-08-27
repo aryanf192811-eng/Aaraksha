@@ -17,6 +17,20 @@ const CATEGORY_LABEL: Record<string, string> = {
   PROPERTY_DAMAGE: 'Property Damage', OTHER: 'Other',
 }
 
+// CCTNS/BNS-aligned reference — mirrors backend/src/constants/legalReference.js
+// verbatim. Advisory only: shown to the officer as a starting reference,
+// never claimed as an automated legal determination.
+const LEGAL_REFERENCE: Record<string, { act: string | null; section: string }> = {
+  THEFT: { act: 'Bharatiya Nyaya Sanhita, 2023', section: 'Section 303 — Theft' },
+  HARASSMENT: { act: 'Bharatiya Nyaya Sanhita, 2023', section: 'Section 74 / Section 78' },
+  ASSAULT: { act: 'Bharatiya Nyaya Sanhita, 2023', section: 'Section 115 — Voluntarily causing hurt' },
+  FRAUD: { act: 'Bharatiya Nyaya Sanhita, 2023', section: 'Section 318 — Cheating' },
+  LOST_DOCUMENT: { act: 'Administrative report', section: 'Not a cognizable offence' },
+  VEHICLE_ACCIDENT: { act: 'Motor Vehicles Act, 1988', section: 'Section 134 · BNS Section 106' },
+  PROPERTY_DAMAGE: { act: 'Bharatiya Nyaya Sanhita, 2023', section: 'Section 324 — Mischief' },
+  OTHER: { act: null, section: 'To be determined by investigating officer' },
+}
+
 const STATUS_STYLE: Record<string, string> = {
   FILED:                'border-l-4 border-l-red-500 bg-surface-container-lowest',
   ASSIGNED:              'border-l-4 border-l-amber-500 bg-surface-container-lowest',
@@ -214,6 +228,17 @@ export default function IncidentQueuePage() {
                 <p className="text-xs font-bold text-on-surface-variant uppercase mb-1">Description</p>
                 <p className="text-sm text-on-surface">{selected.description}</p>
               </div>
+
+              {(() => {
+                const ref = LEGAL_REFERENCE[selected.category] || LEGAL_REFERENCE.OTHER
+                return (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                    <p className="text-xs font-bold text-blue-700 uppercase mb-1">Applicable Reference</p>
+                    <p className="text-sm text-blue-900 font-semibold">{ref.act ? `${ref.act} — ${ref.section}` : ref.section}</p>
+                    <p className="text-[11px] text-blue-700/80 italic mt-1">Reference guidance only — final legal classification is the investigating officer's determination.</p>
+                  </div>
+                )
+              })()}
 
               <div className="grid grid-cols-2 gap-4 text-xs text-on-surface-variant">
                 <div><p className="font-bold uppercase mb-0.5">Filed</p><p>{formatDateTime(selected.filed_at)}</p></div>

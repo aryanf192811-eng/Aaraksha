@@ -8,6 +8,7 @@
 
 const PDFDocument = require('pdfkit')
 const { IncidentRepository } = require('../repositories/incident.repository')
+const { LEGAL_REFERENCE } = require('../constants/legalReference')
 const { ERRORS } = require('../constants/errors')
 
 const INK    = '#0f172a'
@@ -74,6 +75,12 @@ async function generate(incidentId) {
   doc.fontSize(9).font('Helvetica-Bold').fillColor(MUTED).text('Description:', left, doc.y)
   doc.moveDown(0.15)
   doc.fontSize(9).font('Helvetica').fillColor(INK).text(incident.description, left, doc.y, { width: contentWidth })
+  doc.fillColor(INK).x = left
+  doc.moveDown(0.6)
+  const legalRef = LEGAL_REFERENCE[incident.category] || LEGAL_REFERENCE.OTHER
+  field(doc, left, 'Applicable Reference', legalRef.act ? `${legalRef.act} — ${legalRef.section}` : legalRef.section)
+  doc.fontSize(7).font('Helvetica-Oblique').fillColor(MUTED)
+     .text(`${legalRef.note} Reference guidance only — final legal classification is the investigating officer's determination.`, left, doc.y, { width: contentWidth })
   doc.fillColor(INK).x = left
   doc.moveDown(0.6)
 
