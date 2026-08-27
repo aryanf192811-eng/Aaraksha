@@ -29,7 +29,7 @@ export default function AuthPage() {
 
       {/* Brand */}
       <Link to="/" className="flex items-center gap-2 mb-8">
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-lg">
+        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
           <Shield className="w-6 h-6 text-primary-foreground" />
         </div>
         <div>
@@ -39,7 +39,7 @@ export default function AuthPage() {
       </Link>
 
       {/* Auth card */}
-      <div className="w-full max-w-md bg-surface-container-lowest rounded-2xl shadow-xl border border-outline-variant/30 overflow-hidden">
+      <div className="w-full max-w-md bg-surface-container-lowest rounded-2xl shadow-glass-lg border border-outline-variant/30 overflow-hidden">
         <div className="p-8">
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="grid grid-cols-2 w-full rounded-full bg-surface-container p-1 mb-8">
