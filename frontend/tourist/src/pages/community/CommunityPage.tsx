@@ -66,7 +66,7 @@ function StarRating({ value, onChange, readOnly, size = 'md' }: { value: number;
         <button key={n} type="button" disabled={readOnly}
           onClick={() => onChange?.(n)}
           className={cn(!readOnly && 'active:scale-90 transition-transform', readOnly && 'cursor-default')}>
-          <Star className={cn(px, n <= value ? 'fill-amber-400 text-amber-400' : 'fill-none text-outline-variant')} />
+          <Star className={cn(px, n <= value ? 'fill-primary text-primary' : 'fill-none text-outline-variant')} />
         </button>
       ))}
     </div>

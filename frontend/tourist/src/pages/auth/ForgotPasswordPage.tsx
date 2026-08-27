@@ -150,7 +150,7 @@ export default function ForgotPasswordPage() {
                   <p className="text-sm text-on-surface-variant">6-digit code sent to +91{phone}. Valid for 10 minutes.</p>
                 </div>
                 {debugOtp && (
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <p className="text-xs text-primary-dark bg-primary/10 border border-primary/25 rounded-lg px-3 py-2">
                     Demo mode — SMS delivery is unavailable on this Twilio trial account. Code: <span className="font-mono font-bold">{debugOtp}</span>
                   </p>
                 )}
@@ -207,7 +207,7 @@ export default function ForgotPasswordPage() {
                     onChange={e => setConfirm(e.target.value)} className="h-12 rounded-xl" />
                 </div>
                 {confirm && newPassword !== confirm && (
-                  <p className="text-xs text-red-500">Passwords do not match</p>
+                  <p className="text-xs text-sos-dark">Passwords do not match</p>
                 )}
                 <Button
                   disabled={newPassword.length < 8 || newPassword !== confirm || resetting}

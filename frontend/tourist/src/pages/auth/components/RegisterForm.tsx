@@ -255,7 +255,7 @@ export function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
               <div key={field.id} className="bg-surface-container rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-sm font-semibold text-on-surface">
-                    <span className={`w-2 h-2 rounded-full ${idx === 0 ? 'bg-green-500' : 'bg-primary'}`} />
+                    <span className={`w-2 h-2 rounded-full ${idx === 0 ? 'bg-tsi-low' : 'bg-primary'}`} />
                     {idx === 0 ? 'Primary Contact — notified immediately' : 'Secondary Contact — notified after 60s'}
                   </span>
                   {idx > 0 && (

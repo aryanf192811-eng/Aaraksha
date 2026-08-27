@@ -30,8 +30,8 @@ import { cn } from '../../lib/utils'
 
 const CATEGORY_CONFIG = [
   { value: 'MEDICAL',  Icon: HeartPulse,  color: 'bg-sos-light text-sos-dark' },
-  { value: 'LOST',     Icon: Compass,     color: 'bg-amber-100 text-amber-700' },
-  { value: 'TRAPPED',  Icon: Mountain,    color: 'bg-orange-100 text-orange-700' },
+  { value: 'LOST',     Icon: Compass,     color: 'bg-primary/15 text-primary-dark' },
+  { value: 'TRAPPED',  Icon: Mountain,    color: 'bg-tsi-high/10 text-tsi-high' },
   { value: 'DISASTER', Icon: Waves,       color: 'bg-blue-100 text-blue-700' },
   { value: 'CRIME',    Icon: ShieldAlert, color: 'bg-purple-100 text-purple-700' },
   { value: 'OTHER',    Icon: HelpCircle,  color: 'bg-surface-container-high text-on-surface-variant' },
@@ -297,7 +297,7 @@ export default function SOSPage() {
                   </div>
                   <button type="button" onClick={() => setDmsInterval('demo')}
                     className={cn('w-full rounded-xl border-2 border-dashed py-2 text-center text-xs font-bold transition-all flex items-center justify-center gap-1.5',
-                      dmsInterval === 'demo' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant'
+                      dmsInterval === 'demo' ? 'border-primary bg-primary/10 text-primary-dark' : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant'
                     )}>
                     <Timer className="w-3.5 h-3.5" /> {t('sos.demoIntervalLabel', { seconds: DMS_DEMO_SECONDS })}
                   </button>

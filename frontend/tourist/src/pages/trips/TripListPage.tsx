@@ -20,19 +20,19 @@ import { getDestinationImage, HERO_PHOTO } from '../../lib/destinationImages'
 const STATUS_TABS = ['All', 'ACTIVE', 'PLANNED', 'COMPLETED', 'CANCELLED']
 const STATUS_STYLES: Record<string, string> = {
   PLANNED:   'bg-slate-900/60 text-white',
-  ACTIVE:    'bg-green-500/90 text-white',
-  COMPLETED: 'bg-blue-500/90 text-white',
-  CANCELLED: 'bg-red-500/90 text-white',
+  ACTIVE:    'bg-tsi-low/90 text-white',
+  COMPLETED: 'bg-trust/90 text-white',
+  CANCELLED: 'bg-sos/90 text-white',
 }
 
 // Literal class names (not built from getTSIColors' output at runtime) so
 // Tailwind's static content scanner can actually see and generate them.
 function tsiDotColor(score: number | null): string {
   if (score === null) return 'bg-slate-400'
-  if (score >= 80) return 'bg-green-500'
-  if (score >= 60) return 'bg-yellow-500'
-  if (score >= 40) return 'bg-orange-500'
-  return 'bg-red-500'
+  if (score >= 80) return 'bg-tsi-low'
+  if (score >= 60) return 'bg-tsi-moderate'
+  if (score >= 40) return 'bg-tsi-high'
+  return 'bg-sos'
 }
 
 export default function TripListPage() {
@@ -80,7 +80,7 @@ export default function TripListPage() {
               <Users className="w-3.5 h-3.5 mr-1" /> {t('trips.join')}
             </Button>
             <Button onClick={() => navigate('/trips/new')} size="sm"
-              className="bg-primary hover:brightness-95 text-on-surface rounded-full text-xs px-3 font-bold shadow-glow-amber">
+              className="bg-primary hover:brightness-95 text-on-surface rounded-full text-xs px-3 font-bold shadow-glass">
               <Plus className="w-3.5 h-3.5 mr-1" /> {t('trips.newTrip')}
             </Button>
           </div>

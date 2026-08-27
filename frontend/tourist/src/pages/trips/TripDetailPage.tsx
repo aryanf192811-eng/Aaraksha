@@ -35,9 +35,9 @@ const ACTIVITY_TYPE_COLORS: Record<string, string> = {
 
 const STATUS_STYLES: Record<string, string> = {
   PLANNED:   'bg-slate-900/60 text-white',
-  ACTIVE:    'bg-green-500/90 text-white',
-  COMPLETED: 'bg-blue-500/90 text-white',
-  CANCELLED: 'bg-red-500/90 text-white',
+  ACTIVE:    'bg-tsi-low/90 text-white',
+  COMPLETED: 'bg-trust/90 text-white',
+  CANCELLED: 'bg-sos/90 text-white',
 }
 
 type TabType = 'itinerary' | 'budget' | 'packing' | 'map' | 'group' | 'news'
@@ -237,7 +237,7 @@ export default function TripDetailPage() {
               <p className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wide">{t('tripDetail.budget')}</p>
               {budgetPct != null && (
                 <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full',
-                  budgetPct >= 100 ? 'bg-red-100 text-red-600' : budgetPct >= 85 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'
+                  budgetPct >= 100 ? 'bg-sos/10 text-sos-dark' : budgetPct >= 85 ? 'bg-primary/15 text-primary-dark' : 'bg-tsi-low/10 text-tsi-low'
                 )}>
                   {budgetPct >= 100 ? t('tripDetail.overBudget') : budgetPct >= 85 ? t('tripDetail.nearingLimit') : t('tripDetail.onTrack')}
                 </span>
@@ -250,7 +250,7 @@ export default function TripDetailPage() {
             {budgetPct != null && (
               <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden mt-2.5">
                 <div className={cn('h-full rounded-full transition-all duration-700',
-                  budgetPct >= 100 ? 'bg-red-500' : budgetPct >= 85 ? 'bg-amber-500' : 'bg-primary'
+                  budgetPct >= 100 ? 'bg-sos' : budgetPct >= 85 ? 'bg-primary' : 'bg-tsi-low'
                 )} style={{ width: `${budgetPct}%` }} />
               </div>
             )}
@@ -258,12 +258,12 @@ export default function TripDetailPage() {
         </div>
 
         {trip.tsi_recommendations.length > 0 && trip.tsi_score !== null && trip.tsi_score < 70 && (
-          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3">
-            <p className="text-xs font-bold text-orange-700 mb-1 flex items-center gap-1">
+          <div className="bg-tsi-high/10 border border-tsi-high/25 rounded-2xl p-3">
+            <p className="text-xs font-bold text-tsi-high mb-1 flex items-center gap-1">
               <AlertTriangle className="w-3.5 h-3.5" /> {t('tripDetail.safetyRecommendations')}
             </p>
             {trip.tsi_recommendations.slice(0, 2).map((r, i) => (
-              <p key={i} className="text-xs text-orange-600">• {r}</p>
+              <p key={i} className="text-xs text-tsi-high">• {r}</p>
             ))}
           </div>
         )}
@@ -303,7 +303,7 @@ export default function TripDetailPage() {
             )}>
             <Icon className="w-4 h-4" /> {t(labelKey)}
             {key === 'news' && (newsItems || []).some(n => n.severity === 'CRITICAL') && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500" />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-sos" />
             )}
           </button>
         ))}
@@ -327,7 +327,7 @@ export default function TripDetailPage() {
                     <div className="text-right flex-shrink-0">
                       <span className="text-xs font-bold text-on-surface-variant">{tEnum(t, 'zoneType', stop.zone_type)}</span>
                       {stop.altitude_m > 2000 && (
-                        <p className="text-xs text-orange-500">{t('tripDetail.altitudeLabel', { m: stop.altitude_m })}</p>
+                        <p className="text-xs text-tsi-high">{t('tripDetail.altitudeLabel', { m: stop.altitude_m })}</p>
                       )}
                     </div>
                   </div>
@@ -369,7 +369,7 @@ export default function TripDetailPage() {
                   <p className="text-2xl font-bold text-primary">{formatINR(totalCost)}</p>
                   {trip.budget_inr && <p className="text-xs text-on-surface-variant">{t('tripDetail.budgetLabel', { amount: formatINR(trip.budget_inr) })}</p>}
                   {trip.budget_inr && totalCost > trip.budget_inr && (
-                    <p className="text-xs text-red-500 font-bold mt-1 flex items-center gap-1">
+                    <p className="text-xs text-sos-dark font-bold mt-1 flex items-center gap-1">
                       <AlertTriangle className="w-3.5 h-3.5" /> {t('tripDetail.overBudgetBy', { amount: formatINR(totalCost - trip.budget_inr) })}
                     </p>
                   )}
@@ -425,10 +425,10 @@ export default function TripDetailPage() {
                     <button key={item.id} type="button"
                       onClick={() => togglePackedItem(checklist.map(i => i.id === item.id ? { ...i, packed: !i.packed } : i))}
                       className={cn('w-full flex items-center gap-3 px-5 py-3.5 border-b border-outline-variant last:border-0 text-left transition-colors',
-                        item.packed ? 'bg-green-50' : 'hover:bg-surface-container'
+                        item.packed ? 'bg-tsi-low/10' : 'hover:bg-surface-container'
                       )}>
                       <div className={cn('w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0',
-                        item.packed ? 'bg-green-500 border-green-500' : 'border-slate-300'
+                        item.packed ? 'bg-tsi-low border-tsi-low' : 'border-outline-variant'
                       )}>
                         {item.packed && <Check className="w-3 h-3 text-white" />}
                       </div>
@@ -497,7 +497,7 @@ export default function TripDetailPage() {
               </div>
             ) : (
               <Button onClick={() => leaveTrip()} disabled={leaving} variant="outline"
-                className="w-full h-11 rounded-full font-bold flex items-center justify-center gap-2 border-red-200 text-red-600 hover:bg-red-50">
+                className="w-full h-11 rounded-full font-bold flex items-center justify-center gap-2 border-sos/30 text-sos-dark hover:bg-sos/10">
                 {leaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
                 {t('tripDetail.leaveGroupTrip')}
               </Button>

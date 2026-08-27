@@ -41,9 +41,9 @@ import { TRIP_STATUSES } from '../constants/enums'
 
 const STATUS_COLORS: Record<string, string> = {
   PLANNED:   'bg-slate-100 text-slate-600',
-  ACTIVE:    'bg-green-100 text-green-700',
-  COMPLETED: 'bg-blue-100 text-blue-700',
-  CANCELLED: 'bg-red-100 text-red-700',
+  ACTIVE:    'bg-tsi-low/15 text-tsi-low',
+  COMPLETED: 'bg-trust/15 text-trust-dark',
+  CANCELLED: 'bg-sos/15 text-sos-dark',
 }
 
 const QUICK_ACTIONS = [
