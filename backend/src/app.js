@@ -48,7 +48,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 // ── Health check (no auth, no rate limit) ────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'aaraksha-backend', timestamp: new Date().toISOString() })
+  res.json({ status: 'ok', service: 'aaraksha-backend', timestamp: new Date().toISOString(), buildMarker: 'DIAG-MARKER-002' })
 })
 
 // TEMP-DEBUG: isolated diagnostic route, bypasses routes/index.js and
