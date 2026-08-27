@@ -52,7 +52,7 @@ function RecenterControl({ coords }: { coords: [number, number][] }) {
   }
   return (
     <button onClick={recenter} title="Recenter map" aria-label="Recenter map"
-      className="absolute bottom-4 right-4 z-[1000] w-10 h-10 rounded-full bg-white shadow-lg border border-outline-variant flex items-center justify-center hover:bg-surface-container active:scale-95 transition-all">
+      className="absolute bottom-4 right-4 z-[1000] w-10 h-10 rounded-full bg-white shadow-glass border border-outline-variant flex items-center justify-center hover:bg-surface-container active:scale-95 transition-all">
       <LocateFixed className="w-5 h-5 text-on-surface" />
     </button>
   )
@@ -173,7 +173,7 @@ export default function TripDetailPage() {
     <div className="min-h-screen bg-surface pb-24">
       {/* Hero — full-bleed destination photo, rounded into a "card" at the
           bottom edge, with a floating liquid-glass toolbar capsule over it. */}
-      <div className="relative h-80 sm:h-96 rounded-b-[32px] overflow-hidden shadow-[0_20px_40px_rgba(0,0,0,0.12)]">
+      <div className="relative h-80 sm:h-96 rounded-b-[32px] overflow-hidden shadow-glass-lg">
         <img src={getDestinationImage(heroCity, { w: 1200 })} alt={heroCity || trip.title}
           className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-slate-950/35" />
