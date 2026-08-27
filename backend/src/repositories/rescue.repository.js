@@ -3,6 +3,7 @@
 
 const { BaseRepository } = require('./base.repository')
 const { haversineKm } = require('../utils/geo')
+const { scoreRescuerCandidate } = require('../utils/rescueScoring')
 
 class RescueRepository extends BaseRepository {
   async findAllTeams() {
@@ -121,16 +122,19 @@ class RescueRepository extends BaseRepository {
   }
 
   // Unifies official AVAILABLE teams and AVAILABLE+verified volunteers into
-  // one distance-sorted candidate list for the govt "assign a rescuer"
-  // panel — same bounding-box-prefilter-then-haversine pattern as
+  // one ranked candidate list for the govt "assign a rescuer" panel — same
+  // bounding-box-prefilter-then-haversine pattern as
   // VolunteerRepository.findVerifiedNearby, just unioned across both
   // tables instead of one. 150km (not the volunteer auto-alert radius's
   // 15km) because this panel serves state-level SDRF/police units whose
   // real dispatch jurisdiction spans a whole district or state — Northeast
-  // India's terrain means the nearest team is often 100km+ away by road,
-  // and the operator (not an automatic cutoff) decides who's close enough
-  // to send, sorted nearest-first.
-  async findNearbyAvailableRescuers(lat, lng, radiusKm = 150, limit = 20) {
+  // India's terrain means the nearest team is often 100km+ away by road.
+  // Ranked, not just distance-sorted (see utils/rescueScoring.js) — the
+  // operator still sees and can override the ranking, but the *default*
+  // order now weighs a team's suitability for this SOS's category and a
+  // volunteer's earned reputation alongside raw distance, not distance
+  // alone.
+  async findNearbyAvailableRescuers(lat, lng, sosCategory = 'OTHER', radiusKm = 150, limit = 20) {
     lat = Number(lat)
     lng = Number(lng)
     const latDelta = radiusKm / 111
@@ -138,12 +142,12 @@ class RescueRepository extends BaseRepository {
     const bounds = [lat - latDelta, lat + latDelta, lng - lngDelta, lng + lngDelta]
 
     const rows = await this.query(`
-      SELECT id, name, 'TEAM' AS kind, type, district, contact_phone AS phone, latitude, longitude
+      SELECT id, name, 'TEAM' AS kind, type, district, contact_phone AS phone, latitude, longitude, NULL::int AS points
       FROM rescue_teams
       WHERE status = 'AVAILABLE'
         AND latitude BETWEEN $1 AND $2 AND longitude BETWEEN $3 AND $4
       UNION ALL
-      SELECT id, full_name AS name, 'VOLUNTEER' AS kind, 'VOLUNTEER' AS type, district, phone, latitude, longitude
+      SELECT id, full_name AS name, 'VOLUNTEER' AS kind, 'VOLUNTEER' AS type, district, phone, latitude, longitude, points
       FROM volunteers
       WHERE status = 'AVAILABLE' AND is_verified = TRUE AND is_active = TRUE
         AND latitude BETWEEN $1 AND $2 AND longitude BETWEEN $3 AND $4`,
@@ -153,7 +157,8 @@ class RescueRepository extends BaseRepository {
     return rows
       .map((r) => ({ ...r, distanceKm: haversineKm(lat, lng, r.latitude, r.longitude) }))
       .filter((r) => r.distanceKm <= radiusKm)
-      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .map((r) => scoreRescuerCandidate(r, sosCategory, radiusKm))
+      .sort((a, b) => b.score - a.score)
       .slice(0, limit)
   }
 

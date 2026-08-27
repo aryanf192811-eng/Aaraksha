@@ -141,7 +141,7 @@ async function assignRescue(sosId, govtUserId, { teamId, volunteerId }, notes) {
 async function getNearbyRescuers(sosId) {
   const sos = await new SOSRepository().findById(sosId)
   if (!sos) throw Object.assign(new Error(ERRORS.SOS_NOT_FOUND), { statusCode: 404 })
-  return new RescueRepository().findNearbyAvailableRescuers(sos.latitude, sos.longitude)
+  return new RescueRepository().findNearbyAvailableRescuers(sos.latitude, sos.longitude, sos.category)
 }
 
 // Powers the govt Live Map's rescuer markers — every rescuer (team or

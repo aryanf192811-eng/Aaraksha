@@ -253,6 +253,11 @@ export default function SOSManagementPage() {
                 const teamOptions = (nearbyRescuers ?? []).filter(r => r.kind === 'TEAM')
                 const volunteerOptions = (nearbyRescuers ?? []).filter(r => r.kind === 'VOLUNTEER')
                 const selectedRescuer = teamOptions.find(r => r.id === assignTeamId) ?? volunteerOptions.find(r => r.id === assignVolunteerId) ?? null
+                // Both lists come back from the backend already ranked by
+                // weighted score (distance + category-type match +
+                // reputation — see rescueScoring.js), so [0] of the
+                // combined pool is the top overall recommendation.
+                const topPick = (nearbyRescuers ?? [])[0]
 
                 return (
                   <div className="space-y-4 pt-4 border-t border-outline-variant">
@@ -262,6 +267,28 @@ export default function SOSManagementPage() {
                       <div className="flex items-center justify-center py-6">
                         <Loader2 className="w-5 h-5 animate-spin text-primary" />
                       </div>
+                    )}
+
+                    {!loadingRescuers && topPick && (
+                      <button type="button"
+                        onClick={() => topPick.kind === 'TEAM'
+                          ? (setAssignTeamId(topPick.id), setAssignVolunteerId(''))
+                          : (setAssignVolunteerId(topPick.id), setAssignTeamId(''))}
+                        className="w-full text-left bg-violet-50 border-2 border-violet-200 hover:border-violet-400 rounded-xl p-3 transition-colors">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="flex items-center gap-1.5 text-[11px] font-bold text-violet-700 uppercase tracking-wide">
+                            <Gauge className="w-3.5 h-3.5" /> Recommended
+                            {topPick.isSpecialistMatch && <span className="text-violet-500">· Specialist match</span>}
+                          </span>
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-violet-600 text-white">{topPick.score}% match</span>
+                        </div>
+                        <p className="text-sm font-bold text-on-surface">
+                          {topPick.name} <span className="font-normal text-on-surface-variant">({topPick.kind === 'TEAM' ? topPick.type : 'Volunteer'})</span>
+                        </p>
+                        <p className="text-[11px] text-on-surface-variant mt-0.5">
+                          {topPick.distanceKm.toFixed(1)} km away · distance {topPick.scoreBreakdown.distance}% · category fit {topPick.scoreBreakdown.categoryMatch}% · reputation {topPick.scoreBreakdown.reputation}%
+                        </p>
+                      </button>
                     )}
 
                     {!loadingRescuers && (
@@ -281,7 +308,7 @@ export default function SOSManagementPage() {
                             <SelectContent>
                               {teamOptions.map((t) => (
                                 <SelectItem key={t.id} value={t.id}>
-                                  {t.name} · {t.type} · {t.distanceKm.toFixed(1)} km away
+                                  {t.score}% · {t.name} · {t.type} · {t.distanceKm.toFixed(1)} km away
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -303,7 +330,7 @@ export default function SOSManagementPage() {
                             <SelectContent>
                               {volunteerOptions.map((v) => (
                                 <SelectItem key={v.id} value={v.id}>
-                                  {v.name} · {v.district} · {v.distanceKm.toFixed(1)} km away
+                                  {v.score}% · {v.name} · {v.district} · {v.distanceKm.toFixed(1)} km away
                                 </SelectItem>
                               ))}
                             </SelectContent>

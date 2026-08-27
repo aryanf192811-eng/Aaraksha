@@ -102,6 +102,12 @@ export interface NearbyRescuer {
   latitude: string
   longitude: string
   distanceKm: number
+  // Weighted dispatch ranking (see backend/src/utils/rescueScoring.js) —
+  // distance + how well this rescuer's type suits the SOS category +
+  // reputation, explainable via scoreBreakdown rather than a bare number.
+  score: number
+  scoreBreakdown: { distance: number; categoryMatch: number; reputation: number }
+  isSpecialistMatch: boolean
 }
 
 // One row per in-progress assignment — powers the Live Map's rescuer
