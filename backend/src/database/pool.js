@@ -14,13 +14,12 @@ function getPool() {
       max:                  config.db.maxConnections,
       idleTimeoutMillis:    config.db.idleTimeoutMs,
       connectionTimeoutMillis: config.db.connectionTimeoutMs,
-      // Managed Postgres (Render, Heroku, etc.) terminates plaintext
-      // connections and presents a certificate not in Node's default CA
-      // bundle — rejectUnauthorized:false trusts it without verifying the
-      // chain, which is the standard accepted tradeoff for these hosts.
-      // Local/dev Postgres has no SSL listener at all, so this must stay
-      // off outside production.
-      ssl: config.isProd ? { rejectUnauthorized: false } : false,
+      // Deliberately no explicit `ssl` option: Render's DATABASE_URL
+      // already encodes the right sslmode itself, and pg negotiates off
+      // that. Passing a second, separate ssl object here fought that
+      // negotiation and produced real "SSL error: unexpected eof while
+      // reading" failures server-side on every app-originated connection
+      // (confirmed live in the Postgres logs) — every query timed out.
     })
 
     pool.on('connect', () => {

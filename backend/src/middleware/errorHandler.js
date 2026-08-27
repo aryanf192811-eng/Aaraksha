@@ -42,8 +42,7 @@ function errorHandler(err, req, res, next) {
       res,
       err.message || ERRORS.INTERNAL_ERROR,
       err.statusCode,
-      // TEMP-DEBUG: always include stack while diagnosing the Render deploy — revert to dev-only before shipping.
-      { stack: err.stack, code: err.code, name: err.name }
+      process.env.NODE_ENV === 'development' ? { stack: err.stack } : undefined
     )
   }
 
@@ -52,8 +51,7 @@ function errorHandler(err, req, res, next) {
     res,
     ERRORS.INTERNAL_ERROR,
     500,
-    // TEMP-DEBUG: always include stack while diagnosing the Render deploy — revert to dev-only before shipping.
-    { stack: err.stack, code: err.code, name: err.name }
+    process.env.NODE_ENV === 'development' ? { stack: err.stack } : undefined
   )
 }
 
