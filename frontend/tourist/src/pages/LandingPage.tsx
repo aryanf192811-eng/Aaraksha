@@ -6,6 +6,7 @@
 // of the generic radial-gradient hero + icon-bento-grid template, and the
 // destination strip below uses real seeded data (altitude, zone, ILP)
 // rather than filler copy.
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Shield, ShieldCheck, Map, ArrowRight, Users,
@@ -15,6 +16,7 @@ import {
 import { Button } from '../components/ui/button'
 import { useAuthStore } from '../store/auth.store'
 import { getDestinationImage, HERO_PHOTO } from '../lib/destinationImages'
+import { cn } from '../lib/utils'
 
 // Real seeded values (backend/scripts/seed.js) — the terrain strip is a
 // product-data visualization, not decorative filler.
@@ -87,20 +89,48 @@ function FlowDiagram({ steps }: { steps: { icon: React.ElementType; label: strin
 export default function LandingPage() {
   const navigate = useNavigate()
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const [scrolledPastHero, setScrolledPastHero] = useState(false)
+
+  // The hero is dark photography full-bleed from the true top of the
+  // screen — the header has no background of its own while over it (the
+  // hero's own top-down scrim below provides contrast) and only becomes a
+  // solid bar once scrolled onto the light content beneath. Avoids relying
+  // on backdrop-filter transparency, which didn't render as intended in
+  // the installed PWA on a real device (showed as a flat opaque bar
+  // instead of blurring the photo through it).
+  useEffect(() => {
+    const onScroll = () => setScrolledPastHero(window.scrollY > 64)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Status bar / PWA chrome color matches the dark hero photo while it's
+  // showing, then reverts to the brand amber used everywhere else in the
+  // app — otherwise the OS status bar renders as a bright amber band that
+  // visually fights the photo instead of sitting on top of it.
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]')
+    const original = meta?.getAttribute('content')
+    meta?.setAttribute('content', '#0f172a')
+    return () => { if (original) meta?.setAttribute('content', original) }
+  }, [])
 
   return (
     <div className="min-h-screen bg-surface text-on-surface font-sans antialiased">
-      {/* ── TopAppBar ─────────────────────────────────────────────── */}
-      <header className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md shadow-sm">
+      {/* ── TopAppBar — transparent over the hero, solid once scrolled past it ── */}
+      <header className={cn(
+        'fixed top-0 w-full z-50 transition-colors duration-300',
+        scrolledPastHero ? 'bg-surface shadow-sm' : 'bg-transparent'
+      )}>
         <div className="flex justify-between items-center px-5 py-2.5 w-full max-w-6xl mx-auto">
           <div className="flex items-center gap-2">
-            <Shield className="w-6 h-6 text-primary" />
-            <h1 className="font-display text-xl font-black text-primary tracking-tight">Aaraksha</h1>
+            <Shield className={cn('w-6 h-6', scrolledPastHero ? 'text-primary' : 'text-white')} />
+            <h1 className={cn('font-display text-xl font-black tracking-tight', scrolledPastHero ? 'text-primary' : 'text-white')}>Aaraksha</h1>
           </div>
           <nav className="hidden md:flex gap-2 items-center">
-            <a className="text-sm font-semibold text-primary hover:bg-surface-container/70 transition-colors px-4 py-2 rounded-full" href="#terrain">Terrain</a>
-            <a className="text-sm font-semibold text-on-surface-variant hover:bg-surface-container/70 transition-colors px-4 py-2 rounded-full" href="#features">Features</a>
-            <a className="text-sm font-semibold text-on-surface-variant hover:bg-surface-container/70 transition-colors px-4 py-2 rounded-full" href="#steps">How it Works</a>
+            <a className={cn('text-sm font-semibold transition-colors px-4 py-2 rounded-full', scrolledPastHero ? 'text-primary hover:bg-surface-container/70' : 'text-white hover:bg-white/10')} href="#terrain">Terrain</a>
+            <a className={cn('text-sm font-semibold transition-colors px-4 py-2 rounded-full', scrolledPastHero ? 'text-on-surface-variant hover:bg-surface-container/70' : 'text-white/85 hover:bg-white/10')} href="#features">Features</a>
+            <a className={cn('text-sm font-semibold transition-colors px-4 py-2 rounded-full', scrolledPastHero ? 'text-on-surface-variant hover:bg-surface-container/70' : 'text-white/85 hover:bg-white/10')} href="#steps">How it Works</a>
           </nav>
           {isAuthenticated ? (
             <Button onClick={() => navigate('/dashboard')}
@@ -109,7 +139,8 @@ export default function LandingPage() {
             </Button>
           ) : (
             <div className="flex items-center gap-2">
-              <Button variant="ghost" onClick={() => navigate('/auth')} className="hidden sm:inline-flex text-on-surface-variant font-semibold">Log In</Button>
+              <Button variant="ghost" onClick={() => navigate('/auth')}
+                className={cn('hidden sm:inline-flex font-semibold', scrolledPastHero ? 'text-on-surface-variant' : 'text-white hover:bg-white/10 hover:text-white')}>Log In</Button>
               <Button onClick={() => navigate('/auth?tab=register')}
                 className="bg-primary text-primary-foreground px-6 rounded-full font-semibold text-sm hover:scale-[1.02] active:scale-95 transition-all">
                 Get Started
@@ -119,11 +150,13 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="pt-[80px] pb-24 md:pb-16">
+      <main className="pb-24 md:pb-16">
         {/* ── Hero — full-bleed splash, tourist-only: no outbound portal link ── */}
-        <section className="relative -mt-[80px] min-h-[100dvh] md:min-h-[88vh] flex flex-col justify-end overflow-hidden isolate">
+        <section className="relative min-h-[100dvh] md:min-h-[88vh] flex flex-col justify-end overflow-hidden isolate">
           <img src={HERO_PHOTO} alt="A trekker on a misty mountain trail in Northeast India" loading="eager"
             className="absolute inset-0 w-full h-full object-cover" />
+          {/* Top-down scrim (header legibility) + bottom-up scrim (headline legibility), one gradient */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-transparent to-transparent h-40" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/35 to-slate-950/10" />
 
           {/* Floating stat card — one real, live-feeling data point over the photo,
