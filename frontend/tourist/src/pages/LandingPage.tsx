@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Shield, ShieldCheck, ArrowRight, Users,
   Radio, Siren, Timer, BarChart3, WifiOff, MessageSquareWarning,
-  MapPinned, ClipboardList, CheckCircle2, FlagTriangleRight, Navigation,
+  MapPinned, ClipboardList, CheckCircle2, FlagTriangleRight, Navigation, Plus,
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { useAuthStore } from '../store/auth.store'
@@ -60,28 +60,144 @@ function ContourLines({ className = '' }: { className?: string }) {
 }
 
 
-// A single icon-flow diagram: reused for each mechanism explainer row so
-// the product's actual behavior is shown as a sequence, not summarized in
-// a paragraph next to a decorative icon.
-function FlowDiagram({ steps }: { steps: { icon: React.ElementType; label: string }[] }) {
+// Signal-strength collapse, rendered as the actual data it represents (bars
+// dropping toward the last tower) rather than a generic "icon → arrow →
+// icon" flow — dark card deliberately breaks from the white-card rhythm of
+// the other rows, since this is the one genuinely urgent mechanism.
+function SignalDropCard() {
+  const bars = [88, 63, 42, 24, 10, 0]
   return (
-    <div className="flex items-center gap-2">
-      {steps.map((s, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <div className="flex flex-col items-center gap-1.5">
-            <div className="w-11 h-11 rounded-xl bg-surface-container-lowest border border-outline-variant flex items-center justify-center shadow-sm">
-              <s.icon className="w-5 h-5 text-on-surface" />
-            </div>
-            <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide text-center leading-tight w-16">{s.label}</span>
+    <div className="relative rounded-2xl bg-slate-950 p-5 w-72 shadow-glass-lg overflow-hidden">
+      <ContourLines className="absolute inset-x-0 bottom-0 w-full h-16 opacity-[0.15]" />
+      <div className="relative flex items-center justify-between mb-4">
+        <span className="text-[10px] font-extrabold uppercase tracking-wide text-white/50">Signal strength</span>
+        <span className="text-[10px] font-extrabold uppercase tracking-wide text-sos-light flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-sos animate-pulse" /> Lost at 41km
+        </span>
+      </div>
+      <div className="relative flex items-end gap-1.5 h-14 mb-4">
+        {bars.map((h, i) => (
+          <div key={i} className="flex-1 h-full flex items-end">
+            {h > 0 ? (
+              <div className="w-full rounded-t-[3px]" style={{ height: `${h}%`, background: `rgba(255,255,255,${0.2 + (h / 100) * 0.6})` }} />
+            ) : (
+              <div className="w-full h-2.5 rounded-[3px] border border-dashed border-sos/70" />
+            )}
           </div>
-          {i < steps.length - 1 && (
-            <svg width="28" height="10" viewBox="0 0 28 10" className="mb-4 flex-shrink-0" aria-hidden="true">
-              <line x1="0" y1="5" x2="20" y2="5" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="1 4" strokeLinecap="round" />
-              <path d="M18,1 L24,5 L18,9" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
+        ))}
+      </div>
+      <div className="relative flex items-center gap-2.5 pt-3.5 border-t border-white/10">
+        <div className="w-8 h-8 rounded-full bg-sos/20 flex items-center justify-center flex-shrink-0">
+          <MessageSquareWarning className="w-4 h-4 text-sos-light" />
         </div>
-      ))}
+        <div>
+          <p className="text-xs font-bold text-white leading-tight">Structured SMS sent</p>
+          <p className="text-[10px] text-white/50 leading-tight">via satellite GPS · no data needed</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Instrument-style countdown — tick marks and a two-stop gradient stroke so
+// it reads as a real dial (a watch bezel, a kitchen timer) rather than a
+// bare Material "circular progress" widget copy-pasted three times over.
+function DMSDial() {
+  const ticks = Array.from({ length: 24 })
+  return (
+    <div className="relative rounded-2xl bg-surface-container-lowest border border-outline-variant p-6 flex flex-col items-center gap-3 w-60 shadow-sm overflow-hidden">
+      <ContourLines className="absolute inset-x-0 bottom-0 w-full h-10 opacity-[0.12]" />
+      <div className="relative w-28 h-28 flex-shrink-0">
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="dmsGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#f59e0b" />
+              <stop offset="100%" stopColor="#ef4444" />
+            </linearGradient>
+          </defs>
+          {ticks.map((_, i) => (
+            <line key={i} x1="50" y1="3" x2="50" y2={i % 6 === 0 ? '9' : '6.5'} stroke="#cbd5e1"
+              strokeWidth={i % 6 === 0 ? 1.4 : 0.8} transform={`rotate(${(i / ticks.length) * 360} 50 50)`} />
+          ))}
+          <circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" strokeWidth="6" className="text-surface-container-high" />
+          <circle cx="50" cy="50" r="38" fill="none" stroke="url(#dmsGradient)" strokeWidth="6" strokeLinecap="round"
+            strokeDasharray="238.8" strokeDashoffset="171" />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-mono text-base font-black text-on-surface">04:20</span>
+          <span className="text-[8px] font-bold text-on-surface-variant uppercase tracking-wide">to check-in</span>
+        </div>
+      </div>
+      <div className="relative flex items-center gap-1.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+        <span className="text-[10px] font-bold text-on-surface-variant">Auto-alerts on timeout</span>
+      </div>
+    </div>
+  )
+}
+
+// A real road-route sketch — traveled distance solid, remaining dashed, a
+// directional "puck" at the live position and a proper pin at the
+// destination — instead of one flat dashed line between two plain dots.
+function RescuerRouteCard() {
+  return (
+    <div className="relative rounded-2xl bg-surface-container-lowest border border-outline-variant p-4 w-72 shadow-sm overflow-hidden">
+      <svg className="absolute inset-0 w-full h-full opacity-[0.35]" aria-hidden="true">
+        <pattern id="routeDotGrid" width="14" height="14" patternUnits="userSpaceOnUse">
+          <circle cx="1.4" cy="1.4" r="1" fill="#cbd5e1" />
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#routeDotGrid)" />
+      </svg>
+      <div className="relative flex items-center gap-1.5 mb-3">
+        <span className="w-1.5 h-1.5 rounded-full bg-safe animate-pulse" />
+        <span className="text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant">Live · rescuer en route</span>
+      </div>
+      <svg viewBox="0 0 240 100" className="relative w-full h-20" aria-hidden="true">
+        <path d="M18,78 C 55,35 95,70 128,42" fill="none" stroke="#0d9488" strokeWidth="3" strokeLinecap="round" />
+        <path d="M128,42 C 160,20 190,55 220,18" fill="none" stroke="#f59e0b" strokeWidth="3" strokeDasharray="1 7" strokeLinecap="round" />
+        <circle cx="18" cy="78" r="9" fill="#0d9488" fillOpacity="0.18" />
+        <circle cx="18" cy="78" r="5" fill="#0d9488" />
+        <g transform="translate(128 42) rotate(35)">
+          <circle r="11" fill="#0d9488" fillOpacity="0.15" />
+          <path d="M0,-6.5 L5.5,5.5 L0,2 L-5.5,5.5 Z" fill="#0d9488" />
+        </g>
+        <path d="M220,2 c6.5,0 11,4.7 11,10.6 c0,7.9 -11,19 -11,19 s-11,-11.1 -11,-19 c0,-5.9 4.5,-10.6 11,-10.6 z" fill="#f59e0b" />
+        <circle cx="220" cy="13" r="3.6" fill="white" />
+      </svg>
+      <div className="relative flex justify-between mt-1 px-0.5">
+        <p className="text-[11px] font-bold text-on-surface">You</p>
+        <p className="text-[11px] font-bold text-trust">1.8 km · 6 min out</p>
+      </div>
+    </div>
+  )
+}
+
+// Vertical bar comparison, not a third instance of the same radial gauge
+// already used for the hero stat and the DMS dial — a real chart (gradient
+// fill, baseline, labels) earns the "shown as it runs" claim better than
+// three identical rings ever could.
+function TSIBarChart() {
+  const data = [
+    { label: 'Kaziranga', score: 91, from: '#22c55e', to: '#15803d' },
+    { label: 'Sohra', score: 68, from: '#f59e0b', to: '#a16207' },
+    { label: 'Tawang', score: 44, from: '#f97316', to: '#c2410c' },
+  ]
+  return (
+    <div className="relative rounded-2xl bg-surface-container-lowest border border-outline-variant p-5 w-64 shadow-sm">
+      <div className="flex items-end justify-between gap-4 h-28 mb-1">
+        {data.map(d => (
+          <div key={d.label} className="flex-1 flex flex-col items-center justify-end h-full gap-1.5">
+            <span className="text-xs font-black text-on-surface">{d.score}</span>
+            <div className="w-full rounded-t-md" style={{ height: `${d.score}%`, background: `linear-gradient(180deg, ${d.from}, ${d.to})` }} />
+          </div>
+        ))}
+      </div>
+      <div className="h-px bg-outline-variant mb-2" />
+      <div className="flex justify-between gap-4">
+        {data.map(d => (
+          <span key={d.label} className="flex-1 text-center text-[9px] font-bold text-on-surface-variant uppercase tracking-wide truncate">{d.label}</span>
+        ))}
+      </div>
     </div>
   )
 }
@@ -266,11 +382,7 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="flex md:justify-end">
-                <FlowDiagram steps={[
-                  { icon: WifiOff, label: 'No Signal' },
-                  { icon: MessageSquareWarning, label: 'SMS Relay' },
-                  { icon: Siren, label: 'Rescue Alerted' },
-                ]} />
+                <SignalDropCard />
               </div>
             </div>
 
@@ -286,17 +398,7 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="md:order-1 flex md:justify-start">
-                <div className="relative w-24 h-24 flex-shrink-0">
-                  <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="7" className="text-surface-container-high" />
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round"
-                      strokeDasharray="264" strokeDashoffset="190" className="text-primary" />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="font-mono text-sm font-black text-on-surface">04:20</span>
-                    <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wide">to check-in</span>
-                  </div>
-                </div>
+                <DMSDial />
               </div>
             </div>
 
@@ -313,21 +415,7 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="flex md:justify-end">
-                <div className="glass-card rounded-xl p-4 w-64 shadow-md">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-safe animate-pulse" />
-                    <span className="text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant">Live · Rescuer en route</span>
-                  </div>
-                  <svg viewBox="0 0 220 90" className="w-full h-16" aria-hidden="true">
-                    <path d="M14,70 C 60,20 130,75 206,18" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="1 7" strokeLinecap="round" />
-                    <circle cx="14" cy="70" r="5" fill="#4d7c5f" />
-                    <circle cx="206" cy="18" r="5" fill="#f59e0b" />
-                  </svg>
-                  <div className="flex justify-between mt-1">
-                    <p className="text-[11px] font-bold text-on-surface">You</p>
-                    <p className="text-[11px] font-bold text-on-surface">1.8 km · 6 min</p>
-                  </div>
-                </div>
+                <RescuerRouteCard />
               </div>
             </div>
 
@@ -343,26 +431,8 @@ export default function LandingPage() {
                   see on the command center map.
                 </p>
               </div>
-              <div className="md:order-1 flex md:justify-start items-center gap-3">
-                {[
-                  { label: 'Kaziranga', score: 91, cls: 'text-tsi-low' },
-                  { label: 'Sohra', score: 68, cls: 'text-tsi-moderate' },
-                  { label: 'Tawang', score: 44, cls: 'text-tsi-high' },
-                ].map(d => (
-                  <div key={d.label} className="flex flex-col items-center gap-1.5">
-                    <div className="relative w-16 h-16">
-                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                        <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" className="text-surface-container-high" />
-                        <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round"
-                          strokeDasharray="264" strokeDashoffset={264 - (264 * d.score) / 100} className={d.cls} />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-sm font-black text-on-surface">{d.score}</span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">{d.label}</span>
-                  </div>
-                ))}
+              <div className="md:order-1 flex md:justify-start">
+                <TSIBarChart />
               </div>
             </div>
 
@@ -377,16 +447,34 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="flex md:justify-end">
-                <div className="glass-card rounded-xl p-4 w-64 shadow-md">
-                  <div className="flex items-center gap-2 mb-2">
-                    <WifiOff className="w-3.5 h-3.5 text-on-surface-variant" />
-                    <span className="text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant">Cached · No signal</span>
+                <div className="relative rounded-2xl bg-surface-container-lowest border border-outline-variant p-4 w-72 shadow-sm">
+                  <div className="mb-2">
+                    <div className="inline-flex items-center gap-1.5 bg-slate-900 rounded-full pl-2 pr-2.5 py-1">
+                      <WifiOff className="w-3 h-3 text-white/70" />
+                      <span className="text-[9px] font-extrabold uppercase tracking-wide text-white/90">Cached · no signal</span>
+                    </div>
                   </div>
-                  <p className="text-xs font-bold text-on-surface mb-0.5">Nearest hospital</p>
-                  <p className="text-[11px] text-on-surface-variant">Tawang District Hospital · 4.0 km</p>
-                  <div className="h-px bg-outline-variant my-2.5" />
-                  <p className="text-xs font-bold text-on-surface mb-0.5">Nearest rescue unit</p>
-                  <p className="text-[11px] text-on-surface-variant">Tawang Mountain Rescue · on call</p>
+                  <div className="flex items-center gap-3 py-2">
+                    <div className="w-9 h-9 rounded-full bg-sos/10 flex items-center justify-center flex-shrink-0">
+                      <Plus className="w-4 h-4 text-sos" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-on-surface truncate">Tawang District Hospital</p>
+                      <p className="text-[10px] text-on-surface-variant">Nearest hospital</p>
+                    </div>
+                    <span className="text-[11px] font-bold text-on-surface-variant flex-shrink-0">4.0 km</span>
+                  </div>
+                  <div className="h-px bg-outline-variant" />
+                  <div className="flex items-center gap-3 py-2">
+                    <div className="w-9 h-9 rounded-full bg-trust/10 flex items-center justify-center flex-shrink-0">
+                      <Siren className="w-4 h-4 text-trust" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-on-surface truncate">Tawang Mountain Rescue</p>
+                      <p className="text-[10px] text-on-surface-variant">Nearest rescue unit</p>
+                    </div>
+                    <span className="text-[11px] font-bold text-safe flex-shrink-0">On call</span>
+                  </div>
                 </div>
               </div>
             </div>
