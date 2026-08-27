@@ -23,17 +23,44 @@ function defaultPriority(category) {
   return 'MEDIUM'
 }
 
-async function fileIncident(touristId, data) {
+// Never trust a client-supplied JSON string at face value — parsed and
+// reshaped into exactly the fields expected (class name + confidence),
+// dropping anything else, before it ever reaches a SQL parameter. Bad
+// input degrades to "no tags" rather than a 500 — this is optional
+// evidence context for the officer, not something the filing should fail
+// over.
+function sanitizeDetectedTags(rawJson) {
+  if (!rawJson) return null
+  try {
+    const parsed = JSON.parse(rawJson)
+    if (!Array.isArray(parsed)) return null
+    const cleaned = parsed
+      .filter(t => t && typeof t.class === 'string' && typeof t.score === 'number')
+      .map(t => ({ class: t.class.slice(0, 50), score: Math.round(Math.min(1, Math.max(0, t.score)) * 100) / 100 }))
+      .slice(0, 10)
+    return cleaned.length > 0 ? cleaned : null
+  } catch {
+    return null
+  }
+}
+
+async function fileIncident(touristId, data, photoFile = null) {
   if (data.tripId) {
     const trip = await new TripRepository().findById(data.tripId, touristId)
     if (!trip) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
   }
 
+  const { detectedTagsJson, ...rest } = data
   const repo = new IncidentRepository()
-  const incident = await repo.create({ touristId, ...data, priority: defaultPriority(data.category) })
+  const incident = await repo.create({
+    touristId, ...rest,
+    priority: defaultPriority(data.category),
+    photoUrl: photoFile ? `/uploads/incidents/${photoFile.filename}` : null,
+    detectedTags: sanitizeDetectedTags(detectedTagsJson),
+  })
   const withTourist = await repo.findById(incident.id)
   emitIncidentFiled(withTourist)
-  logger.info({ touristId, incidentId: incident.id, caseNumber: incident.case_number, category: data.category }, 'Incident report filed')
+  logger.info({ touristId, incidentId: incident.id, caseNumber: incident.case_number, category: data.category, hasPhoto: !!photoFile }, 'Incident report filed')
   return incident
 }
 

@@ -1,7 +1,7 @@
 // src/pages/IncidentQueuePage.tsx — E-FIR officer triage queue
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { FileWarning, Loader2, X, Phone, Clock, MapPin, UserCheck, CheckCircle2, FileText, UserPlus, ShieldAlert } from 'lucide-react'
+import { FileWarning, Loader2, X, Phone, Clock, MapPin, UserCheck, CheckCircle2, FileText, UserPlus, ShieldAlert, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
@@ -10,6 +10,8 @@ import { queryClient } from '../lib/queryClient'
 import { formatTimeAgo, formatDateTime, cn } from '../lib/utils'
 import { useAuthStore } from '../store/auth.store'
 import { useSOSSocket } from '../hooks/useSOSSocket'
+
+const API_ORIGIN = (import.meta.env.VITE_API_URL as string || '').replace(/\/api\/?$/, '')
 
 const CATEGORY_LABEL: Record<string, string> = {
   THEFT: 'Theft', HARASSMENT: 'Harassment', ASSAULT: 'Assault', FRAUD: 'Fraud',
@@ -185,9 +187,14 @@ export default function IncidentQueuePage() {
                   </p>
                 )}
               </div>
-              <span className={cn('text-xs font-bold px-3 py-1 rounded-full flex-shrink-0', STATUS_BADGE[inc.status])}>
-                {inc.status.replace('_', ' ')}
-              </span>
+              <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                {inc.photo_url && (
+                  <img src={`${API_ORIGIN}${inc.photo_url}`} alt="" className="w-12 h-12 rounded-lg object-cover border border-outline-variant" />
+                )}
+                <span className={cn('text-xs font-bold px-3 py-1 rounded-full', STATUS_BADGE[inc.status])}>
+                  {inc.status.replace('_', ' ')}
+                </span>
+              </div>
             </div>
           </div>
         ))}
@@ -228,6 +235,26 @@ export default function IncidentQueuePage() {
                 <p className="text-xs font-bold text-on-surface-variant uppercase mb-1">Description</p>
                 <p className="text-sm text-on-surface">{selected.description}</p>
               </div>
+
+              {selected.photo_url && (
+                <div className="rounded-xl overflow-hidden border border-outline-variant">
+                  <img src={`${API_ORIGIN}${selected.photo_url}`} alt="Evidence" className="w-full max-h-64 object-cover" />
+                  {selected.detected_tags && selected.detected_tags.length > 0 && (
+                    <div className="bg-violet-50 border-t border-violet-200 p-2.5">
+                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-violet-700 uppercase tracking-wide mb-1.5">
+                        <Sparkles className="w-3 h-3" /> Detected on tourist's device
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selected.detected_tags.map((tag) => (
+                          <span key={tag.class} className="text-[10px] bg-white border border-violet-200 text-violet-700 rounded-full px-2 py-0.5 font-semibold">
+                            {tag.class} · {Math.round(tag.score * 100)}%
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {(() => {
                 const ref = LEGAL_REFERENCE[selected.category] || LEGAL_REFERENCE.OTHER

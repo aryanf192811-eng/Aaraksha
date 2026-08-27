@@ -18,13 +18,15 @@ class IncidentRepository extends BaseRepository {
     return this.queryOne(`
       INSERT INTO incident_reports (
         case_number, tourist_id, trip_id, category, description,
-        location_text, latitude, longitude, incident_occurred_at, priority
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        location_text, latitude, longitude, incident_occurred_at, priority,
+        photo_url, detected_tags
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING *`,
       [
         caseNumber, data.touristId, data.tripId ?? null, data.category, data.description,
         data.locationText ?? null, data.latitude ?? null, data.longitude ?? null,
         data.incidentOccurredAt ?? null, data.priority || 'MEDIUM',
+        data.photoUrl ?? null, data.detectedTags ? JSON.stringify(data.detectedTags) : null,
       ]
     )
   }

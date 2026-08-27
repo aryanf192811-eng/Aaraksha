@@ -16,7 +16,14 @@ export interface FileIncidentPayload {
   description: string
   locationText?: string | null
   incidentOccurredAt?: string | null
+  // The photo itself, plus the on-device COCO-SSD detection result for
+  // it (see lib/incidentVision.ts) — sent as a JSON string because
+  // multipart forms can't carry a nested array field directly.
+  photo?: File | null
+  detectedTagsJson?: string | null
 }
+
+export interface DetectedTag { class: string; score: number }
 
 export interface IncidentReport {
   id: string
@@ -30,11 +37,27 @@ export interface IncidentReport {
   assigned_officer_name: string | null
   resolution_notes: string | null
   filed_at: string
+  photo_url: string | null
+  detected_tags: DetectedTag[] | null
 }
 
 const incidentApi = {
-  fileIncident: (data: FileIncidentPayload) =>
-    api.post<APIResponse<IncidentReport>>('/incidents', data),
+  fileIncident: (data: FileIncidentPayload) => {
+    const form = new FormData()
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'photo' || value === undefined || value === null) return
+      form.append(key, String(value))
+    })
+    if (data.photo) form.append('photo', data.photo)
+
+    // Same reasoning as review.api.ts#create — axios won't override an
+    // already-present Content-Type header for a FormData body, so it has
+    // to be explicitly unset for the browser to generate the correct
+    // 'multipart/form-data; boundary=...' itself.
+    return api.post<APIResponse<IncidentReport>>('/incidents', form, {
+      headers: { 'Content-Type': undefined },
+    })
+  },
 
   getMyIncidents: () =>
     api.get<APIResponse<IncidentReport[]>>('/incidents/me'),

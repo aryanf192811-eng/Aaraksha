@@ -5,7 +5,7 @@ const { sendSuccess } = require('../utils/response')
 
 const fileIncident = async (req, res, next) => {
   try {
-    const incident = await incidentService.fileIncident(req.tourist.id, req.validatedBody)
+    const incident = await incidentService.fileIncident(req.tourist.id, req.validatedBody, req.file || null)
     sendSuccess(res, incident, 'Incident report filed', 201)
   } catch (err) { next(err) }
 }

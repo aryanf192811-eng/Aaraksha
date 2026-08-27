@@ -203,6 +203,11 @@ export interface IncidentEntry {
   phone: string | null
   govt_id_suffix?: string | null
   trip_title?: string | null
+  // On-device COCO-SSD detection over the tourist's attached photo (see
+  // frontend/tourist/src/lib/incidentVision.ts) — shown as-is, exactly
+  // what their device detected, not reinterpreted server-side.
+  photo_url: string | null
+  detected_tags: Array<{ class: string; score: number }> | null
 }
 
 export interface AssignableOfficer {
