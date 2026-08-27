@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { ArrowLeft, Loader2, Send, FileWarning, Wallet, UserX, HandFist, Landmark, FileX, Car, Hammer, HelpCircle, MapPin, Clock, Camera, X, ScanEye, Sparkles } from 'lucide-react'
+import { ArrowLeft, Loader2, Send, FileWarning, Wallet, UserX, HandFist, Landmark, FileX, Car, Hammer, HelpCircle, MapPin, Clock, Camera, X, ScanEye, Sparkles, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -31,11 +31,11 @@ const categoryLabel = (t: TFunction, value: string) => tEnum(t, 'incidentCategor
 const statusLabel = (t: TFunction, value: string) => tEnum(t, 'incidentStatus', value)
 
 const STATUS_STYLE: Record<string, string> = {
-  FILED:                'bg-red-100 text-red-700',
-  ASSIGNED:              'bg-amber-100 text-amber-700',
-  UNDER_INVESTIGATION:   'bg-blue-100 text-blue-700',
-  RESOLVED:              'bg-green-100 text-green-700',
-  CLOSED:                'bg-slate-100 text-slate-600',
+  FILED:                'bg-sos/10 text-sos-dark',
+  ASSIGNED:              'bg-primary/10 text-primary-dark',
+  UNDER_INVESTIGATION:   'bg-trust/10 text-trust-dark',
+  RESOLVED:              'bg-tsi-low/10 text-tsi-low',
+  CLOSED:                'bg-surface-container-high text-on-surface-variant',
 }
 
 export default function IncidentReportPage() {
@@ -190,8 +190,13 @@ export default function IncidentReportPage() {
               const Icon = CATEGORY_ICONS[value]
               return (
                 <button key={value} type="button" onClick={() => { setCategory(value); setCategoryAutoSuggested(false) }}
-                  className={cn('border-2 rounded-xl p-2.5 text-center transition-colors',
+                  className={cn('relative border-2 rounded-xl p-2.5 text-center transition-colors',
                     category === value ? 'border-primary bg-primary/10' : 'border-outline-variant hover:border-primary/50')}>
+                  {category === value && (
+                    <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-primary flex items-center justify-center">
+                      <Check className="w-2 h-2 text-primary-foreground" strokeWidth={4} />
+                    </span>
+                  )}
                   <Icon className="w-5 h-5 mx-auto mb-1 text-on-surface-variant" />
                   <span className="text-[10px] font-semibold text-on-surface leading-tight block">{categoryLabel(t, value)}</span>
                 </button>
@@ -257,7 +262,7 @@ export default function IncidentReportPage() {
                   {r.location_text && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{r.location_text}</span>}
                 </div>
                 {r.assigned_officer_name && (
-                  <p className="text-[10px] text-amber-700 font-medium mt-1.5">
+                  <p className="text-[10px] text-primary-dark font-medium mt-1.5">
                     {t('incidentReport.assignedTo', { name: r.assigned_officer_name })}
                   </p>
                 )}
