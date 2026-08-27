@@ -7,8 +7,9 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
-  ArrowLeft, MapPin, Battery, Loader2, Timer, CheckCircle2, Wifi, WifiOff,
+  ArrowLeft, Battery, Loader2, Timer, CheckCircle2, Wifi, WifiOff,
   HeartPulse, Compass, Mountain, Waves, ShieldAlert, HelpCircle, PowerOff, Smartphone, Bell, FileWarning,
+  Check, ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { SOSButton } from '../../components/shared/SOSButton'
@@ -140,20 +141,25 @@ export default function SOSPage() {
       </header>
 
       <div className="px-5 mt-5 space-y-5">
-        {/* Status row */}
-        <div className="flex gap-2">
-          <div className="flex-1 bg-surface-container-lowest shadow-sm border border-outline-variant rounded-lg px-3 py-2 flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-tsi-low flex-shrink-0" />
-            <div className="flex flex-col">
-              <span className="text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant">{t('sos.gpsSync')}</span>
-              <span className="font-mono text-xs font-bold text-on-surface">{t('sos.active')}</span>
+        {/* Status strip — one instrument cluster, not two duplicate cards */}
+        <div className="rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-sm overflow-hidden">
+          <div className="grid grid-cols-2 divide-x divide-outline-variant">
+            <div className="flex items-center gap-2.5 px-4 py-3">
+              <span className="relative flex h-2 w-2 flex-shrink-0">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-tsi-low opacity-75 animate-ping" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-tsi-low" />
+              </span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">{t('sos.gpsSync')}</span>
+                <span className="font-mono text-sm font-bold text-on-surface leading-tight">{t('sos.active')}</span>
+              </div>
             </div>
-          </div>
-          <div className="flex-1 bg-surface-container-lowest shadow-sm border border-outline-variant rounded-lg px-3 py-2 flex items-center gap-2">
-            <Battery className="w-4 h-4 text-tsi-low flex-shrink-0" />
-            <div className="flex flex-col">
-              <span className="text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant">{t('sos.power')}</span>
-              <span className="font-mono text-xs font-bold text-on-surface">{batteryPct ?? '—'}%</span>
+            <div className="flex items-center gap-2.5 px-4 py-3">
+              <Battery className="w-4 h-4 text-on-surface-variant flex-shrink-0" />
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">{t('sos.power')}</span>
+                <span className="font-mono text-sm font-bold text-on-surface leading-tight">{batteryPct ?? '—'}%</span>
+              </div>
             </div>
           </div>
         </div>
@@ -178,11 +184,16 @@ export default function SOSPage() {
               <button key={value} type="button"
                 onClick={() => setCategory(value)}
                 className={cn(
-                  'bg-surface-container-lowest shadow-sm border rounded-xl p-3 flex flex-col items-center gap-2 transition-all',
-                  category === value ? 'border-primary ring-2 ring-primary/30 -translate-y-0.5 shadow-md' : 'border-outline-variant'
+                  'relative bg-surface-container-lowest shadow-sm border rounded-2xl p-3.5 flex flex-col items-center gap-2 transition-all',
+                  category === value ? 'border-primary ring-2 ring-primary/25 -translate-y-0.5 shadow-md bg-primary/5' : 'border-outline-variant'
                 )}>
-                <div className={cn('w-9 h-9 rounded-full flex items-center justify-center', color)}>
-                  <Icon className="w-4 h-4" />
+                {category === value && (
+                  <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
+                  </span>
+                )}
+                <div className={cn('w-10 h-10 rounded-full flex items-center justify-center', color)}>
+                  <Icon className="w-4.5 h-4.5" />
                 </div>
                 <span className="text-xs font-bold text-on-surface">{tEnum(t, 'sosCategory', value)}</span>
               </button>
@@ -199,8 +210,12 @@ export default function SOSPage() {
           className="w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-on-surface"
         />
 
-        {/* DMS Section */}
-        <div className="bg-surface-container-lowest shadow-sm border border-outline-variant rounded-2xl p-5">
+        {/* DMS Section — card tint itself reflects state, not just an inner badge */}
+        <div className={cn('rounded-2xl p-5 shadow-sm border transition-colors',
+          dms?.status === 'ACTIVE' ? 'bg-tsi-low/5 border-tsi-low/30' :
+          dms?.status === 'TRIGGERED' ? 'bg-sos/5 border-sos/30' :
+          'bg-surface-container-lowest border-outline-variant'
+        )}>
           <div className="flex items-center gap-3 mb-4">
             <Timer className="w-6 h-6 text-primary" />
             <div>
@@ -211,9 +226,9 @@ export default function SOSPage() {
 
           {dms && dms.status === 'TRIGGERED' ? (
             <div className="space-y-2">
-              <div className="bg-red-50 border border-red-300 rounded-xl p-4 text-center">
-                <p className="font-bold text-red-700">{t('sos.dmsTriggeredTitle')}</p>
-                <p className="text-xs text-red-600/80 mt-1">{t('sos.dmsTriggeredSubtitle')}</p>
+              <div className="bg-sos/10 border border-sos/30 rounded-xl p-4 text-center">
+                <p className="font-bold text-sos-dark">{t('sos.dmsTriggeredTitle')}</p>
+                <p className="text-xs text-sos-dark/80 mt-1">{t('sos.dmsTriggeredSubtitle')}</p>
               </div>
               <button
                 onClick={() => disableDMS(dms.id)}
@@ -240,7 +255,7 @@ export default function SOSPage() {
                   <button
                     onClick={() => { disableDMS(dms.id); setConfirmingDisable(false) }}
                     disabled={disabling}
-                    className="flex-1 rounded-full h-10 text-xs font-bold border-2 border-red-300 text-red-600 hover:bg-red-50 transition-colors"
+                    className="flex-1 rounded-full h-10 text-xs font-bold border-2 border-sos-light text-sos-dark hover:bg-sos-light transition-colors"
                   >
                     {disabling ? t('sos.disabling') : t('sos.confirmDisable')}
                   </button>
@@ -254,7 +269,7 @@ export default function SOSPage() {
               ) : (
                 <button
                   onClick={() => setConfirmingDisable(true)}
-                  className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:text-red-600 py-2 transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:text-sos-dark py-2 transition-colors"
                 >
                   <PowerOff className="w-3.5 h-3.5" /> {t('sos.disableDms')}
                 </button>
@@ -298,13 +313,14 @@ export default function SOSPage() {
           )}
         </div>
 
-        {/* Panic gesture Section */}
-        <div className="bg-surface-container-lowest shadow-sm border border-outline-variant rounded-2xl p-5">
-          <div className="flex items-center justify-between gap-3">
+        {/* Panic gesture + Push notifications — one grouped settings list
+            (iOS-style rows sharing a card) instead of two duplicate cards */}
+        <div className="rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-sm divide-y divide-outline-variant overflow-hidden">
+          <div className="flex items-center justify-between gap-3 p-5">
             <div className="flex items-center gap-3 min-w-0">
-              <Smartphone className="w-6 h-6 text-primary flex-shrink-0" />
+              <Smartphone className="w-5 h-5 text-primary flex-shrink-0" />
               <div className="min-w-0">
-                <h2 className="font-display font-black text-on-surface">{t('sos.panicTitle')}</h2>
+                <h2 className="font-bold text-sm text-on-surface">{t('sos.panicTitle')}</h2>
                 <p className="text-xs text-on-surface-variant">{t('sos.panicSubtitle')}</p>
               </div>
             </div>
@@ -325,16 +341,13 @@ export default function SOSPage() {
               )} />
             </button>
           </div>
-        </div>
 
-        {/* Push notifications Section */}
-        {isPushSupported() && (
-          <div className="bg-surface-container-lowest shadow-sm border border-outline-variant rounded-2xl p-5">
-            <div className="flex items-center justify-between gap-3">
+          {isPushSupported() && (
+            <div className="flex items-center justify-between gap-3 p-5">
               <div className="flex items-center gap-3 min-w-0">
-                <Bell className="w-6 h-6 text-primary flex-shrink-0" />
+                <Bell className="w-5 h-5 text-primary flex-shrink-0" />
                 <div className="min-w-0">
-                  <h2 className="font-display font-black text-on-surface">{t('sos.pushTitle')}</h2>
+                  <h2 className="font-bold text-sm text-on-surface">{t('sos.pushTitle')}</h2>
                   <p className="text-xs text-on-surface-variant">{t('sos.pushSubtitle')}</p>
                 </div>
               </div>
@@ -355,8 +368,8 @@ export default function SOSPage() {
                 )} />
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* E-FIR entry point — a formal, after-the-fact report (theft,
             harassment...) routed to a govt officer, not an active
@@ -364,12 +377,15 @@ export default function SOSPage() {
             urgent enough for the SOS button above" rather than competing
             with it. */}
         <button onClick={() => navigate('/incidents')}
-          className="w-full bg-surface-container-lowest shadow-sm border border-outline-variant rounded-2xl p-5 flex items-center gap-3 text-left hover:shadow-md transition-all">
-          <FileWarning className="w-6 h-6 text-primary flex-shrink-0" />
+          className="w-full bg-surface-container-lowest shadow-sm border border-outline-variant rounded-2xl p-4 flex items-center gap-3 text-left hover:shadow-md active:scale-[0.99] transition-all">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <FileWarning className="w-5 h-5 text-primary" />
+          </div>
           <div className="min-w-0 flex-1">
-            <h2 className="font-display font-black text-on-surface">{t('sos.incidentReportTitle')}</h2>
+            <h2 className="font-bold text-sm text-on-surface">{t('sos.incidentReportTitle')}</h2>
             <p className="text-xs text-on-surface-variant">{t('sos.incidentReportSubtitle')}</p>
           </div>
+          <ChevronRight className="w-4 h-4 text-on-surface-variant flex-shrink-0" />
         </button>
       </div>
     </div>

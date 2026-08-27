@@ -120,12 +120,12 @@ export function SOSButton({
           'rounded-full font-display font-black tracking-wide shadow-2xl',
           'transition-transform duration-200',
           holdProgress > 0 && 'scale-95',
-          'focus:outline-none focus:ring-4 focus:ring-red-300 focus:ring-offset-2',
+          'focus:outline-none focus:ring-4 focus:ring-sos-light focus:ring-offset-2',
           'disabled:opacity-60 disabled:cursor-not-allowed',
           size === 'default' ? 'w-44 h-44 text-2xl' : 'w-24 h-24 text-sm',
           isActive
-            ? 'bg-red-700 text-white animate-sos-pulse shadow-red-500/50'
-            : 'bg-red-500 hover:bg-red-600 text-white shadow-red-400/40',
+            ? 'bg-sos-dark text-white animate-sos-pulse shadow-sos-dark/50'
+            : 'bg-sos hover:bg-sos-dark text-white shadow-sos/40',
         )}
         aria-label="Hold for 2 seconds to send SOS emergency alert"
       >
