@@ -7,7 +7,7 @@
 
 [![Status](https://img.shields.io/badge/status-demo--ready-brightgreen)]()
 [![Portals](https://img.shields.io/badge/portals-4-blue)]()
-[![API](https://img.shields.io/badge/API%20endpoints-96-orange)]()
+[![API](https://img.shields.io/badge/API%20endpoints-97-orange)]()
 [![Tables](https://img.shields.io/badge/DB%20tables-23-orange)]()
 [![Offline SOS](https://img.shields.io/badge/offline%20SOS-2G%20capable-red)]()
 [![Digital ID](https://img.shields.io/badge/digital%20ID-hash--chained-9cf)]()
@@ -73,7 +73,7 @@ slides.
 | 5 | **Live demo / walkthrough script** | [Demo accounts](#demo-accounts) | Don't demo a blank app — log into **Rahul Verma** (`9876500002` / `Demo@123`) to show a *live SOS with a rescue team already en route*, then open his Guardian link to show the same emergency from a family member's view. For the newer unified-rescuer story, use **Karan Mehta** (`9000055501` / `DemoPass123`) — his SOS is assigned to volunteer **Priya Deka**, live-tracked on a real road route. That one flow sells the whole platform in 90 seconds |
 | 6 | **Feature highlights** | [Feature walkthrough](#feature-walkthrough) — pick 2–3 lines per pillar, don't read the whole list | Planning → Safety → Digital ID → Unified Rescue Network → Government Ops → Community → Offline-first. Safety, the Digital ID hash chain, and the Rescuer network are the pillars to spend the most slide time on |
 | 7 | **The "blockchain-based Digital ID" line item, made real** | [Verifiable Digital ID](#verifiable-digital-id--the-journey-integrity-hash) | SIH25002 literally names this requirement — most teams ship a static ID card image. Show the hash changing live: scan a checkpoint QR, refetch `/journey-passport/:tripId/hash`, watch the fingerprint change. That's a stronger technical answer than any slide bullet |
-| 8 | **Numbers** | [By the numbers](#by-the-numbers) | Drop the whole table on one slide as a stat grid — 96 endpoints, 23 tables, 45 rotating news items land better as bold numbers than as prose |
+| 8 | **Numbers** | [By the numbers](#by-the-numbers) | Drop the whole table on one slide as a stat grid — 97 endpoints, 23 tables, 45 rotating news items land better as bold numbers than as prose |
 | 9 | **Why we win** | [Why this wins](#why-this-wins) comparison table | This table is already written as a "typical hackathon app vs. Aaraksha" comparison — use it verbatim as a two-column slide |
 | 10 | **Under the hood** *(for technical judges)* | [Architecture at a glance](#architecture-at-a-glance) diagram + [Production readiness](#production-readiness) | Keep this slide for a technical Q&A round — the adversarial-testing bullet points (SQLi, race conditions, forced rollbacks, a real privilege-escalation fix) are the strongest "we didn't just make a demo" evidence in the whole repo |
 | 11 | **What's next** | [Roadmap](#roadmap) | Everything on the roadmap is a deliberate, named scope decision — say so explicitly, it reads as intentional prioritization rather than unfinished work |
@@ -96,6 +96,7 @@ slides.
 | Safety that only reacts once someone presses a button | A **rule-based anomaly detector** running every minute against every active trip — flags a tourist who's gone quiet or drifted off-route *before* anyone presses SOS, no opt-in required |
 | "Report a crime" ends at a crowd-sourced warning post | A real **E-FIR triage workflow** — a formal, case-numbered report routed to a role-based officer queue with an actual investigation ladder (Filed → Assigned → Under Investigation → Resolved), not just a community bulletin board |
 | "We tested it" meaning the happy path worked once | A security pass that found and closed a **live unauthenticated privilege-escalation path** to govt SUPER\_ADMIN, pinned every JWT verification against algorithm-confusion attacks, and fixed a rate-limiter that silently ignored its own configuration |
+| Flat 2D maps vs. competitors' VR/3D showpieces, or a rescue queue sorted by raw distance alone | **Real 3D elevation terrain** on the govt map (free, keyless, no CesiumJS bloat) so a dispatcher can see the mountain ridge between a rescuer and an SOS, plus **weighted dispatch scoring** that ranks a rescuer by category fit and reputation, not distance alone |
 
 ---
 
@@ -176,9 +177,10 @@ slides.
 - **Geo-fencing zone alerts** — a one-time toast when live GPS enters a HIGH\_RISK / RESTRICTED / ILP\_REQUIRED stop on an active trip
 - **Rule-based anomaly detection** — a minute-cadence cron flags any active trip that's gone quiet for 6+ hours or drifted 60+ km from every planned stop, *before* anyone presses SOS — explainable thresholds, not a black-box model, matching this platform's own honesty standard for TSI
 - **File an E-FIR** — a formal, case-numbered report (theft, harassment, fraud, lost documents, and more) for something that already happened, filed straight from the Safety Center and tracked through to resolution — distinct from the SOS button, which is for an emergency happening *right now*
+- **On-device photo evidence for E-FIRs** — attach a photo and a real COCO-SSD object-detection model (TensorFlow.js, lazy-loaded, not part of the main bundle) runs entirely in the browser, tags what it sees, and — only for categories with genuine visual signal — suggests a category, always overridable, never forced. The photo never leaves the device until the report is actually filed
 
 ### 🚑 Unified Rescue Network
-- **One assignable rescuer pool** — official rescue teams and govt-verified citizen volunteers, distance-sorted in a single govt dispatch panel, badge-differentiated "Official" vs "Volunteer"
+- **One assignable rescuer pool** — official rescue teams and govt-verified citizen volunteers, **weighted-score-ranked** (not just distance-sorted) in a single govt dispatch panel, badge-differentiated "Official" vs "Volunteer" — a "Recommended" pick surfaces the top candidate with its full score breakdown (distance, SOS-category-to-team-type fit, reputation), one tap to pre-select, operator always makes the final call
 - **Govt-side volunteer onboarding** — review a citizen's self-registration through an explicit identity-confirmation dialog, *or* provision a walk-in responder's account directly with a one-time password, generated and shown once
 - **Real OSRM road routing** — every rescuer-to-SOS line on every portal (Rescuer app, Guardian, tourist) is an actual road route, not a straight line, with a graceful straight-line fallback if the routing service is unreachable
 - **Live GPS streaming** — a rescuer's position updates over Socket.IO roughly every 9 seconds while en route, moving the marker on the tourist's, guardian's, and govt operator's map without a page refresh
@@ -186,6 +188,7 @@ slides.
 
 ### 🖥️ Government Operations
 - **Live ops map** (Leaflet + Socket.IO) — every active tourist, every open SOS, every rescuer currently en route with their real OSRM road route, and every open **anomaly flag** (gone-quiet / off-route), all updating in real time, no refresh — plus a toggleable **Risk Density layer**, weighted circles showing where active trips are concentrated per destination, colored by zone type
+- **Real 3D terrain view** — a one-tap toggle switches the same live data onto genuine elevation relief (MapLibre GL JS + free AWS-hosted elevation tiles, no paid API key), so a dispatcher can see whether a mountain ridge actually separates a rescuer from an active SOS, not just their flat map distance
 - **SOS triage & rescue assignment** — dispatch to the nearest available team *or* volunteer, status tracked live through `EN_ROUTE → ARRIVED → RESOLVED`
 - **Auto-generated SOS incident reports** — once an SOS is resolved or marked a false alarm, a one-click PDF pulls the full case together: tourist details, response timeline, dispatching officer, rescuer, resolution notes, and the trip's known check-in trail — internal record-keeping for a closed emergency, not a substitute for a formal FIR
 - **E-FIR Queue** — a genuinely distinct workflow from the SOS incident report above: a role-based officer triage queue for the E-FIRs tourists file (see [Safety](#-safety)), with priority sorting, self-assign or reassign, an investigation status ladder (`FILED → ASSIGNED → UNDER_INVESTIGATION → RESOLVED/CLOSED`), notes at every step, and a downloadable case-record PDF — real-time on both sides, so a filed report reaches the queue and a status change reaches the tourist over Socket.IO, not on the next page refresh
@@ -420,9 +423,10 @@ PDFKit · multer (photo uploads) · Zod validation · pino structured logging.
 **Frontend stack** (all four apps, independently deployable Vite projects sharing one design
 system — see [`UI_GUIDE.md`](./UI_GUIDE.md)): Vite 8 · React 19 · TypeScript 6 · Tailwind CSS
 3.4 · shadcn/ui (Radix primitives) · Zustand · TanStack Query v5 · Dexie.js (tourist offline
-sync) · react-leaflet (govt live map, Guardian/tourist/Rescuer live-route maps) · OSRM (real road
-routing, no API key) · react-hook-form + Zod · Socket.IO client · jsQR (checkpoint camera
-scanning).
+sync) · react-leaflet (govt live map, Guardian/tourist/Rescuer live-route maps) · MapLibre GL JS
+(govt 3D terrain view, free elevation tiles, no API key) · OSRM (real road routing, no API key) ·
+TensorFlow.js + COCO-SSD (on-device E-FIR photo tagging) · react-hook-form + Zod · Socket.IO
+client · jsQR (checkpoint camera scanning).
 
 Every layer is intentionally narrow: controllers hold no SQL or business logic, all queries live
 in repositories, and every multi-table write that must be atomic goes through a single
@@ -436,7 +440,7 @@ the [production readiness report](./PRODUCTION_READINESS_REPORT.html).
 | | |
 |---|---|
 | **Portals** | 4 (Tourist PWA, Govt Command Center, Guardian Portal, Rescuer App) |
-| **API endpoints** | 96, across 15 route groups |
+| **API endpoints** | 97, across 15 route groups |
 | **Database tables** | 23 |
 | **Migrations** | 13, applied incrementally — every schema change is a reviewable, named diff, never a hand-edited table |
 | **Destinations seeded** | 10, across Assam, Meghalaya, Nagaland, Arunachal Pradesh, Sikkim, Manipur — each with real altitude, connectivity, ILP, and hospital data |
@@ -613,7 +617,7 @@ page) into `/track/:token` on the guardian app.
 
 ## API surface
 
-96 REST endpoints across 15 route groups, all under `/api`:
+97 REST endpoints across 15 route groups, all under `/api`:
 
 | Prefix | Covers |
 |---|---|
