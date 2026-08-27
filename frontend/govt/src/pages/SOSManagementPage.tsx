@@ -1,5 +1,5 @@
 // src/pages/SOSManagementPage.tsx — real-time SOS feed with assignment modal
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Battery, CheckCircle2, Send, ShieldCheck, HeartHandshake, Navigation, Radio, Gauge, FileText } from 'lucide-react'
 import { toast } from 'sonner'
@@ -36,7 +36,26 @@ export default function SOSManagementPage() {
   const [assignTeamId, setAssignTeamId] = useState('')
   const [assignVolunteerId, setAssignVolunteerId] = useState('')
   const [resolutionNotes, setResolutionNotes] = useState('')
+  const modalRef = useRef<HTMLDivElement>(null)
   useSOSSocket() // subscribes to real-time events; invalidates the queries below
+
+  // Keyboard-accessible modal: Escape closes it, and focus moves into the
+  // panel on open instead of staying on the card that triggered it — this
+  // is a hand-rolled overlay (not the Radix Dialog used elsewhere), so
+  // neither behavior comes for free.
+  useEffect(() => {
+    if (!selectedSOS) return
+    modalRef.current?.focus()
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedSOS(null)
+        setAssignTeamId('')
+        setAssignVolunteerId('')
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selectedSOS])
 
   const { data: sosData, isLoading } = useQuery({
     queryKey: ['govt', 'sos'],
@@ -173,10 +192,13 @@ export default function SOSManagementPage() {
       {/* ── SOS Detail Modal ──────────────────────────────────── */}
       {selectedSOS && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div ref={modalRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="sos-detail-title"
+            className="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto outline-none">
             <div className="p-6 border-b border-outline-variant flex items-center justify-between">
-              <h2 className="text-xl font-black text-on-surface">SOS Details</h2>
-              <button onClick={() => { setSelectedSOS(null); setAssignTeamId(''); setAssignVolunteerId('') }}><X className="w-6 h-6 text-on-surface-variant" /></button>
+              <h2 id="sos-detail-title" className="text-xl font-black text-on-surface">SOS Details</h2>
+              <button onClick={() => { setSelectedSOS(null); setAssignTeamId(''); setAssignVolunteerId('') }} aria-label="Close">
+                <X className="w-6 h-6 text-on-surface-variant" />
+              </button>
             </div>
             <div className="p-6 space-y-5">
               <div className="grid grid-cols-2 gap-4">
@@ -302,7 +324,7 @@ export default function SOSManagementPage() {
                             onValueChange={(v) => { setAssignTeamId(v); setAssignVolunteerId('') }}
                             disabled={teamOptions.length === 0}
                           >
-                            <SelectTrigger className="h-11 rounded-xl w-full">
+                            <SelectTrigger aria-label="Official Rescue Team" className="h-11 rounded-xl w-full">
                               <SelectValue placeholder={teamOptions.length === 0 ? 'No teams available nearby' : `${teamOptions.length} team${teamOptions.length === 1 ? '' : 's'} available`} />
                             </SelectTrigger>
                             <SelectContent>
@@ -324,7 +346,7 @@ export default function SOSManagementPage() {
                             onValueChange={(v) => { setAssignVolunteerId(v); setAssignTeamId('') }}
                             disabled={volunteerOptions.length === 0}
                           >
-                            <SelectTrigger className="h-11 rounded-xl w-full">
+                            <SelectTrigger aria-label="Verified Volunteer" className="h-11 rounded-xl w-full">
                               <SelectValue placeholder={volunteerOptions.length === 0 ? 'No verified volunteers available nearby' : `${volunteerOptions.length} volunteer${volunteerOptions.length === 1 ? '' : 's'} available`} />
                             </SelectTrigger>
                             <SelectContent>
@@ -356,9 +378,9 @@ export default function SOSManagementPage() {
 
               {selectedSOS.status !== 'RESOLVED' && selectedSOS.status !== 'FALSE_ALARM' && (
                 <div className="space-y-2 pt-3 border-t border-outline-variant">
-                  <textarea placeholder="Resolution notes..." value={resolutionNotes}
+                  <textarea placeholder="Resolution notes..." aria-label="Resolution notes" value={resolutionNotes}
                     onChange={e => setResolutionNotes(e.target.value)} rows={2}
-                    className="w-full border border-outline-variant rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-emerald-500" />
+                    className="w-full border border-outline-variant rounded-xl px-3 py-2 text-sm resize-none outline-none focus:border-emerald-500 focus-visible:ring-2 focus-visible:ring-primary/50" />
                   <Button variant="outline" disabled={resolving} onClick={() => resolveSOS(selectedSOS.id)}
                     className="w-full h-11 rounded-full border-2 border-green-500 text-green-700 font-bold hover:bg-green-50 flex items-center justify-center gap-2">
                     {resolving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /> Mark as Resolved</>}

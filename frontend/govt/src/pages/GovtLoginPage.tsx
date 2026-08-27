@@ -123,6 +123,7 @@ export default function GovtLoginPage() {
                     className="h-11 pl-10 pr-10 bg-surface-container-low border-outline-variant focus-visible:ring-primary"
                     {...register('password')} />
                   <button type="button" onClick={() => setShowPassword(v => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface">
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>

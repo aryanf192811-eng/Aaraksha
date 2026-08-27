@@ -30,7 +30,7 @@ const GOVT_ID_TYPES: { value: CreateVolunteerPayload['govtIdType']; label: strin
 const STATUS_META: Record<string, { label: string; dot: string; text: string }> = {
   AVAILABLE: { label: 'Available', dot: 'bg-emerald-500', text: 'text-emerald-700' },
   DEPLOYED:  { label: 'Deployed',  dot: 'bg-amber-500 animate-pulse', text: 'text-amber-700' },
-  OFF_DUTY:  { label: 'Off duty',  dot: 'bg-slate-400', text: 'text-slate-500' },
+  OFF_DUTY:  { label: 'Off duty',  dot: 'bg-slate-400', text: 'text-slate-600' },
 }
 
 const EMPTY_FORM: CreateVolunteerPayload = {
@@ -273,40 +273,40 @@ export default function VolunteersPage() {
 
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Full name *</label>
-              <Input value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
+              <label htmlFor="volunteer-fullname" className="text-xs font-semibold text-on-surface-variant mb-1 block">Full name *</label>
+              <Input id="volunteer-fullname" value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
                 placeholder="e.g. Bikash Gogoi" className="h-10 rounded-lg" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Phone *</label>
-              <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+              <label htmlFor="volunteer-phone" className="text-xs font-semibold text-on-surface-variant mb-1 block">Phone *</label>
+              <Input id="volunteer-phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
                 placeholder="10-digit mobile number" className="h-10 rounded-lg" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-on-surface-variant mb-1 block">ID type</label>
                 <Select value={form.govtIdType} onValueChange={(v) => setForm(f => ({ ...f, govtIdType: v as CreateVolunteerPayload['govtIdType'] }))}>
-                  <SelectTrigger className="h-10 rounded-lg"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="ID type" className="h-10 rounded-lg"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {GOVT_ID_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-on-surface-variant mb-1 block">ID number *</label>
-                <Input value={form.govtIdNumber} onChange={e => setForm(f => ({ ...f, govtIdNumber: e.target.value }))}
+                <label htmlFor="volunteer-id-number" className="text-xs font-semibold text-on-surface-variant mb-1 block">ID number *</label>
+                <Input id="volunteer-id-number" value={form.govtIdNumber} onChange={e => setForm(f => ({ ...f, govtIdNumber: e.target.value }))}
                   placeholder="ID number" className="h-10 rounded-lg" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-on-surface-variant mb-1 block">District *</label>
-                <Input value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))}
+                <label htmlFor="volunteer-district" className="text-xs font-semibold text-on-surface-variant mb-1 block">District *</label>
+                <Input id="volunteer-district" value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))}
                   placeholder="e.g. Kamrup Metropolitan" className="h-10 rounded-lg" />
               </div>
               <div>
-                <label className="text-xs font-semibold text-on-surface-variant mb-1 block">State *</label>
-                <Input value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
+                <label htmlFor="volunteer-state" className="text-xs font-semibold text-on-surface-variant mb-1 block">State *</label>
+                <Input id="volunteer-state" value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
                   placeholder="e.g. Assam" className="h-10 rounded-lg" />
               </div>
             </div>

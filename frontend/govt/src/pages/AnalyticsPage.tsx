@@ -56,7 +56,7 @@ export default function AnalyticsPage() {
               </button>
             ))}
           </div>
-          <Button onClick={() => window.location.href = govtApi.getExportUrl(period)}
+          <Button onClick={() => window.location.href = govtApi.getExportUrl(period)} aria-label="Export PDF"
             className="bg-primary-dark hover:brightness-90 text-white rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2">
             <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export PDF</span>
           </Button>

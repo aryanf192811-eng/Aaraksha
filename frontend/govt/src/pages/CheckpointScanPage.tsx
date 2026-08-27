@@ -187,12 +187,12 @@ export default function CheckpointScanPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Checkpoint Name *</label>
-                <Input value={checkpointName} onChange={(e) => setCheckpointName(e.target.value)} placeholder="e.g. Dimapur ILP Checkpost" className="h-12 text-base" />
+                <label htmlFor="checkpoint-name" className="text-xs font-semibold text-on-surface-variant mb-1 block">Checkpoint Name *</label>
+                <Input id="checkpoint-name" value={checkpointName} onChange={(e) => setCheckpointName(e.target.value)} placeholder="e.g. Dimapur ILP Checkpost" className="h-12 text-base" />
               </div>
               <div>
-                <label className="text-xs font-semibold text-on-surface-variant mb-1 block">District</label>
-                <Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="e.g. Dimapur" className="h-12 text-base" />
+                <label htmlFor="checkpoint-district" className="text-xs font-semibold text-on-surface-variant mb-1 block">District</label>
+                <Input id="checkpoint-district" value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="e.g. Dimapur" className="h-12 text-base" />
               </div>
 
               <Button onClick={handleOpenScanner} disabled={scanning}
@@ -208,8 +208,9 @@ export default function CheckpointScanPage() {
                 </button>
               ) : (
                 <div className="space-y-2 pt-1">
-                  <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Scanned Code</label>
+                  <label htmlFor="checkpoint-scanned-code" className="text-xs font-semibold text-on-surface-variant mb-1 block">Scanned Code</label>
                   <Input
+                    id="checkpoint-scanned-code"
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
                     placeholder="Paste the tourist's QR token"

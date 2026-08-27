@@ -1,5 +1,5 @@
 // src/pages/IncidentQueuePage.tsx — E-FIR officer triage queue
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { FileWarning, Loader2, X, Phone, Clock, MapPin, UserCheck, CheckCircle2, FileText, UserPlus, ShieldAlert, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
@@ -75,7 +75,22 @@ export default function IncidentQueuePage() {
   const [selected, setSelected] = useState<IncidentEntry | null>(null)
   const [resolutionNotes, setResolutionNotes] = useState('')
   const [assignOfficerId, setAssignOfficerId] = useState('')
+  const modalRef = useRef<HTMLDivElement>(null)
   useSOSSocket() // also subscribes to INCIDENT_FILED / INCIDENT_STATUS_UPDATED; invalidates the queries below
+
+  // Keyboard-accessible modal: Escape closes it, and focus moves into the
+  // panel on open instead of staying on the card that triggered it — this
+  // is a hand-rolled overlay (not the Radix Dialog used elsewhere), so
+  // neither behavior comes for free.
+  useEffect(() => {
+    if (!selected) return
+    modalRef.current?.focus()
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelected(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selected])
 
   const { data: queueData, isLoading } = useQuery({
     queryKey: ['govt', 'incidents', statusFilter, assignedToMe],
@@ -189,7 +204,8 @@ export default function IncidentQueuePage() {
               </div>
               <div className="flex flex-col items-end gap-2 flex-shrink-0">
                 {inc.photo_url && (
-                  <img src={`${API_ORIGIN}${inc.photo_url}`} alt="" className="w-12 h-12 rounded-lg object-cover border border-outline-variant" />
+                  <img src={`${API_ORIGIN}${inc.photo_url}`} alt={`Evidence photo for case ${inc.case_number}`}
+                    className="w-12 h-12 rounded-lg object-cover border border-outline-variant" />
                 )}
                 <span className={cn('text-xs font-bold px-3 py-1 rounded-full', STATUS_BADGE[inc.status])}>
                   {inc.status.replace('_', ' ')}
@@ -211,15 +227,18 @@ export default function IncidentQueuePage() {
       {/* ── Detail Modal ──────────────────────────────────────── */}
       {selected && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div ref={modalRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="incident-detail-title"
+            className="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto outline-none">
             <div className="p-6 border-b border-outline-variant flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-black text-on-surface">Case {selected.case_number}</h2>
+                <h2 id="incident-detail-title" className="text-xl font-black text-on-surface">Case {selected.case_number}</h2>
                 <span className={cn('text-xs font-bold px-2 py-0.5 rounded-full mt-1 inline-block', STATUS_BADGE[selected.status])}>
                   {selected.status.replace('_', ' ')}
                 </span>
               </div>
-              <button onClick={() => setSelected(null)}><X className="w-6 h-6 text-on-surface-variant" /></button>
+              <button onClick={() => setSelected(null)} aria-label="Close">
+                <X className="w-6 h-6 text-on-surface-variant" />
+              </button>
             </div>
             <div className="p-6 space-y-5">
               <div className="grid grid-cols-2 gap-4">
@@ -292,7 +311,7 @@ export default function IncidentQueuePage() {
                 )}
                 <div className="flex gap-2">
                   <Select value={assignOfficerId} onValueChange={setAssignOfficerId}>
-                    <SelectTrigger className="h-10 rounded-xl flex-1"><SelectValue placeholder="Reassign to officer..." /></SelectTrigger>
+                    <SelectTrigger aria-label="Reassign to officer" className="h-10 rounded-xl flex-1"><SelectValue placeholder="Reassign to officer..." /></SelectTrigger>
                     <SelectContent>
                       {(officers || []).map(o => (
                         <SelectItem key={o.id} value={o.id}>{o.name} · {o.role} · {o.district}</SelectItem>
@@ -310,9 +329,9 @@ export default function IncidentQueuePage() {
               {NEXT_STATUSES[selected.status]?.length > 0 && (
                 <div className="space-y-2 pt-3 border-t border-outline-variant">
                   <p className="font-bold text-on-surface flex items-center gap-1.5"><ShieldAlert className="w-4 h-4" /> Update Status</p>
-                  <textarea placeholder="Investigation / resolution notes..." value={resolutionNotes}
+                  <textarea placeholder="Investigation / resolution notes..." aria-label="Investigation / resolution notes" value={resolutionNotes}
                     onChange={e => setResolutionNotes(e.target.value)} rows={2}
-                    className="w-full border border-outline-variant rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary" />
+                    className="w-full border border-outline-variant rounded-xl px-3 py-2 text-sm resize-none outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/50" />
                   <div className="flex flex-wrap gap-2">
                     {NEXT_STATUSES[selected.status].map(next => (
                       <Button key={next} variant="outline" disabled={updating}

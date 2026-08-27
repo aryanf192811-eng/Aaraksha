@@ -326,7 +326,7 @@ export default function RiskOverviewPage() {
               <div>
                 <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Category</label>
                 <Select value={category} onValueChange={(v) => setCategory(v as PostNewsPayload['category'])}>
-                  <SelectTrigger className="h-10 rounded-lg"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Category" className="h-10 rounded-lg"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {NEWS_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c.replace('_', ' ')}</SelectItem>)}
                   </SelectContent>
@@ -335,7 +335,7 @@ export default function RiskOverviewPage() {
               <div>
                 <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Severity</label>
                 <Select value={severity} onValueChange={(v) => setSeverity(v as PostNewsPayload['severity'])}>
-                  <SelectTrigger className="h-10 rounded-lg"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Severity" className="h-10 rounded-lg"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {NEWS_SEVERITIES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
@@ -343,12 +343,12 @@ export default function RiskOverviewPage() {
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Headline *</label>
-              <Input value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="e.g. Sela Pass closed due to fresh snowfall" className="h-10 rounded-lg" />
+              <label htmlFor="alert-headline" className="text-xs font-semibold text-on-surface-variant mb-1 block">Headline *</label>
+              <Input id="alert-headline" value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="e.g. Sela Pass closed due to fresh snowfall" className="h-10 rounded-lg" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-on-surface-variant mb-1 block">Details</label>
-              <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Additional context for travelers..." rows={3} className="rounded-lg" />
+              <label htmlFor="alert-details" className="text-xs font-semibold text-on-surface-variant mb-1 block">Details</label>
+              <Textarea id="alert-details" value={body} onChange={(e) => setBody(e.target.value)} placeholder="Additional context for travelers..." rows={3} className="rounded-lg" />
             </div>
           </div>
           <DialogFooter>

@@ -27,7 +27,11 @@ export default {
           },
         },
         'on-surface': '#0f172a',
-        'on-surface-variant': '#64748b',
+        // slate-600, not slate-500 (#64748b) — #64748b on the app's white/
+        // near-white surface tokens measures ~4.2:1, under WCAG 2.1 AA's
+        // 4.5:1 for normal text (GIGW 3.0 requires AA). #475569 clears
+        // ~7.6:1 while staying visually a "muted" secondary color.
+        'on-surface-variant': '#475569',
         outline: '#94a3b8',
         'outline-variant': '#e2e8f0',
         // shadcn/ui semantic tokens — CSS-variable driven (see index.css).

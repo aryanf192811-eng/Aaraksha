@@ -83,7 +83,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2 bg-surface-container-lowest rounded-full px-4 py-2 shadow-sm border border-outline-variant text-sm font-medium text-on-surface-variant">
             <span>Last 30 days</span>
           </div>
-          <Button onClick={() => window.location.href = govtApi.getExportUrl('30d')}
+          <Button onClick={() => window.location.href = govtApi.getExportUrl('30d')} aria-label="Export PDF"
             className="bg-primary-dark hover:brightness-90 text-white rounded-lg px-4 py-2 text-sm font-semibold shadow-sm flex items-center gap-2">
             <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export PDF</span>
           </Button>
@@ -110,7 +110,7 @@ export default function DashboardPage() {
               : 'No active trips with a TSI score'
           }
           accentClass={
-            d?.safetyIndex == null ? 'bg-slate-100 text-slate-500'
+            d?.safetyIndex == null ? 'bg-slate-100 text-slate-600'
               : d.safetyIndex >= 70 ? 'bg-emerald-100 text-primary'
               : d.safetyIndex >= 40 ? 'bg-amber-100 text-amber-600'
               : 'bg-red-100 text-red-600'
