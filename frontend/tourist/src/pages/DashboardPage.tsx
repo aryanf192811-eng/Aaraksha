@@ -1,16 +1,31 @@
 // src/pages/DashboardPage.tsx
-// v2 layout, rebuilt against direct feedback on v1 (too boxy, too safe,
-// didn't match the reference travel-app patterns): bolder greeting type,
-// a tighter single-register safety panel instead of a tall stacked block,
-// and Explore promoted to a real search+filter+grid section instead of a
-// cramped horizontal rail. All data hooks are unchanged from the original
-// dashboard — this is still a visual/structural pass only.
+// v3 — state-aware hierarchy. The page now has three genuinely different
+// shapes depending on what's actually true for the user right now, because
+// "what should be at the top" isn't a fixed answer for a safety+travel app:
+//
+//   1. SOS ACTIVE (rare): an urgent banner + live rescue tracking take the
+//      top of the page, above even the greeting's usual position. Nothing
+//      else competes for attention here.
+//   2. TRIP ACTIVE, no SOS (common, mid-journey): "am I okay, right now,
+//      here" leads — a trip-status hero with a live alert-count signal,
+//      not a generic destination browser. Discovery drops lower, since
+//      browsing new places is a secondary need mid-trip.
+//   3. NO TRIP, no SOS (common, planning mode): "where should I go" is the
+//      actual question, so Explore is promoted to lead content right under
+//      a minimal safety trust-line, not buried under a big safety block.
+//
+// The safety module itself is also state-dependent by design: a
+// permanently large red/teal block when nothing is wrong reads as anxious
+// and works against the tourism-appeal goal, not for it. It stays compact
+// and confident in the calm states and only escalates when there's an
+// actual reason to.
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Plus, Map, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper, Compass } from 'lucide-react'
+import { Plus, Map, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper, Compass, ShieldAlert, CheckCircle2 } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed, ExploreDestinations } from '../components/shared'
+import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed, ExploreDestinations, RescueTrackingCard } from '../components/shared'
 import { RescueReadinessChecklist } from '../components/shared/RescueReadinessChecklist'
 import { SafetyTimeline, useEscalationLevel } from '../components/shared/SafetyTimeline'
 import { useAuthStore } from '../store/auth.store'
@@ -62,6 +77,11 @@ export default function DashboardPage() {
     staleTime: 2 * 60_000,
   })
 
+  const advisoryCount = useMemo(
+    () => (latestNews || []).filter(n => n.severity === 'WARNING' || n.severity === 'CRITICAL').length,
+    [latestNews]
+  )
+
   const firstName = tourist?.full_name?.split(' ')[0] || t('dashboard.travelerFallback')
 
   return (
@@ -77,161 +97,229 @@ export default function DashboardPage() {
           </div>
         </button>
       </div>
-      <div className="px-5 pb-4">
-        <h1 className="font-display text-[2rem] font-extrabold text-on-surface leading-[1.1]">
-          {t('dashboard.welcome', { name: firstName })}
-        </h1>
-      </div>
 
-      {/* ── Hero: photo-backed trip, or a bold discovery prompt ────── */}
-      <div className="px-5">
-        {activeTrip ? (
+      {/* ── State 1: SOS active — takes priority over everything below ── */}
+      {activeSOSId ? (
+        <div className="px-5 pb-4">
           <button
-            onClick={() => navigate(`/trips/${activeTrip.id}`)}
-            className="relative w-full h-56 rounded-[2rem] overflow-hidden shadow-glass-lg text-left cursor-pointer"
+            onClick={() => navigate('/sos')}
+            className="w-full rounded-3xl bg-gradient-to-br from-sos-dark to-sos p-5 text-left cursor-pointer shadow-[0_8px_40px_-8px_rgba(220,38,38,0.5)]"
           >
-            <img src={heroPhoto} alt="" loading="eager" className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0 photo-scrim" />
-            <div className="relative h-full p-5 flex flex-col justify-end">
-              <p className="text-[11px] font-extrabold text-primary uppercase tracking-wide mb-1">{t('dashboard.activeTrip')}</p>
-              <div className="flex items-end justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-display font-extrabold text-white text-2xl leading-tight truncate">{activeTrip.title}</p>
-                  <p className="text-sm text-white/75 mt-1">{formatDate(activeTrip.start_date)} → {formatDate(activeTrip.end_date)}</p>
-                </div>
-                <div className="flex-shrink-0 bg-white rounded-2xl p-1.5 shadow-md">
-                  <TSIBadge score={activeTrip.tsi_score} size="sm" />
-                </div>
-              </div>
-            </div>
-          </button>
-        ) : (
-          <button
-            onClick={() => navigate('/trips/new')}
-            className="relative w-full h-64 rounded-[2rem] overflow-hidden shadow-glass-lg text-left cursor-pointer"
-          >
-            <img src={getDestinationImage(undefined, { w: 1000, q: 78 })} alt="" loading="eager" className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0 photo-scrim" />
-            <div className="relative h-full p-5 flex flex-col justify-end">
-              <p className="font-display font-extrabold text-white text-3xl leading-[1.1] max-w-[80%]">
-                {t('dashboard.discoverHeroTitle')}
-              </p>
-              <p className="text-sm text-white/80 mt-2 mb-4 max-w-[85%]">{t('dashboard.discoverHeroSubtitle')}</p>
-              <span className="inline-flex items-center gap-1.5 self-start bg-primary text-primary-foreground text-sm font-extrabold px-5 py-3 rounded-full">
-                <Compass className="w-4.5 h-4.5" /> {t('dashboard.startPlanning')}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
               </span>
+              <p className="text-[11px] font-extrabold text-white uppercase tracking-widest">{t('dashboard.sosUrgentEyebrow')}</p>
             </div>
+            <p className="font-display font-extrabold text-white text-xl leading-tight">{t('dashboard.sosUrgentTitle')}</p>
+            <p className="text-sm text-white/85 mt-1">{t('dashboard.sosUrgentBody')}</p>
+            <span className="inline-flex items-center gap-1.5 mt-3 text-sm font-bold text-sos-dark bg-white px-4 py-2 rounded-full">
+              <ShieldAlert className="w-4 h-4" /> {t('dashboard.viewRescueStatus')}
+            </span>
           </button>
-        )}
-      </div>
-
-      {/* ── Safety strip — a single-row band, not a tall stacked block. */}
-      {/*    Still its own teal register so "this is the civic-safety   */}
-      {/*    part" reads instantly against the amber discovery moments. */}
-      <div className="px-5 mt-4">
-        <div className="rounded-3xl bg-gradient-to-r from-trust-dark to-trust p-4 flex items-center gap-3.5 shadow-glow-teal">
-          <SOSButton onTrigger={() => navigate('/sos')} isActive={!!activeSOSId} size="compact" />
-          <div className="flex-1 min-w-0">
-            <p className="font-display font-bold text-white text-base">{t('dashboard.safety')}</p>
-            <p className="text-xs text-white/75 mt-0.5 leading-snug">
-              {activeSOSId ? t('dashboard.sosActiveBanner') : dms ? t('dashboard.dmsRunning') : t('dashboard.holdToAlert')}
-            </p>
+          <div className="mt-3">
+            <RescueTrackingCard />
           </div>
-          <button onClick={() => navigate('/sos')} className="flex-shrink-0 text-xs font-bold text-white bg-white/15 px-3.5 py-2.5 rounded-full cursor-pointer whitespace-nowrap">
-            {t('dashboard.safetyCenter')}
-          </button>
         </div>
-        {dms && (
-          <div className="mt-2">
-            <DMSCard dms={dms} />
+      ) : (
+        <>
+          <div className="px-5 pb-4">
+            <h1 className="font-display text-[2rem] font-extrabold text-on-surface leading-[1.1]">
+              {t('dashboard.welcome', { name: firstName })}
+            </h1>
           </div>
-        )}
-      </div>
 
-      {/* ── Explore: search + safety-zone filter + a generous grid ─── */}
-      <div className="px-5 mt-7">
-        <h2 className="font-display text-2xl font-extrabold text-on-surface mb-1">{t('dashboard.exploreTitle')}</h2>
-        <p className="text-sm text-on-surface-variant mb-4">{t('dashboard.exploreSubtitle')}</p>
-        <ExploreDestinations />
-      </div>
+          {activeTrip ? (
+            <>
+              {/* ── State 2: trip in progress — "am I okay, here, today" leads ── */}
+              <div className="px-5">
+                <button
+                  onClick={() => navigate(`/trips/${activeTrip.id}`)}
+                  className="relative w-full h-56 rounded-[2rem] overflow-hidden shadow-glass-lg text-left cursor-pointer"
+                >
+                  <img src={heroPhoto} alt="" loading="eager" className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute inset-0 photo-scrim" />
+                  <div className="relative h-full p-5 flex flex-col justify-end">
+                    <p className="text-[11px] font-extrabold text-primary uppercase tracking-wide mb-1">{t('dashboard.activeTrip')}</p>
+                    <div className="flex items-end justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-display font-extrabold text-white text-2xl leading-tight truncate">{activeTrip.title}</p>
+                        <p className="text-sm text-white/75 mt-1">{formatDate(activeTrip.start_date)} → {formatDate(activeTrip.end_date)}</p>
+                        <p className={cn('text-xs font-semibold mt-2 flex items-center gap-1.5',
+                          advisoryCount > 0 ? 'text-amber-300' : 'text-emerald-300')}>
+                          {advisoryCount > 0
+                            ? <><AlertTriangle className="w-3.5 h-3.5" /> {t('dashboard.newAdvisoriesCount', { count: advisoryCount })}</>
+                            : <><CheckCircle2 className="w-3.5 h-3.5" /> {t('dashboard.allClear')}</>}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 bg-white rounded-2xl p-1.5 shadow-md">
+                        <TSIBadge score={activeTrip.tsi_score} size="sm" />
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </div>
 
-      {/* ── Quick Actions ─────────────────────────────────────────── */}
-      <div className="px-5 mt-7">
-        <div className="grid grid-cols-3 gap-3">
-          {QUICK_ACTIONS.map(({ Icon, labelKey, route }) => (
-            <button key={labelKey} onClick={() => navigate(route)}
-              className="rounded-2xl py-4 flex flex-col items-center gap-2 font-bold text-xs text-on-surface bg-surface-container-lowest active:scale-95 transition-all cursor-pointer">
-              <Icon className="w-6 h-6 text-primary-dark" />
-              {t(labelKey)}
-            </button>
-          ))}
-        </div>
-      </div>
+              <SafetyStrip dms={dms} activeSOSId={activeSOSId} onOpen={() => navigate('/sos')} t={t} />
 
-      {/* ── Latest Alerts ─────────────────────────────────────────── */}
-      {activeTrip && latestNews && latestNews.length > 0 && (
-        <div className="px-5 mt-7">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display text-xl font-extrabold text-on-surface flex items-center gap-1.5">
-              <Newspaper className="w-5 h-5" /> {t('dashboard.latestAlerts')}
-            </h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate(`/trips/${activeTrip.id}`)} className="text-primary-dark font-semibold">
-              {t('common.viewAll')}
-            </Button>
-          </div>
-          <NewsFeed items={latestNews.slice(0, 2)} showDestinationName />
-        </div>
-      )}
+              {latestNews && latestNews.length > 0 && (
+                <div className="px-5 mt-7">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="font-display text-xl font-extrabold text-on-surface flex items-center gap-1.5">
+                      <Newspaper className="w-5 h-5" /> {t('dashboard.latestAlerts')}
+                    </h2>
+                    <Button variant="ghost" size="sm" onClick={() => navigate(`/trips/${activeTrip.id}`)} className="text-primary-dark font-semibold">
+                      {t('common.viewAll')}
+                    </Button>
+                  </div>
+                  <NewsFeed items={latestNews.slice(0, 2)} showDestinationName />
+                </div>
+              )}
 
-      {/* ── Recent Trips ──────────────────────────────────────────── */}
-      <div className="px-5 mt-7">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-xl font-extrabold text-on-surface">{t('dashboard.myTrips')}</h2>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/trips')} className="text-primary-dark font-semibold">
-            {t('common.viewAll')}
-          </Button>
-        </div>
+              <QuickActionsRow navigate={navigate} t={t} />
 
-        {isLoading && [1, 2].map(i => <TripCardSkeleton key={i} />)}
+              <div className="px-5 mt-7">
+                <h2 className="font-display text-xl font-extrabold text-on-surface mb-1">{t('dashboard.exploreTitle')}</h2>
+                <p className="text-sm text-on-surface-variant mb-4">{t('dashboard.exploreSubtitleSecondary')}</p>
+                <ExploreDestinations />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* ── State 3: no trip yet — "where should I go" leads ────── */}
+              <div className="px-5">
+                <button
+                  onClick={() => navigate('/trips/new')}
+                  className="relative w-full h-64 rounded-[2rem] overflow-hidden shadow-glass-lg text-left cursor-pointer"
+                >
+                  <img src={getDestinationImage(undefined, { w: 1000, q: 78 })} alt="" loading="eager" className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute inset-0 photo-scrim" />
+                  <div className="relative h-full p-5 flex flex-col justify-end">
+                    <p className="font-display font-extrabold text-white text-3xl leading-[1.1] max-w-[80%]">
+                      {t('dashboard.discoverHeroTitle')}
+                    </p>
+                    <p className="text-sm text-white/80 mt-2 mb-4 max-w-[85%]">{t('dashboard.discoverHeroSubtitle')}</p>
+                    <span className="inline-flex items-center gap-1.5 self-start bg-primary text-primary-foreground text-sm font-extrabold px-5 py-3 rounded-full">
+                      <Compass className="w-4.5 h-4.5" /> {t('dashboard.startPlanning')}
+                    </span>
+                  </div>
+                </button>
+              </div>
 
-        {!isLoading && trips.length === 0 && (
-          <EmptyState icon={Plane} title={t('dashboard.noTripsTitle')}
-            description={t('dashboard.noTripsDescription')}
-            action={
-              <Button onClick={() => navigate('/trips/new')} className="bg-primary hover:brightness-95 text-primary-foreground rounded-full px-6">
+              <SafetyStrip dms={dms} activeSOSId={activeSOSId} onOpen={() => navigate('/sos')} t={t} minimal />
+
+              <div className="px-5 mt-7">
+                <h2 className="font-display text-2xl font-extrabold text-on-surface mb-1">{t('dashboard.exploreTitle')}</h2>
+                <p className="text-sm text-on-surface-variant mb-4">{t('dashboard.exploreSubtitle')}</p>
+                <ExploreDestinations />
+              </div>
+
+              <QuickActionsRow navigate={navigate} t={t} />
+            </>
+          )}
+
+          {/* ── Recent Trips ──────────────────────────────────────────── */}
+          <div className="px-5 mt-7">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-xl font-extrabold text-on-surface">{t('dashboard.myTrips')}</h2>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/trips')} className="text-primary-dark font-semibold">
+                {t('common.viewAll')}
+              </Button>
+            </div>
+
+            {isLoading && [1, 2].map(i => <TripCardSkeleton key={i} />)}
+
+            {!isLoading && trips.length === 0 && (
+              <EmptyState icon={Plane} title={t('dashboard.noTripsTitle')}
+                description={t('dashboard.noTripsDescription')}
+                action={
+                  <Button onClick={() => navigate('/trips/new')} className="bg-primary hover:brightness-95 text-primary-foreground rounded-full px-6">
+                    <Plus className="w-4 h-4 mr-2" /> {t('dashboard.planNewTrip')}
+                  </Button>
+                }
+              />
+            )}
+
+            <div className="space-y-3">
+              {trips.slice(0, 3).map((trip) => (
+                <TripCard key={trip.id} trip={trip} onClick={() => navigate(`/trips/${trip.id}`)} />
+              ))}
+            </div>
+
+            {trips.length > 0 && (
+              <Button onClick={() => navigate('/trips/new')}
+                className="w-full mt-4 bg-on-surface hover:bg-on-surface/90 text-surface rounded-full h-12 font-bold">
                 <Plus className="w-4 h-4 mr-2" /> {t('dashboard.planNewTrip')}
               </Button>
-            }
-          />
-        )}
+            )}
+          </div>
 
-        <div className="space-y-3">
-          {trips.slice(0, 3).map((trip) => (
-            <TripCard key={trip.id} trip={trip} onClick={() => navigate(`/trips/${trip.id}`)} />
-          ))}
+          {/* ── Safety Timeline (only once something has escalated) ──── */}
+          {escalationLevel > 0 && (
+            <div className="px-5 mt-7">
+              <SafetyTimeline dms={dms} />
+            </div>
+          )}
+
+          {/* ── Rescue Readiness ─────────────────────────────────────── */}
+          {tourist && (
+            <div className="px-5 mt-7">
+              <RescueReadinessChecklist tourist={tourist} activeTrip={activeTrip} dms={dms} />
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// Compact, single-row safety module used in both calm states. `minimal`
+// drops the DMS card entirely (no-trip state: a Dead Man's Switch isn't
+// even something the user can act on yet without a trip) so the no-trip
+// page reads as a trust signal, not a feature to configure right now.
+function SafetyStrip({ dms, activeSOSId, onOpen, t, minimal }: {
+  dms: ReturnType<typeof useDMS>['dms']
+  activeSOSId: string | null
+  onOpen: () => void
+  t: (key: string, opts?: Record<string, unknown>) => string
+  minimal?: boolean
+}) {
+  return (
+    <div className="px-5 mt-4">
+      <div className="rounded-3xl bg-gradient-to-r from-trust-dark to-trust p-4 flex items-center gap-3.5 shadow-glow-teal">
+        <SOSButton onTrigger={onOpen} isActive={!!activeSOSId} size="compact" />
+        <div className="flex-1 min-w-0">
+          <p className="font-display font-bold text-white text-base">{t('dashboard.safety')}</p>
+          <p className="text-xs text-white/75 mt-0.5 leading-snug">
+            {dms ? t('dashboard.dmsRunning') : minimal ? t('dashboard.safetyReady') : t('dashboard.holdToAlert')}
+          </p>
         </div>
-
-        {trips.length > 0 && (
-          <Button onClick={() => navigate('/trips/new')}
-            className="w-full mt-4 bg-on-surface hover:bg-on-surface/90 text-surface rounded-full h-12 font-bold">
-            <Plus className="w-4 h-4 mr-2" /> {t('dashboard.planNewTrip')}
-          </Button>
-        )}
+        <button onClick={onOpen} className="flex-shrink-0 text-xs font-bold text-white bg-white/15 px-3.5 py-2.5 rounded-full cursor-pointer whitespace-nowrap">
+          {t('dashboard.safetyCenter')}
+        </button>
       </div>
-
-      {/* ── Safety Timeline (only renders once something has escalated) ── */}
-      {escalationLevel > 0 && (
-        <div className="px-5 mt-7">
-          <SafetyTimeline dms={dms} />
+      {!minimal && dms && (
+        <div className="mt-2">
+          <DMSCard dms={dms} />
         </div>
       )}
+    </div>
+  )
+}
 
-      {/* ── Rescue Readiness ─────────────────────────────────────── */}
-      {tourist && (
-        <div className="px-5 mt-7">
-          <RescueReadinessChecklist tourist={tourist} activeTrip={activeTrip} dms={dms} />
-        </div>
-      )}
+function QuickActionsRow({ navigate, t }: { navigate: (route: string) => void; t: (key: string) => string }) {
+  return (
+    <div className="px-5 mt-7">
+      <div className="grid grid-cols-3 gap-3">
+        {QUICK_ACTIONS.map(({ Icon, labelKey, route }) => (
+          <button key={labelKey} onClick={() => navigate(route)}
+            className="rounded-2xl py-4 flex flex-col items-center gap-2 font-bold text-xs text-on-surface bg-surface-container-lowest active:scale-95 transition-all cursor-pointer">
+            <Icon className="w-6 h-6 text-primary-dark" />
+            {t(labelKey)}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
