@@ -152,7 +152,7 @@ export default function CheckinPage() {
             value={message}
             onChange={e => setMessage(e.target.value)}
             rows={2}
-            className="w-full border border-outline-variant rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary text-on-surface"
+            className="w-full border border-outline-variant bg-surface-container rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 text-on-surface transition-colors"
           />
         </div>
 

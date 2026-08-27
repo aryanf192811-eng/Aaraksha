@@ -108,7 +108,7 @@ export default function TripListPage() {
             <div className="relative">
               <EmptyState icon={Plane} title={t('trips.noTripsFound')}
                 description={t('trips.noTripsDescription')}
-                className="text-white [&_h3]:text-white [&_p]:text-white/70 [&_svg]:text-white/60"
+                className="text-white [&_h3]:text-white [&_p]:text-white/70 [&_svg]:text-white [&_.eis-badge]:bg-white/15"
                 action={
                   <Button onClick={() => navigate('/trips/new')} className="bg-primary hover:brightness-95 text-primary-foreground rounded-full px-6 font-bold shadow-glass">
                     <Plus className="w-4 h-4 mr-2" /> {t('dashboard.planNewTrip')}

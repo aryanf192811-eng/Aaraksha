@@ -180,8 +180,10 @@ export default function AdvisoryPage() {
         })}
 
         {!isLoading && filtered.length === 0 && (
-          <div className="text-center py-12">
-            <Search className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+          <div className="text-center py-10 bg-surface-container-lowest rounded-2xl shadow-sm">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+              <Search className="w-7 h-7 text-primary" />
+            </div>
             <p className="font-bold text-on-surface">{t('advisory.noDestinationsFound')}</p>
             <p className="text-sm text-on-surface-variant">{t('advisory.tryDifferentSearch')}</p>
           </div>

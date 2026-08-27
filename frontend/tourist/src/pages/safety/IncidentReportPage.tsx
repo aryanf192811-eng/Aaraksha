@@ -27,6 +27,18 @@ const CATEGORY_ICONS: Record<IncidentCategory, ComponentType<{ className?: strin
   THEFT: Wallet, HARASSMENT: UserX, ASSAULT: HandFist, FRAUD: Landmark,
   LOST_DOCUMENT: FileX, VEHICLE_ACCIDENT: Car, PROPERTY_DAMAGE: Hammer, OTHER: HelpCircle,
 }
+// Every tile gets a real color identity at rest, not just on selection —
+// matches the SOS category grid's always-colored icon badges.
+const CATEGORY_COLORS: Record<IncidentCategory, string> = {
+  THEFT: 'bg-primary/10 text-primary-dark',
+  HARASSMENT: 'bg-sos/10 text-sos-dark',
+  ASSAULT: 'bg-sos/10 text-sos-dark',
+  FRAUD: 'bg-purple-50 text-purple-700',
+  LOST_DOCUMENT: 'bg-trust/10 text-trust-dark',
+  VEHICLE_ACCIDENT: 'bg-tsi-high/10 text-tsi-high',
+  PROPERTY_DAMAGE: 'bg-tsi-high/10 text-tsi-high',
+  OTHER: 'bg-surface-container-high text-on-surface-variant',
+}
 const categoryLabel = (t: TFunction, value: string) => tEnum(t, 'incidentCategory', value)
 const statusLabel = (t: TFunction, value: string) => tEnum(t, 'incidentStatus', value)
 
@@ -138,9 +150,11 @@ export default function IncidentReportPage() {
 
           {!photoPreviewUrl && (
             <button type="button" onClick={() => fileInputRef.current?.click()}
-              className="w-full border-2 border-dashed border-outline-variant rounded-xl py-6 flex flex-col items-center gap-1.5 text-on-surface-variant hover:border-primary/50 transition-colors">
-              <Camera className="w-6 h-6" />
-              <span className="text-xs font-semibold">{t('incidentReport.attachPhoto')}</span>
+              className="w-full border-2 border-dashed border-primary/30 bg-primary/5 rounded-xl py-6 flex flex-col items-center gap-2 hover:border-primary/50 hover:bg-primary/10 transition-colors">
+              <div className="w-11 h-11 rounded-full bg-primary/15 flex items-center justify-center">
+                <Camera className="w-5 h-5 text-primary" />
+              </div>
+              <span className="text-xs font-semibold text-primary-dark">{t('incidentReport.attachPhoto')}</span>
             </button>
           )}
 
@@ -197,7 +211,9 @@ export default function IncidentReportPage() {
                       <Check className="w-2 h-2 text-primary-foreground" strokeWidth={4} />
                     </span>
                   )}
-                  <Icon className="w-5 h-5 mx-auto mb-1 text-on-surface-variant" />
+                  <div className={cn('w-9 h-9 rounded-full flex items-center justify-center mx-auto mb-1.5', CATEGORY_COLORS[value])}>
+                    <Icon className="w-4 h-4" />
+                  </div>
                   <span className="text-[10px] font-semibold text-on-surface leading-tight block">{categoryLabel(t, value)}</span>
                 </button>
               )
@@ -209,7 +225,7 @@ export default function IncidentReportPage() {
           <Label className="font-semibold text-sm">{t('incidentReport.descriptionLabel')}</Label>
           <textarea rows={4} placeholder={t('incidentReport.descriptionPlaceholder')} value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full border border-outline-variant rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary" />
+            className="w-full border border-outline-variant bg-surface-container rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-colors" />
         </div>
 
         <div className="space-y-1.5">
@@ -237,8 +253,10 @@ export default function IncidentReportPage() {
           {loadingReports && <div className="space-y-3">{[1, 2].map(i => <div key={i} className="h-20 bg-surface-container-lowest rounded-2xl animate-pulse" />)}</div>}
 
           {!loadingReports && reports.length === 0 && (
-            <div className="text-center py-10">
-              <FileWarning className="w-9 h-9 text-slate-300 mx-auto mb-2" />
+            <div className="text-center py-10 bg-surface-container-lowest rounded-2xl shadow-sm">
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2.5">
+                <FileWarning className="w-6 h-6 text-primary" />
+              </div>
               <p className="text-sm text-on-surface-variant">{t('incidentReport.noReports')}</p>
             </div>
           )}

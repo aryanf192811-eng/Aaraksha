@@ -114,24 +114,24 @@ export default function PrivacyPage() {
 
         {/* Deletion status, if any */}
         {latestRequest && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-            <p className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-1">{t('privacy.lastRequestLabel')}</p>
-            <p className="text-sm text-amber-900">
+          <div className="bg-primary/10 border border-primary/25 rounded-2xl p-4">
+            <p className="text-xs font-bold text-primary-dark uppercase tracking-wide mb-1">{t('privacy.lastRequestLabel')}</p>
+            <p className="text-sm text-primary-dark">
               {latestRequest.status === 'DENIED' ? latestRequest.reason : t('privacy.toastDeleted')}
             </p>
-            <p className="text-[11px] text-amber-700/70 mt-1">{formatTimeAgo(latestRequest.requested_at)}</p>
+            <p className="text-[11px] text-primary-dark/70 mt-1">{formatTimeAgo(latestRequest.requested_at)}</p>
           </div>
         )}
 
         {/* Delete */}
         <button onClick={() => setConfirmOpen(true)}
-          className="w-full bg-red-50 border border-red-200 rounded-2xl p-5 flex items-center gap-3 text-left hover:bg-red-100 transition-colors">
-          <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-            <Trash2 className="w-5 h-5 text-red-600" />
+          className="w-full bg-sos/5 border border-sos/25 rounded-2xl p-5 flex items-center gap-3 text-left hover:bg-sos/10 transition-colors">
+          <div className="w-10 h-10 rounded-xl bg-sos/15 flex items-center justify-center flex-shrink-0">
+            <Trash2 className="w-5 h-5 text-sos-dark" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-red-700">{t('privacy.deleteTitle')}</p>
-            <p className="text-xs text-red-600/80">{t('privacy.deleteDescription')}</p>
+            <p className="font-bold text-sos-dark">{t('privacy.deleteTitle')}</p>
+            <p className="text-xs text-sos-dark/80">{t('privacy.deleteDescription')}</p>
           </div>
         </button>
       </div>
@@ -139,21 +139,21 @@ export default function PrivacyPage() {
       <Dialog open={confirmOpen} onOpenChange={(open) => { setConfirmOpen(open); if (!open) setConfirmText('') }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-700"><ShieldAlert className="w-5 h-5" /> {t('privacy.confirmTitle')}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-sos-dark"><ShieldAlert className="w-5 h-5" /> {t('privacy.confirmTitle')}</DialogTitle>
             <DialogDescription>{t('privacy.confirmDescription')}</DialogDescription>
           </DialogHeader>
           <input
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder={t('privacy.confirmPlaceholder')}
-            className="w-full border border-outline-variant rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-400"
+            className="w-full border border-sos/30 bg-sos/5 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-sos focus:bg-surface-container-lowest focus:ring-2 focus:ring-sos/20 transition-colors"
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)} className="rounded-full">
               <X className="w-4 h-4 mr-1.5" /> {t('common.cancel')}
             </Button>
             <Button onClick={() => requestDeletion()} disabled={deleting || confirmText.trim().toUpperCase() !== 'DELETE'}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-full">
+              className="bg-sos hover:bg-sos-dark text-white font-bold rounded-full">
               {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
               {t('privacy.confirmButton')}
             </Button>

@@ -122,8 +122,8 @@ export default function ProfileEditPage() {
               rows={3}
               placeholder={t('profileEdit.medicalInfoPlaceholder')}
               className={cn(
-                "w-full min-w-0 rounded-xl border border-input bg-transparent px-3 py-2.5 text-sm transition-colors outline-none",
-                "placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+                "w-full min-w-0 rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm transition-colors outline-none resize-none",
+                "placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-surface-container-lowest focus-visible:ring-3 focus-visible:ring-primary/20",
                 "dark:bg-input/30"
               )}
               {...form.register('medicalInfo')}

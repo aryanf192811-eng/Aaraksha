@@ -207,7 +207,7 @@ export default function SOSPage() {
           value={message}
           onChange={e => setMessage(e.target.value)}
           rows={2}
-          className="w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-on-surface"
+          className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 text-on-surface transition-colors"
         />
 
         {/* DMS Section — card tint itself reflects state, not just an inner badge */}

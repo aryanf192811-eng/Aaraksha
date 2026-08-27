@@ -13,7 +13,9 @@ export function EmptyState({ icon: Icon, title, description, action, className }
 }) {
   return (
     <div className={cn('flex flex-col items-center justify-center py-16 px-6 text-center', className)}>
-      <Icon className="w-12 h-12 text-slate-300 mb-4" />
+      <div className="eis-badge w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+        <Icon className="w-9 h-9 text-primary" />
+      </div>
       <h3 className="text-lg font-bold text-on-surface mb-1">{title}</h3>
       {description && <p className="text-sm text-on-surface-variant mb-6 max-w-xs">{description}</p>}
       {action}

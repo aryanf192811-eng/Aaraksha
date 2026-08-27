@@ -43,11 +43,19 @@ const SCAM_ICONS: Record<ScamCategory, ComponentType<{ className?: string }>> = 
   FAKE_GUIDE: Compass, OVERCHARGING: IndianRupee, THEFT: Wallet,
   HARASSMENT: UserX, UNSAFE_AREA: AlertTriangle, OTHER: HelpCircle,
 }
+const SCAM_COLORS: Record<ScamCategory, string> = {
+  FAKE_GUIDE: 'bg-trust/10 text-trust-dark',
+  OVERCHARGING: 'bg-primary/10 text-primary-dark',
+  THEFT: 'bg-tsi-high/10 text-tsi-high',
+  HARASSMENT: 'bg-sos/10 text-sos-dark',
+  UNSAFE_AREA: 'bg-purple-50 text-purple-700',
+  OTHER: 'bg-surface-container-high text-on-surface-variant',
+}
 const scamLabel = (t: TFunction, value: string) => tEnum(t, 'scamCategory', value)
 
 const SAFE_ICONS: Record<string, typeof ShieldCheck> = { YES: ShieldCheck, SOMEWHAT: ShieldQuestion, NO: ShieldAlert }
 const SAFE_COLORS: Record<string, string> = {
-  YES: 'text-green-600 bg-green-50', SOMEWHAT: 'text-amber-600 bg-amber-50', NO: 'text-red-600 bg-red-50',
+  YES: 'text-tsi-low bg-tsi-low/10', SOMEWHAT: 'text-primary-dark bg-primary/10', NO: 'text-sos-dark bg-sos/10',
 }
 
 function StarRating({ value, onChange, readOnly, size = 'md' }: { value: number; onChange?: (v: number) => void; readOnly?: boolean; size?: 'sm' | 'md' | 'lg' }) {
@@ -110,10 +118,11 @@ export default function CommunityPage() {
     enabled: !!selectedDest && activeTab === 'experiences',
   })
 
-  const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<ScamForm>({
+  const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<ScamForm>({
     resolver: zodResolver(ScamSchema),
     defaultValues: { destinationId: selectedDest },
   })
+  const watchedCategory = watch('category')
 
   const { mutate: submitReport, isPending } = useMutation({
     mutationFn: (data: ScamForm) => scamApi.createReport(data),
@@ -186,7 +195,7 @@ export default function CommunityPage() {
           <>
             {selectedDest && aggregate.total > 0 && (
               <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4">
-                <p className="text-sm font-bold text-amber-800 mb-2 flex items-center gap-1.5">
+                <p className="text-sm font-bold text-primary-dark mb-2 flex items-center gap-1.5">
                   <AlertCircle className="w-4 h-4" /> {t('community.reportsForDestination', { count: aggregate.total })}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -205,7 +214,7 @@ export default function CommunityPage() {
             {!selectedDest && hotspots && hotspots.length > 0 && (
               <div>
                 <p className="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-2 px-0.5">
-                  <Flame className="w-3.5 h-3.5 text-orange-500" /> {t('community.hotspotsTitle')}
+                  <Flame className="w-3.5 h-3.5 text-tsi-high" /> {t('community.hotspotsTitle')}
                 </p>
                 <div className="space-y-2">
                   {hotspots.map((h) => {
@@ -214,8 +223,8 @@ export default function CommunityPage() {
                       <button key={h.destination_id} type="button"
                         onClick={() => { setSelectedDest(h.destination_id); setValue('destinationId', h.destination_id) }}
                         className="w-full bg-surface-container-lowest rounded-2xl shadow-sm p-4 flex items-center gap-3 text-left hover:shadow-md transition-all">
-                        <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center flex-shrink-0">
-                          <Icon className="w-4.5 h-4.5 text-orange-600" />
+                        <div className="w-10 h-10 rounded-full bg-tsi-high/10 flex items-center justify-center flex-shrink-0">
+                          <Icon className="w-4.5 h-4.5 text-tsi-high" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-on-surface truncate">{h.name}, {h.state}</p>
@@ -232,8 +241,10 @@ export default function CommunityPage() {
             )}
 
             {!selectedDest && (!hotspots || hotspots.length === 0) && (
-              <div className="text-center py-12">
-                <Globe className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <div className="text-center py-10 bg-surface-container-lowest rounded-2xl shadow-sm">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                  <Globe className="w-7 h-7 text-primary" />
+                </div>
                 <p className="font-bold text-on-surface">{t('community.selectDestinationTitle')}</p>
                 <p className="text-sm text-on-surface-variant">{t('community.selectDestinationReportsDesc')}</p>
               </div>
@@ -242,8 +253,10 @@ export default function CommunityPage() {
             {selectedDest && isLoading && <div className="space-y-3">{[1, 2].map(i => <div key={i} className="h-24 bg-surface-container-lowest rounded-2xl animate-pulse" />)}</div>}
 
             {selectedDest && !isLoading && reports.length === 0 && (
-              <div className="text-center py-12">
-                <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto mb-3" />
+              <div className="text-center py-10 bg-surface-container-lowest rounded-2xl shadow-sm">
+                <div className="w-16 h-16 rounded-full bg-tsi-low/10 flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle2 className="w-7 h-7 text-tsi-low" />
+                </div>
                 <p className="font-bold text-on-surface">{t('community.noReportsTitle')}</p>
                 <p className="text-sm text-on-surface-variant">{t('community.noReportsDesc')}</p>
               </div>
@@ -257,7 +270,7 @@ export default function CommunityPage() {
                     <Icon className="w-4 h-4 text-on-surface-variant" />
                     <span className="text-sm font-bold text-on-surface">{scamLabel(t, report.category)}</span>
                     {report.verified && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold ml-auto flex items-center gap-0.5">
+                      <span className="text-xs bg-tsi-low/10 text-tsi-low px-2 py-0.5 rounded-full font-semibold ml-auto flex items-center gap-0.5">
                         <Check className="w-3 h-3" /> {t('community.verified')}
                       </span>
                     )}
@@ -277,8 +290,10 @@ export default function CommunityPage() {
         {activeTab === 'experiences' && (
           <>
             {!selectedDest && (
-              <div className="text-center py-12">
-                <Sparkles className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <div className="text-center py-10 bg-surface-container-lowest rounded-2xl shadow-sm">
+                <div className="w-16 h-16 rounded-full bg-trust/10 flex items-center justify-center mx-auto mb-3">
+                  <Sparkles className="w-7 h-7 text-trust" />
+                </div>
                 <p className="font-bold text-on-surface">{t('community.selectDestinationTitle')}</p>
                 <p className="text-sm text-on-surface-variant">{t('community.selectDestinationExperiencesDesc')}</p>
               </div>
@@ -319,8 +334,10 @@ export default function CommunityPage() {
             )}
 
             {selectedDest && !reviewsLoading && reviews.length === 0 && (
-              <div className="text-center py-12">
-                <MessageSquare className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <div className="text-center py-10 bg-surface-container-lowest rounded-2xl shadow-sm">
+                <div className="w-16 h-16 rounded-full bg-trust/10 flex items-center justify-center mx-auto mb-3">
+                  <MessageSquare className="w-7 h-7 text-trust" />
+                </div>
                 <p className="font-bold text-on-surface">{t('community.noExperiencesTitle')}</p>
                 <p className="text-sm text-on-surface-variant">{t('community.noExperiencesDesc')}</p>
               </div>
@@ -376,12 +393,12 @@ export default function CommunityPage() {
 
                   {r.liked_text && (
                     <p className="text-xs text-on-surface-variant flex items-start gap-1.5 mb-1">
-                      <ThumbsUp className="w-3.5 h-3.5 text-green-600 flex-shrink-0 mt-0.5" /> {r.liked_text}
+                      <ThumbsUp className="w-3.5 h-3.5 text-tsi-low flex-shrink-0 mt-0.5" /> {r.liked_text}
                     </p>
                   )}
                   {r.disliked_text && (
                     <p className="text-xs text-on-surface-variant flex items-start gap-1.5 mb-1">
-                      <ThumbsDown className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" /> {r.disliked_text}
+                      <ThumbsDown className="w-3.5 h-3.5 text-sos flex-shrink-0 mt-0.5" /> {r.disliked_text}
                     </p>
                   )}
                   {r.tips_text && (
@@ -415,7 +432,7 @@ export default function CommunityPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.destinationId && <p className="text-xs text-red-500">{errors.destinationId.message}</p>}
+                {errors.destinationId && <p className="text-xs text-sos-dark">{errors.destinationId.message}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -423,24 +440,33 @@ export default function CommunityPage() {
                 <div className="grid grid-cols-3 gap-2">
                   {SCAM_CATEGORY_VALUES.map((value) => {
                     const Icon = SCAM_ICONS[value]
+                    const selected = watchedCategory === value
                     return (
                       <button key={value} type="button"
                         onClick={() => setValue('category', value)}
-                        className="border-2 border-outline-variant rounded-xl p-2.5 text-center hover:border-amber-400 hover:bg-primary/10 transition-colors">
-                        <Icon className="w-5 h-5 mx-auto mb-1 text-on-surface-variant" />
+                        className={cn('relative border-2 rounded-xl p-2.5 text-center transition-colors',
+                          selected ? 'border-primary bg-primary/10' : 'border-outline-variant hover:border-primary/50')}>
+                        {selected && (
+                          <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="w-2 h-2 text-primary-foreground" strokeWidth={4} />
+                          </span>
+                        )}
+                        <div className={cn('w-9 h-9 rounded-full flex items-center justify-center mx-auto mb-1', SCAM_COLORS[value])}>
+                          <Icon className="w-4 h-4" />
+                        </div>
                         <span className="text-xs font-semibold text-on-surface">{scamLabel(t, value)}</span>
                       </button>
                     )
                   })}
                 </div>
-                {errors.category && <p className="text-xs text-red-500">{errors.category.message}</p>}
+                {errors.category && <p className="text-xs text-sos-dark">{errors.category.message}</p>}
               </div>
 
               <div className="space-y-1.5">
                 <Label className="font-semibold text-sm">{t('community.descriptionLabel')}</Label>
                 <textarea rows={3} placeholder={t('community.descriptionPlaceholder')} {...register('description')}
-                  className="w-full border border-outline-variant rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary" />
-                {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
+                  className="w-full border border-outline-variant bg-surface-container rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-colors" />
+                {errors.description && <p className="text-xs text-sos-dark">{errors.description.message}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -591,11 +617,11 @@ function ReviewFormSheet({ destinationId, onClose }: { destinationId: string; on
           </div>
 
           <div className="space-y-1.5">
-            <Label className="font-semibold text-sm flex items-center gap-1.5"><ThumbsUp className="w-3.5 h-3.5 text-green-600" /> {t('community.whatDidYouLike')}</Label>
+            <Label className="font-semibold text-sm flex items-center gap-1.5"><ThumbsUp className="w-3.5 h-3.5 text-tsi-low" /> {t('community.whatDidYouLike')}</Label>
             <Input placeholder={t('community.likedPlaceholder')} className="h-11 rounded-xl" value={likedText} onChange={(e) => setLikedText(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label className="font-semibold text-sm flex items-center gap-1.5"><ThumbsDown className="w-3.5 h-3.5 text-red-500" /> {t('community.whatCouldImprove')}</Label>
+            <Label className="font-semibold text-sm flex items-center gap-1.5"><ThumbsDown className="w-3.5 h-3.5 text-sos" /> {t('community.whatCouldImprove')}</Label>
             <Input placeholder={t('community.dislikedPlaceholder')} className="h-11 rounded-xl" value={dislikedText} onChange={(e) => setDislikedText(e.target.value)} />
           </div>
           <div className="space-y-1.5">

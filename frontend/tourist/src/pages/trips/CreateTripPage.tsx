@@ -65,12 +65,12 @@ type FormInput = z.input<typeof CreateTripSchema>
 type FormOutput = z.infer<typeof CreateTripSchema>
 
 const TRAVEL_TYPE_CONFIG = [
-  { value: 'SOLO',       Icon: User },
-  { value: 'FAMILY',     Icon: Users },
-  { value: 'FRIENDS',    Icon: Users },
-  { value: 'ADVENTURE',  Icon: Mountain },
-  { value: 'PILGRIMAGE', Icon: Landmark },
-  { value: 'BUSINESS',   Icon: Briefcase },
+  { value: 'SOLO',       Icon: User,     color: 'bg-primary/10 text-primary-dark' },
+  { value: 'FAMILY',     Icon: Users,    color: 'bg-trust/10 text-trust-dark' },
+  { value: 'FRIENDS',    Icon: Users,    color: 'bg-purple-50 text-purple-700' },
+  { value: 'ADVENTURE',  Icon: Mountain, color: 'bg-tsi-high/10 text-tsi-high' },
+  { value: 'PILGRIMAGE', Icon: Landmark, color: 'bg-tsi-low/10 text-tsi-low' },
+  { value: 'BUSINESS',   Icon: Briefcase, color: 'bg-surface-container-high text-on-surface-variant' },
 ] as const
 
 export default function CreateTripPage() {
@@ -175,7 +175,7 @@ export default function CreateTripPage() {
             <div className="space-y-2">
               <Label className="font-semibold">{t('createTrip.travelTypeLabel')}</Label>
               <div className="grid grid-cols-3 gap-2">
-                {TRAVEL_TYPE_CONFIG.map(({ value, Icon }) => (
+                {TRAVEL_TYPE_CONFIG.map(({ value, Icon, color }) => (
                   <button key={value} type="button"
                     onClick={() => setValue('travelType', value as TravelType)}
                     className={cn('relative rounded-2xl border-2 p-3 flex flex-col items-center gap-1.5 transition-all',
@@ -186,7 +186,9 @@ export default function CreateTripPage() {
                         <Check className="w-2.5 h-2.5 text-primary-foreground" strokeWidth={3} />
                       </span>
                     )}
-                    <Icon className="w-5 h-5 text-on-surface" />
+                    <div className={cn('w-9 h-9 rounded-full flex items-center justify-center', color)}>
+                      <Icon className="w-4 h-4" />
+                    </div>
                     <span className="text-xs font-semibold text-on-surface">{tEnum(t, 'travelType', value)}</span>
                   </button>
                 ))}
