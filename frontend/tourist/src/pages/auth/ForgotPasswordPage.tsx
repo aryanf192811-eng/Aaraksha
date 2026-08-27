@@ -100,8 +100,8 @@ export default function ForgotPasswordPage() {
           <ArrowLeft className="w-4 h-4" /> Back to login
         </Link>
 
-        <div className="bg-surface-container-lowest rounded-3xl shadow-xl overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-400" />
+        <div className="bg-surface-container-lowest rounded-3xl shadow-glass-lg border border-outline-variant/30 overflow-hidden">
+          <div className="h-1.5 bg-primary" />
           <div className="p-8">
             {/* Brand */}
             <div className="flex items-center gap-2 mb-6">

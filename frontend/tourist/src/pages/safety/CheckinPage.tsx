@@ -167,7 +167,7 @@ export default function CheckinPage() {
         <Button
           onClick={() => checkIn()}
           disabled={isPending || !locationReady}
-          className="w-full h-14 bg-green-600 hover:bg-green-700 text-white rounded-full font-black text-lg shadow-lg shadow-green-200 flex items-center justify-center gap-2"
+          className="w-full h-14 bg-green-600 hover:bg-green-700 text-white rounded-full font-semibold text-lg shadow-glass flex items-center justify-center gap-2"
         >
           {isPending ? <Loader2 className="w-6 h-6 animate-spin" /> : <><CheckCircle2 className="w-5 h-5" /> {t('checkin.imSafeButton')}</>}
         </Button>
