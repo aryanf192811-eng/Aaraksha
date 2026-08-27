@@ -8,15 +8,13 @@
 // rather than filler copy.
 import { useNavigate } from 'react-router-dom'
 import {
-  Shield, ShieldCheck, Map, ArrowRight, Play, Users,
+  Shield, ShieldCheck, Map, ArrowRight, Users,
   Radio, Siren, Timer, BarChart3, WifiOff, MessageSquareWarning,
-  Satellite, MapPinned, ClipboardList, CheckCircle2, FlagTriangleRight,
+  MapPinned, ClipboardList, CheckCircle2, FlagTriangleRight,
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { useAuthStore } from '../store/auth.store'
-import { getDestinationImage } from '../lib/destinationImages'
-
-const GOVT_PORTAL_URL = import.meta.env.VITE_GOVT_PORTAL_URL || 'http://localhost:5174'
+import { getDestinationImage, HERO_PHOTO } from '../lib/destinationImages'
 
 // Real seeded values (backend/scripts/seed.js) — the terrain strip is a
 // product-data visualization, not decorative filler.
@@ -59,39 +57,6 @@ function ContourLines({ className = '' }: { className?: string }) {
   )
 }
 
-// Layered ridgeline + dotted trail + summit flag — the hero's visual thesis:
-// a route climbing through exactly the kind of terrain TSI is scoring.
-function TerrainPeak() {
-  return (
-    <svg viewBox="0 0 400 300" className="w-full h-full" aria-hidden="true">
-      <defs>
-        <linearGradient id="ridgeBack" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#fde9c8" />
-          <stop offset="100%" stopColor="#fbf4e4" />
-        </linearGradient>
-        <linearGradient id="ridgeFront" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#c9dfc9" />
-          <stop offset="100%" stopColor="#eef4ea" />
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="400" height="300" fill="#fffdf8" />
-      {/* back range */}
-      <path d="M0,190 L55,125 L105,165 L165,95 L225,155 L285,110 L340,155 L400,135 L400,300 L0,300 Z" fill="url(#ridgeBack)" />
-      {/* front range */}
-      <path d="M0,245 L50,195 L100,225 L152,172 L205,218 L262,182 L322,228 L400,205 L400,300 L0,300 Z" fill="url(#ridgeFront)" />
-      {/* trail, dotted, climbing to the front-range summit at 152,172 */}
-      <path d="M42,272 Q95,255 118,222 T152,172" fill="none" stroke="#b45309" strokeWidth="2.5" strokeDasharray="1 8" strokeLinecap="round" />
-      {[[42, 272], [80, 248], [118, 222], [152, 172]].map(([cx, cy], i) => (
-        <circle key={i} cx={cx} cy={cy} r={i === 3 ? 5 : 3} fill={i === 3 ? '#f59e0b' : '#b45309'} />
-      ))}
-      {/* summit flag */}
-      <g transform="translate(152, 172)">
-        <line x1="0" y1="0" x2="0" y2="-26" stroke="#0f172a" strokeWidth="2" />
-        <path d="M0,-26 L18,-20 L0,-14 Z" fill="#f59e0b" />
-      </g>
-    </svg>
-  )
-}
 
 // A single icon-flow diagram: reused for each mechanism explainer row so
 // the product's actual behavior is shown as a sequence, not summarized in
@@ -155,63 +120,54 @@ export default function LandingPage() {
       </header>
 
       <main className="pt-[80px] pb-24 md:pb-16">
-        {/* ── Hero ──────────────────────────────────────────────────── */}
-        <section className="relative overflow-hidden isolate">
-          <ContourLines className="absolute inset-x-0 top-0 w-full h-[260px] -z-10 opacity-70" />
-          <div className="max-w-6xl mx-auto px-5 md:px-6 py-10 md:py-20 flex flex-col md:flex-row items-center gap-10 md:gap-16">
-            <div className="w-full md:w-1/2 flex flex-col gap-6 items-start">
-              <div className="inline-flex items-center gap-1.5 bg-surface-container-high px-3 py-1.5 rounded-full border border-outline-variant">
-                <span className="w-2 h-2 rounded-full bg-safe animate-pulse" />
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">Live Protection Active</span>
+        {/* ── Hero — full-bleed splash, tourist-only: no outbound portal link ── */}
+        <section className="relative -mt-[80px] min-h-[100dvh] md:min-h-[88vh] flex flex-col justify-end overflow-hidden isolate">
+          <img src={HERO_PHOTO} alt="A trekker on a misty mountain trail in Northeast India" loading="eager"
+            className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/35 to-slate-950/10" />
+
+          {/* Floating stat card — one real, live-feeling data point over the photo,
+              same "glass card over photography" language as the trip hero on Home. */}
+          <div className="relative px-5 md:px-6 max-w-6xl mx-auto w-full mb-6 hidden sm:flex justify-end">
+            <div className="glass-card rounded-2xl p-3.5 flex items-center gap-3 shadow-glass-lg">
+              <div className="relative w-12 h-12 flex-shrink-0">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 44 44">
+                  <circle cx="22" cy="22" r="18" fill="none" stroke="currentColor" strokeWidth="5" className="text-surface-container-high" />
+                  <circle cx="22" cy="22" r="18" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round"
+                    strokeDasharray="113" strokeDashoffset="30" className="text-tsi-low" />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-[13px] font-black text-white">73</span>
+                </div>
               </div>
-              <h2 className="font-display text-4xl sm:text-5xl md:text-[3.4rem] font-black text-on-surface leading-[1.05] tracking-tight">
-                Every valley,<br />pass, and river island<br /><span className="text-primary">scored before you go.</span>
-              </h2>
-              <p className="text-base text-on-surface-variant max-w-md leading-relaxed">
-                Northeast India ranges from Brahmaputra floodplains to 3000m Himalayan passes.
-                Aaraksha tracks the terrain you're actually entering — weather, connectivity,
-                altitude, permits — and keeps working even where the signal doesn't.
-              </p>
-              <div className="flex flex-wrap gap-3 pt-1">
-                <Button onClick={() => navigate('/auth?tab=register')}
-                  className="bg-primary text-primary-foreground px-8 h-14 rounded-full font-semibold text-base shadow-glass active:scale-95 transition-all">
-                  Start Your Safe Journey
-                </Button>
-                <a href={GOVT_PORTAL_URL} target="_blank" rel="noopener noreferrer">
-                  <Button variant="outline"
-                    className="bg-surface text-on-surface border-outline-variant px-8 h-14 rounded-full font-semibold text-base active:scale-95 transition-all flex items-center gap-2">
-                    <Play className="w-4 h-4" fill="currentColor" /> Government Portal
-                  </Button>
-                </a>
+              <div className="pr-1">
+                <p className="text-[11px] font-bold text-white leading-tight">Dzukou Valley</p>
+                <p className="text-[10px] text-white/70 leading-tight">2452m · TSI updated hourly</p>
               </div>
             </div>
+          </div>
 
-            {/* Visual: hand-authored terrain + trail + TSI ring */}
-            <div className="w-full md:w-1/2 relative">
-              <div className="aspect-[4/3] rounded-2xl overflow-hidden shadow-glass-lg border border-outline-variant relative">
-                <TerrainPeak />
-                {/* TSI ring, anchored to the summit flag it's scoring */}
-                <div className="absolute top-[26%] left-[30%] glass-card rounded-xl p-3 flex items-center gap-2.5 shadow-lg">
-                  <div className="relative w-12 h-12 flex-shrink-0">
-                    <svg className="w-full h-full -rotate-90" viewBox="0 0 44 44">
-                      <circle cx="22" cy="22" r="18" fill="none" stroke="currentColor" strokeWidth="5" className="text-surface-container-high" />
-                      <circle cx="22" cy="22" r="18" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round"
-                        strokeDasharray="113" strokeDashoffset="30" className="text-tsi-low" />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-[13px] font-black text-on-surface">73</span>
-                    </div>
-                  </div>
-                  <div className="pr-1">
-                    <p className="text-[11px] font-extrabold text-on-surface leading-tight">Dzukou Valley</p>
-                    <p className="text-[10px] text-on-surface-variant leading-tight">2452m · TSI updated hourly</p>
-                  </div>
-                </div>
-                <div className="absolute bottom-3 right-3 glass-card px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                  <Satellite className="w-3.5 h-3.5 text-on-surface" />
-                  <span className="text-[10px] font-extrabold text-on-surface">Works offline</span>
-                </div>
-              </div>
+          <div className="relative px-5 md:px-6 max-w-6xl mx-auto w-full pb-10 md:pb-16">
+            <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 mb-5">
+              <span className="w-2 h-2 rounded-full bg-safe animate-pulse" />
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-white">Live Protection Active</span>
+            </div>
+            <h2 className="font-display text-4xl sm:text-5xl md:text-[3.4rem] font-black text-white leading-[1.05] tracking-tight max-w-2xl">
+              Every valley, pass, and river island<span className="text-primary"> scored before you go.</span>
+            </h2>
+            <p className="text-base text-white/80 max-w-md leading-relaxed mt-4">
+              Northeast India ranges from Brahmaputra floodplains to 3000m Himalayan passes.
+              Aaraksha tracks the terrain you're actually entering, and keeps working even
+              where the signal doesn't.
+            </p>
+            <div className="flex flex-col items-start gap-4 pt-7">
+              <Button onClick={() => navigate('/auth?tab=register')}
+                className="bg-primary text-primary-foreground px-8 h-14 rounded-full font-semibold text-base shadow-glass active:scale-95 transition-all">
+                Get Started <ArrowRight className="ml-1.5 w-4 h-4" />
+              </Button>
+              <button onClick={() => navigate('/auth')} className="text-sm text-white/85">
+                Already have an account? <span className="font-semibold text-primary underline underline-offset-2">Log in</span>
+              </button>
             </div>
           </div>
         </section>

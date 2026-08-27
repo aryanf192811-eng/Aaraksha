@@ -186,7 +186,7 @@ export default {
     activateInterval: 'Activate — {{minutes}} min intervals',
     interval30: '30 min', interval60: '1 hour', interval120: '2 hours', interval180: '3 hours',
     panicTitle: 'Panic Shake Gesture',
-    panicSubtitle: "Shake your phone hard 3x to trigger SOS — for when it's in your pocket",
+    panicSubtitle: "Shake hard 3x to trigger SOS while the app is open on screen. Phone locked or in your pocket? A Dead Man's Switch covers that case instead — no phones can detect a shake while locked.",
     pushTitle: 'Push Notifications',
     pushSubtitle: 'Get SOS, weather, and group alerts even when the app is closed',
     toastPanicDisabled: 'Panic shake gesture disabled',
