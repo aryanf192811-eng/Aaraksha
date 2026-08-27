@@ -59,7 +59,7 @@ export function RescueReadinessChecklist({ tourist, activeTrip, dms }: {
       <div className="flex items-center justify-between mb-1">
         <h3 className="font-bold text-on-surface">Rescue Readiness</h3>
         <span className={cn('text-sm font-bold px-2 py-0.5 rounded-full',
-          score >= 80 ? 'bg-tsi-low/15 text-tsi-low' : score >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-sos-light text-sos-dark'
+          score >= 80 ? 'bg-tsi-low/15 text-tsi-low' : score >= 50 ? 'bg-primary/15 text-primary-dark' : 'bg-sos-light text-sos-dark'
         )}>
           {score}%
         </span>
@@ -68,7 +68,7 @@ export function RescueReadinessChecklist({ tourist, activeTrip, dms }: {
 
       <div className="w-full bg-surface-container-high rounded-full h-2 mb-4">
         <div className={cn('h-2 rounded-full transition-all duration-700',
-          score >= 80 ? 'bg-tsi-low' : score >= 50 ? 'bg-amber-500' : 'bg-sos'
+          score >= 80 ? 'bg-tsi-low' : score >= 50 ? 'bg-primary' : 'bg-sos'
         )} style={{ width: `${score}%` }} />
       </div>
 

@@ -8,7 +8,7 @@ import { cn } from '../../lib/utils'
 export function BatteryIcon({ pct }: { pct: number | null }) {
   if (pct === null) return null
   const Icon = pct > 50 ? BatteryFull : pct > 20 ? BatteryMedium : BatteryWarning
-  const color = pct > 50 ? 'text-green-500' : pct > 20 ? 'text-amber-500' : 'text-red-500 animate-pulse'
+  const color = pct > 50 ? 'text-tsi-low' : pct > 20 ? 'text-primary' : 'text-sos animate-pulse'
   return (
     <div className={cn('flex items-center gap-1 text-xs font-medium', color)}>
       <Icon className="w-4 h-4" />

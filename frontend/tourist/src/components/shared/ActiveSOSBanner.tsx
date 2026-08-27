@@ -51,7 +51,7 @@ export function ActiveSOSBanner() {
   return (
     <div className={cn(
       'rounded-2xl p-4 border-2 animate-slide-up',
-      isAssigned ? 'bg-amber-500 border-amber-500 text-white' : 'bg-sos border-sos text-white'
+      isAssigned ? 'bg-primary border-primary text-primary-foreground' : 'bg-sos border-sos text-white'
     )}>
       <div className="flex items-start gap-3">
         {isAssigned ? <Truck className="w-5 h-5 flex-shrink-0 mt-0.5" /> : <Siren className="w-5 h-5 flex-shrink-0 mt-0.5 animate-pulse" />}

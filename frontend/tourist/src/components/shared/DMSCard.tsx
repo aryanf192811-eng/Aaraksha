@@ -37,25 +37,25 @@ export function DMSCard({ dms, className }: DMSCardProps) {
   return (
     <div className={cn(
       'rounded-2xl border-2 p-5 transition-all duration-300',
-      isTriggered   ? 'border-red-500 bg-red-50' :
-      isWarning     ? 'border-amber-400 bg-amber-50 animate-pulse' :
-      dms.status === 'PAUSED' ? 'border-slate-300 bg-slate-50' :
-                      'border-green-300 bg-green-50',
+      isTriggered   ? 'border-sos bg-sos/5' :
+      isWarning     ? 'border-primary bg-primary/5 animate-pulse' :
+      dms.status === 'PAUSED' ? 'border-outline-variant bg-surface-container' :
+                      'border-tsi-low/40 bg-tsi-low/5',
       className,
     )}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Timer className={cn('w-5 h-5',
-            isTriggered ? 'text-red-500' : isWarning ? 'text-amber-500' : 'text-green-600'
+            isTriggered ? 'text-sos' : isWarning ? 'text-primary' : 'text-tsi-low'
           )} />
-          <span className="text-sm font-bold text-slate-900">Dead Man's Switch</span>
+          <span className="text-sm font-bold text-on-surface">Dead Man's Switch</span>
         </div>
         {/* Status badge */}
         <span className={cn('text-xs px-2 py-0.5 rounded-full font-semibold',
-          isTriggered ? 'bg-red-100 text-red-700' :
-          dms.status === 'PAUSED' ? 'bg-slate-100 text-slate-600' :
-          isWarning   ? 'bg-amber-100 text-amber-700' :
-                        'bg-green-100 text-green-700'
+          isTriggered ? 'bg-sos/15 text-sos-dark' :
+          dms.status === 'PAUSED' ? 'bg-surface-container-high text-on-surface-variant' :
+          isWarning   ? 'bg-primary/15 text-primary-dark' :
+                        'bg-tsi-low/15 text-tsi-low'
         )}>
           {dms.status}
         </span>
@@ -65,19 +65,19 @@ export function DMSCard({ dms, className }: DMSCardProps) {
       {dms.status === 'ACTIVE' && (
         <div className="text-center my-4">
           <p className={cn('font-display text-4xl font-black tabular-nums',
-            isWarning ? 'text-amber-600' : 'text-on-surface'
+            isWarning ? 'text-primary-dark' : 'text-on-surface'
           )}>
             {formatCountdown(Math.max(0, seconds))}
           </p>
-          <p className="text-xs text-slate-500 mt-1">until auto-SOS</p>
+          <p className="text-xs text-on-surface-variant mt-1">until auto-SOS</p>
         </div>
       )}
 
       {/* Warning message */}
       {isWarning && dms.status === 'ACTIVE' && (
-        <div className="flex items-center gap-2 bg-amber-100 rounded-lg p-2 mb-3">
-          <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-          <p className="text-xs text-amber-700 font-medium">Check in now or SOS will auto-trigger</p>
+        <div className="flex items-center gap-2 bg-primary/15 rounded-lg p-2 mb-3">
+          <AlertCircle className="w-4 h-4 text-primary-dark flex-shrink-0" />
+          <p className="text-xs text-primary-dark font-medium">Check in now or SOS will auto-trigger</p>
         </div>
       )}
 
@@ -86,9 +86,9 @@ export function DMSCard({ dms, className }: DMSCardProps) {
           footer once status flipped, giving no confirmation anything
           happened. */}
       {isTriggered && (
-        <div className="flex items-center gap-2 bg-red-100 rounded-lg p-3 mb-3">
-          <Siren className="w-5 h-5 text-red-600 flex-shrink-0" />
-          <p className="text-sm text-red-700 font-semibold">
+        <div className="flex items-center gap-2 bg-sos/15 rounded-lg p-3 mb-3">
+          <Siren className="w-5 h-5 text-sos-dark flex-shrink-0" />
+          <p className="text-sm text-sos-dark font-semibold">
             Missed check-in — an automatic SOS has been sent to authorities and your emergency contacts.
           </p>
         </div>
@@ -99,14 +99,14 @@ export function DMSCard({ dms, className }: DMSCardProps) {
         <Button
           onClick={() => resetDMS(dms.id)}
           disabled={resetting}
-          className="w-full bg-green-600 hover:bg-green-700 text-white rounded-full h-11 font-bold"
+          className="w-full bg-tsi-low hover:brightness-110 text-white rounded-full h-11 font-bold"
         >
           <RotateCcw className="w-4 h-4 mr-2" />
           {resetting ? 'Checking in...' : "I'm Safe — Check In"}
         </Button>
       )}
 
-      <p className="text-xs text-slate-400 text-center mt-2">
+      <p className="text-xs text-on-surface-variant/70 text-center mt-2">
         {dms.interval_seconds != null
           ? `Interval: every ${dms.interval_seconds}s (demo mode)`
           : `Interval: every ${dms.interval_minutes} minutes`}

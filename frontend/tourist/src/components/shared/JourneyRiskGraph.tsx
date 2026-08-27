@@ -12,14 +12,14 @@ import type { StopRisk } from '../../types/api.types'
 
 function riskBarColor(score: number) {
   if (score >= 80) return 'bg-tsi-low'
-  if (score >= 60) return 'bg-amber-500'
-  if (score >= 40) return 'bg-orange-500'
+  if (score >= 60) return 'bg-tsi-moderate'
+  if (score >= 40) return 'bg-tsi-high'
   return 'bg-sos'
 }
 function riskTextColor(score: number) {
   if (score >= 80) return 'text-tsi-low'
-  if (score >= 60) return 'text-amber-600'
-  if (score >= 40) return 'text-orange-600'
+  if (score >= 60) return 'text-tsi-moderate'
+  if (score >= 40) return 'text-tsi-high'
   return 'text-sos'
 }
 
@@ -66,7 +66,7 @@ function StopRow({ stop, isLast }: { stop: StopRisk; isLast: boolean }) {
             )
           })}
           {riskFactorCount > 0 && (
-            <p className="text-xs text-amber-700 font-semibold pt-1">⚠ {riskFactorCount} risk factor{riskFactorCount === 1 ? '' : 's'} detected here</p>
+            <p className="text-xs text-tsi-high font-semibold pt-1">⚠ {riskFactorCount} risk factor{riskFactorCount === 1 ? '' : 's'} detected here</p>
           )}
         </div>
       )}

@@ -22,8 +22,8 @@ const FACTOR_LABELS: Record<string, string> = {
 
 function riskColor(score: number) {
   if (score >= 80) return 'text-tsi-low'
-  if (score >= 60) return 'text-amber-600'
-  if (score >= 40) return 'text-orange-600'
+  if (score >= 60) return 'text-tsi-moderate'
+  if (score >= 40) return 'text-tsi-high'
   return 'text-sos'
 }
 
@@ -82,7 +82,7 @@ export function TSIBreakdown({ score, label, factors }: { score: number; label: 
 
       {worstStop && (
         <div className="flex items-start gap-2 mt-4 pt-4 border-t border-outline-variant text-xs text-on-surface-variant">
-          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-600" />
+          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-primary-dark" />
           <p><strong className="text-on-surface">{worstStop.city}</strong> drives this score — the trip's risk is set by its riskiest stop, not an average.</p>
         </div>
       )}

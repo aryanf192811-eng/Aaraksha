@@ -22,7 +22,7 @@ export function WeatherBadge({ condition, tempCelsius, riskReason }: {
       <Icon className={cn('w-4 h-4', config.color)} />
       <span className="text-sm font-medium text-on-surface">{config.label}</span>
       {tempCelsius !== undefined && <span className="text-sm text-on-surface-variant">{tempCelsius}°C</span>}
-      {riskReason && <span className="text-xs text-orange-600 font-medium">{riskReason}</span>}
+      {riskReason && <span className="text-xs text-tsi-high font-medium">{riskReason}</span>}
     </div>
   )
 }

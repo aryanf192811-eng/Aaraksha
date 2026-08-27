@@ -12,8 +12,8 @@ const CATEGORY_ICON: Record<DestinationNews['category'], typeof CloudRain> = {
 
 const SEVERITY_STYLE: Record<DestinationNews['severity'], { badge: string; icon: typeof Info; label: string }> = {
   INFO:     { badge: 'bg-surface-container text-on-surface-variant', icon: Info, label: 'Info' },
-  WARNING:  { badge: 'bg-amber-100 text-amber-700', icon: AlertTriangle, label: 'Warning' },
-  CRITICAL: { badge: 'bg-red-100 text-red-700', icon: AlertOctagon, label: 'Critical' },
+  WARNING:  { badge: 'bg-primary/15 text-primary-dark', icon: AlertTriangle, label: 'Warning' },
+  CRITICAL: { badge: 'bg-sos/15 text-sos-dark', icon: AlertOctagon, label: 'Critical' },
 }
 
 interface NewsFeedProps {
@@ -24,7 +24,14 @@ interface NewsFeedProps {
 
 export function NewsFeed({ items, showDestinationName, emptyMessage = 'No news or alerts right now' }: NewsFeedProps) {
   if (items.length === 0) {
-    return <p className="text-sm text-on-surface-variant text-center py-8">{emptyMessage}</p>
+    return (
+      <div className="flex items-center gap-3 py-4">
+        <div className="w-10 h-10 rounded-full bg-trust/10 flex items-center justify-center flex-shrink-0">
+          <Info className="w-5 h-5 text-trust" />
+        </div>
+        <p className="text-sm text-on-surface-variant">{emptyMessage}</p>
+      </div>
+    )
   }
 
   return (
@@ -36,7 +43,7 @@ export function NewsFeed({ items, showDestinationName, emptyMessage = 'No news o
         return (
           <div key={item.id} className={cn(
             'rounded-2xl p-4 border',
-            item.severity === 'CRITICAL' ? 'bg-red-50 border-red-200' : 'bg-surface-container-lowest border-outline-variant'
+            item.severity === 'CRITICAL' ? 'bg-sos/5 border-sos/25' : 'bg-surface-container-lowest border-outline-variant'
           )}>
             <div className="flex items-start gap-3">
               <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0', severity.badge)}>

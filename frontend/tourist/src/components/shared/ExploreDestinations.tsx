@@ -16,10 +16,10 @@ import { cn } from '../../lib/utils'
 import { ZONE_TYPES } from '../../constants/enums'
 
 const ZONE_BADGE: Record<string, { bg: string; text: string; label: string }> = {
-  [ZONE_TYPES.SAFE]:         { bg: 'bg-green-500',  text: 'text-white', label: 'Safe' },
-  [ZONE_TYPES.CAUTION]:      { bg: 'bg-amber-500',  text: 'text-white', label: 'Caution' },
-  [ZONE_TYPES.HIGH_RISK]:    { bg: 'bg-orange-500', text: 'text-white', label: 'High Risk' },
-  [ZONE_TYPES.RESTRICTED]:   { bg: 'bg-red-500',    text: 'text-white', label: 'Restricted' },
+  [ZONE_TYPES.SAFE]:         { bg: 'bg-tsi-low',      text: 'text-white', label: 'Safe' },
+  [ZONE_TYPES.CAUTION]:      { bg: 'bg-tsi-moderate', text: 'text-white', label: 'Caution' },
+  [ZONE_TYPES.HIGH_RISK]:    { bg: 'bg-tsi-high',     text: 'text-white', label: 'High Risk' },
+  [ZONE_TYPES.RESTRICTED]:   { bg: 'bg-sos',          text: 'text-white', label: 'Restricted' },
   [ZONE_TYPES.ILP_REQUIRED]: { bg: 'bg-purple-500', text: 'text-white', label: 'ILP Required' },
 }
 
