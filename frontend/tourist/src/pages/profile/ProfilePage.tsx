@@ -105,7 +105,7 @@ export default function ProfilePage() {
       <div className="px-5 mt-5 space-y-4">
         {/* Avatar + name */}
         <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-white font-bold text-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl">
             {profile.full_name?.[0]?.toUpperCase()}
           </div>
           <div>
