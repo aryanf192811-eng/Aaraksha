@@ -1,0 +1,651 @@
+<title>Aaraksha Field Manual</title>
+<meta name="description" content="End-to-end testing guide for Aaraksha's four live portals — links, QR codes, credentials, feature checklists, and step-by-step flows.">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #0B1120;
+  --surface: #131B2E;
+  --surface-2: #17203590;
+  --border: #263149;
+  --border-soft: #1D2740;
+  --ink: #E8ECF4;
+  --ink-soft: #9BA8C4;
+  --ink-faint: #6C7893;
+
+  --tourist: #F0A93D;
+  --tourist-ink: #1A1206;
+  --govt: #34D399;
+  --govt-ink: #062018;
+  --guardian: #38BDF8;
+  --guardian-ink: #05141F;
+  --rescuer: #2DD4BF;
+  --rescuer-ink: #041F1B;
+  --warn: #FB7185;
+
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html { color-scheme: dark; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 900px 500px at 10% -10%, #F0A93D12, transparent),
+    radial-gradient(ellipse 800px 500px at 100% 0%, #2DD4BF10, transparent);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: #38BDF833; color: var(--ink); }
+a { color: var(--guardian); }
+code { font-family: var(--mono); }
+
+.wrap { max-width: 880px; margin: 0 auto; padding: 3.5rem 1.5rem 6rem; }
+
+/* ---------- Masthead ---------- */
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 1rem;
+}
+.eyebrow::before { content: "◆ "; color: var(--tourist); }
+
+h1 {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: clamp(1.9rem, 4.5vw, 2.7rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin: 0 0 1rem;
+  color: #fff;
+  text-wrap: balance;
+}
+
+.dek { font-size: 1.05rem; color: var(--ink-soft); max-width: 62ch; margin: 0 0 1.6rem; }
+
+.role-note {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding: 1rem 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--tourist);
+  border-radius: 4px;
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin-bottom: 2.6rem;
+}
+.role-note strong { color: var(--ink); }
+
+/* ---------- Quick-access grid ---------- */
+
+h2 {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: #fff;
+  margin: 0 0 1rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--border-soft);
+  scroll-margin-top: 1rem;
+}
+
+.access-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2.8rem;
+}
+.access-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.2rem;
+  text-align: center;
+}
+.access-card .qr {
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 0.9rem;
+  background: #fff;
+  padding: 8px;
+  border-radius: 4px;
+}
+.access-card .qr img { width: 100%; height: 100%; display: block; }
+.access-card .name { font-weight: 600; font-size: 0.98rem; color: #fff; margin-bottom: 0.2rem; }
+.access-card .who { font-size: 0.8rem; color: var(--ink-faint); margin-bottom: 0.7rem; }
+.access-card a.link {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  word-break: break-all;
+  color: var(--ink-soft);
+  text-decoration-color: var(--border);
+  padding: 0.5rem 0.6rem;
+  background: var(--surface-2);
+  border-radius: 4px;
+  border: 1px solid var(--border-soft);
+}
+.access-card a.link:hover { color: inherit; }
+
+/* ---------- Sections / prose ---------- */
+
+section { margin-bottom: 3.4rem; }
+.prose p { color: var(--ink-soft); margin: 0 0 1rem; }
+.prose p:last-child { margin-bottom: 0; }
+.prose strong { color: var(--ink); font-weight: 600; }
+.prose code {
+  font-size: 0.86em;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  padding: 0.05em 0.4em;
+  border-radius: 3px;
+  color: #C9D4EA;
+}
+
+/* ---------- Etiquette / limitation callouts ---------- */
+
+.callout {
+  padding: 1.1rem 1.3rem;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+.callout.warn { border-left: 3px solid var(--warn); background: #FB718510; }
+.callout.info { border-left: 3px solid var(--guardian); background: #38BDF810; }
+.callout p { margin: 0 0 0.5rem; color: var(--ink-soft); font-size: 0.93rem; }
+.callout p:last-child { margin-bottom: 0; }
+.callout .ctitle { font-weight: 600; color: var(--ink); margin-bottom: 0.4rem; display: block; }
+
+.limits-table { width: 100%; border-collapse: collapse; margin-top: 0.8rem; }
+.limits-table th, .limits-table td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border-soft); font-size: 0.88rem; vertical-align: top; }
+.limits-table th { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); }
+.limits-table td.what { color: #fff; font-weight: 500; white-space: nowrap; }
+.limits-table td.why { color: var(--ink-soft); }
+.limits-table-wrap { overflow-x: auto; }
+
+/* ---------- Portal deep-dive ---------- */
+
+.portal {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1.4rem;
+}
+.portal-head {
+  padding: 1.4rem 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.portal-head h2 { border: none; padding: 0; margin: 0; }
+.portal-head .who { font-size: 0.86rem; color: var(--ink-faint); margin-top: 0.25rem; }
+.portal-badge {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.portal-body { padding: 0 1.6rem 1.6rem; }
+
+.portal--tourist .portal-head { background: linear-gradient(120deg, #F0A93D18, transparent); border-bottom: 1px solid var(--border); }
+.portal--tourist .portal-badge { background: #F0A93D22; color: var(--tourist); border: 1px solid #F0A93D40; }
+.portal--govt .portal-head { background: linear-gradient(120deg, #34D39918, transparent); border-bottom: 1px solid var(--border); }
+.portal--govt .portal-badge { background: #34D39922; color: var(--govt); border: 1px solid #34D39940; }
+.portal--guardian .portal-head { background: linear-gradient(120deg, #38BDF818, transparent); border-bottom: 1px solid var(--border); }
+.portal--guardian .portal-badge { background: #38BDF822; color: var(--guardian); border: 1px solid #38BDF840; }
+.portal--rescuer .portal-head { background: linear-gradient(120deg, #2DD4BF18, transparent); border-bottom: 1px solid var(--border); }
+.portal--rescuer .portal-badge { background: #2DD4BF22; color: var(--rescuer); border: 1px solid #2DD4BF40; }
+
+.creds { margin: 1.2rem 0; overflow-x: auto; }
+.creds table { width: 100%; border-collapse: collapse; min-width: 560px; }
+.creds th, .creds td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--border-soft); font-size: 0.86rem; }
+.creds th { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); }
+.creds td.acct { color: #fff; font-weight: 500; }
+.creds td code { font-size: 0.85em; }
+.creds td.state { color: var(--ink-soft); font-size: 0.82rem; }
+
+.feature-list { columns: 2; column-gap: 2rem; margin: 1rem 0 1.5rem; padding: 0; list-style: none; }
+.feature-list li { break-inside: avoid; font-size: 0.9rem; color: var(--ink-soft); padding: 0.3rem 0 0.3rem 1.1rem; position: relative; }
+.feature-list li::before { content: "›"; position: absolute; left: 0; color: var(--ink-faint); font-weight: 700; }
+@media (max-width: 560px) { .feature-list { columns: 1; } }
+
+h3.flowtitle {
+  font-family: var(--mono);
+  font-size: 1.02rem;
+  color: #fff;
+  margin: 1.6rem 0 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+h3.flowtitle .num { color: var(--ink-faint); }
+
+.flow { list-style: none; margin: 0 0 0.3rem; padding: 0; counter-reset: step; }
+.flow li {
+  counter-increment: step;
+  display: flex;
+  gap: 0.8rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px dashed var(--border-soft);
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+.flow li:last-child { border-bottom: none; }
+.flow li::before {
+  content: counter(step);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  flex-shrink: 0;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.1rem;
+}
+.flow .expect { color: var(--ink-faint); font-style: italic; }
+.flow .expect::before { content: "Expect: "; font-style: normal; }
+
+/* ---------- Cross-portal flagship flow ---------- */
+
+.flagship {
+  border: 1px solid #F0A93D40;
+  border-radius: 8px;
+  padding: 1.6rem 1.7rem;
+  background: linear-gradient(160deg, #F0A93D0c, #2DD4BF0c);
+}
+.flagship-chain {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 1.2rem 0 1.5rem;
+}
+.chain-node {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--ink);
+  background: var(--surface);
+}
+.chain-arrow { color: var(--ink-faint); }
+
+/* ---------- Footer ---------- */
+
+footer { margin-top: 3.5rem; padding-top: 1.6rem; border-top: 1px solid var(--border-soft); font-size: 0.82rem; color: var(--ink-faint); }
+footer p { margin: 0 0 0.4rem; }
+
+@media (max-width: 520px) {
+  .wrap { padding: 2.5rem 1.1rem 4rem; }
+  .portal-body { padding: 0 1.1rem 1.3rem; }
+  .portal-head { padding: 1.1rem 1.1rem; }
+}
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">Internal · testing handoff · mapped to the live deployment</p>
+  <h1>Aaraksha Field Manual</h1>
+  <p class="dek">Four live portals, real infrastructure, seeded demo data. This is the independent-testing pass — go break things, not just confirm the happy path.</p>
+
+  <div class="role-note">
+    <div>
+      <span class="ctitle" style="display:block; font-weight:600; color:#fff; margin-bottom:0.3rem;">You're the tester, not the builder</span>
+      <p style="margin:0;">Development happened solo — this doc exists because one person can't find their own blind spots. Approach every flow like you've never seen the product: try the obvious path, then the awkward one (empty fields, back button mid-flow, refreshing during a loading state, two tabs open at once). If something feels confusing rather than broken, that's still worth flagging — a real tourist won't have this document.</p>
+    </div>
+  </div>
+
+  <section id="access">
+    <h2>Quick access</h2>
+    <div class="prose"><p>Scan on your phone or click through on desktop. Each card's credentials are in its full section further down this page.</p></div>
+    <div class="access-grid">
+      <div class="access-card">
+        <div class="qr"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAYAAACAvzbMAAAAAklEQVR4AewaftIAAAmOSURBVO3BgW0kyo4EsJLg/FOue7gI+gs2BvaSnP4nAPA/2gDAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcPCVX2Zmwpu2+Qkzk09qm0+bmfyEtvluM5Of0DavZia8aZvfYgMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAOPjKH9Y2f9HM5JPa5tXM5FXbvJiZvGqbn9A2P2Fm8t3a5tXM5JPa5i+amfxFGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHGwA4+AqZmXxa23zSzORV2/yEmcmLtvkJM5NXbfNqZvKqbT6pbX6Lmcmntc2/bAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAOPgK8P/a5ie0zauZyYu2eTUzedU28GoDAAcbADjYAMDBBgAONgBwsAGAgw0AHGwA4GADAAcbADj4CvygtvluM5PfpG1etc0nzUxetQ3/tg0AHGwA4GADAAcbADjYAMDBBgAONgBwsAGAgw0AHGwA4OArpG3gr2qbv6ht+KwNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAODgK3/YzITPmpm8apvv1javZiav2ubVzORV27yYmbxqm1czk1dt891mJvweGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHGwA4mP4n/PNmJp/WNt9tZvKqbV7NTF61zXebmfyEtoFXGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwfQ/+UVmJq/a5sXM5C9qm0+bmbxqm0+amfxFbfNqZvKqbV7NTP6itvmXbQDgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMAB9P/5BeZmfxFbfPdZiaf1jb/upkJn9U2nzQzedU2v8UGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMEGAA42AHDwFX6dmcmLtvlNZibfrW1+wszkVdu8mpm8aJufMDPh+7XNX7QBgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABx8hR/TNq9mJq/a5rvNTF61zauZyW8xM/m0tnkxM3nVNj+hbV7NTF60zauZyauZyau2eTUzedE2f9EGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMEGAA6m/8kfNTP5bm3zE2Ym361tfsLM5FXb/EUzk09qm58wM3nVNr/FzOQntM2/bAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAOPjKLzMzedU2L2Ymr2Ymr9rmVdt80szkVdu8mpm8apsXM5NPa5tXM5NXbfPdZiafNjP5pLb5pJnJq7b5LTYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIPpf/KPm5m8aptXM5NXbfNqZvKibX7CzITPapufMDP5CW3zSTOTn9A2/7INABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAODgK7/MzOS7tc2rmclPmJm8apvvNjN51TavZia/Rdu8mpm8apvvNjP5tLZ5NTN50TavZiav2uYnzExetM1ftAGAgw0AHGwA4GADAAcbADjYAMDBBgAONgBwsAGAgw0AHEz/kz9qZvLd2ubVzOST2ubTZiav2uaTZiY/oW1ezUxetM2rmcmrtvmkmcmrtnk1M/kJbfMv2wDAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADqb/yS8yM3nVNr/FzORV27yYmfxFbfObzExetc2LmQnv2ubVzORV27yYmbxqm99iAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHX+HHzEx+wszku7XNbzEzedU2P2Fm8qptvlvbfNrMhDdt8xdtAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHXyEzk5/QNq9mJq/a5sXM5NNmJt+tbX7CzORV27yambxqm0+amfyEtvluM5Of0DavZiYv2uYv2gDAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADqb/yS8yM3nVNr/FzOST2ubTZibfrW1+k5nJi7b5CTOTv6htXs1MPqltfosNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBg+p/wz5uZ/IS2+aSZyU9om99iZvIT2uaTZiZ/Udv8FhsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMFXfpmZCW/a5lXbfNrM5LeYmbxqm1czk79oZvKibX6TtvmXbQDgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADg4Ct/WNv8RTOT7zYz+Qlt893a5tXM5FXbvJqZvJqZvGqbFzOT36RtPqltPmlm8qptfosNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAODgK2Rm8mlt81u0zU9om+/WNq9mJq/a5ifMTF60zU+YmbyamfxFM5Pv1jZ/0QYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcPAV+B/NTF61zXebmfyEtvkJM5NXbfNiZvIT2uYvmpl80szkVdv8FhsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMFX4H/UNq9mJq/a5ru1zauZyafNTD5pZsL3a5u/aAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAOPgKaZt/Xdu8mpn8FjOT36RtPmlm8hPa5sXM5NPa5tXM5F+2AYCDDQAcbADgYAMABxsAONgAwMEGAA42AHCwAYCDr/xhMxPezEx+Qtu8mpl8t7Z5NTP5CW3zambyom1+Qtt8Utu8mpm8aptXM5NXbfMv2wDAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADqb/CQD8jzYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIP/A2h/ORumHJWFAAAAAElFTkSuQmCC" alt="QR code for Tourist PWA"></div>
+        <div class="name">Tourist PWA</div>
+        <div class="who">The traveler's app</div>
+        <a class="link" href="https://aaraksha-tourist.vercel.app" target="_blank" rel="noopener">aaraksha-tourist.vercel.app</a>
+      </div>
+      <div class="access-card">
+        <div class="qr"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAYAAACAvzbMAAAAAklEQVR4AewaftIAAAnBSURBVO3BgU0tWg4EsElE/y3P/hLORqAreLan/wkA/J82AHCwAYCDDQAcbADgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcfOWXmZnwpm1ezUxetc2rmcmrtvluM5NPa5tPmpn8hLZ5NTPhTdv8FhsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMFX/rC2+YtmJr9F2/wWbfMTZiav2ubFzORV27yamXxS2/xFM5O/aAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMAB18hM5NPa5tPapufMDN51TbfrW3+orb5181MPq1t/mUbADjYAMDBBgAONgBwsAGAgw0AHGwA4GADAAcbADjYAMDBV+A/M5NXbfOqbV7NTL5b27yamfyEtnk1M3nRNq9mJq/aBl5tAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHX4H/tM1PmJn8RW3zambyW8xMXrUN/7YNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAODgK6Rt+Ly2eTEzeTUzedU2r2YmP6FtXsxMfkLb/BZtw2dtAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABxsAOBgAwAHX/nDZia8mZm8apvfom1ezUxetc2rmckntc2rmcmrtvluMxN+jw0AHGwA4GADAAcbADjYAMDBBgAONgBwsAGAgw0AHHzll2kbfo+2+S3a5tXM5CfMTD6pbX5C2/D3bADgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMAB1/5ZWYmr9rmxczkJ7TNq5nJJ7XNT5iZvGqbF23zambyqm1+Qtu8mpl8t5nJT2ibVzOTF23zE2Ymr9rm1czku7XNb7EBgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIMNABx85Q+bmbxom9+kbb7bzOS3mJn8hJnJp7XNd5uZ/ISZyXebmfyEtvkJbfNiZvIXbQDgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMAB1/5Zdrmu81MPq1tXs1MXrQN79rmJ8xMXrXNd2ubVzOTV23zambyom0+bWby3drmL9oAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMEGAA6+8ofNTF60zW/SNp/UNp/UNnzezORV2/wWbfPdZiav2ua32ADAwQYADjYAcLABgIMNABxsAOBgAwAHGwA42ADAwVd+mZnJq7Z5MTN51TafNjP5bm3zW8xMXrXNq5nJT2ibVzOTF23zaW3zW8xMfkLbvGibv2gDAAcbADjYAMDBBgAONgBwsAGAgw0AHGwA4GADAAcbADj4yi/TNt+tbV7NTD6tbV7MTF7NTF61zauZyau2+S3a5tXM5JNmJq/a5tXM5Lu1zU9om1czk1czk+/WNr/FBgAONgBwsAGAgw0AHGwA4GADAAcbADjYAMDBBgAONgBw8BV+TNu8mpm8mpl8t7b5CW3zambyom1ezUxetc2rmclfNDN51TavZibfbWbyqm34fhsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMFXfpmZyau2+W5t82pm8qptPmlm8qptXs1MvtvM5FXbvJqZvGqbVzOTV23DZ7XNq5nJi7b5izYAcLABgIMNABxsAOBgAwAHGwA42ADAwQYADjYAcLABgIOv/DJt80kzk0+bmbxom58wM/kJbfNbzExetc13m5l82szkVdt80szkVdvwZgMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAOPgKv07bvJiZ/CYzkxdt82lt82pm8qptXrTNT5iZvGqb7zYzedU2r2Ymr2YmvNkAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMFXfpmZyau2+W5t82pm8hNmJr9F27yamXy3mclPmJm8apu/aGbySTOTV23zambyqm3+ZRsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAONgAwMFXfpm2+W4zk5/QNq9mJq/a5sXM5C+amXxa2/yEmckntc0nzUxetQ2ftQGAgw0AHGwA4GADAAcbADjYAMDBBgAONgBwsAGAgw0AHHzlD5uZvGibVzOTVzOTnzAzedE2r2Ymv0XbvJqZ8G5m8lvMTPisDQAcbADgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYPqf8M+bmbxqm1czk1dt82Jm8qptPm1m8klt82pm8qptPmlm8he1zW+xAYCDDQAcbADgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcfOWXmZnwpm3+orb5CTOTV23zqm1ezUy+28zk02YmL9rm09rm1czkRdv8RRsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMABxsAOPjKH9Y2f9HM5JNmJj9hZvKibV7NTD5tZvKqbT5pZvIT2uYvapsXM5NXbfNbbADgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADgYAMAB18hM5NPa5tPapufMDN51TYvZiav2uYnzEx+wszku7XNT5iZ/BZt82pm8t3a5i/aAMDBBgAONgBwsAGAgw0AHGwA4GADAAcbADjYAMDBBgAOvgL/mZm8aptXbfNqZvKibf6qtvluM5NPa5sXM5OfMDN51TbfbWbyqm1+iw0AHGwA4GADAAcbADjYAMDBBgAONgBwsAGAgw0AHGwA4OAr8H+ambxqm0+ambxqm1dt8xNmJt+tbV7NTF61zSe1zU+Ymbxqm3/ZBgAONgBwsAGAgw0AHGwA4GADAAcbADjYAMDBBgAONgBw8BXSNv+6tnk1M3k1M3nVNi9mJj9hZvIT2uZV27yYmXzazORV23y3mclPaJtXM5MXbfMXbQDgYAMABxsAONgAwMEGAA42AHCwAYCDDQAcbADg4Ct/2MyENzOT36JtoG34rA0AHGwA4GADAAcbADjYAMDBBgAONgBwsAGAgw0AHGwA4GD6nwDA/2kDAAcbADjYAMDBBgAONgBwsAGAgw0AHGwA4GADAAcbADjYAMDBBgAONgBwsAGAgw0AHGwA4GADAAcbADjYAMDBBgAONgBwsAGAgw0AHGwA4GADAAcbADjYAMDBBgAONgBwsAGAgw0AHGwA4GADAAcbADjYAMDBBgAONgBwsAGAgw0AHGwA4GADAAcbADj4H+S0Q0cCyJivAAAAAElFTkSuQmCC" alt="QR code for Govt Command Center"></div>
+        <div class="name">Govt Command Center</div>
+        <div class="who">District ops dashboard</div>
+        <a class="link" href="https://aaraksha-govt.vercel.app" target="_blank" rel="noopener">aaraksha-govt.vercel.app</a>
+      </div>
+      <div class="access-card">
+        <div class="qr"><img src="data:image/png;base64,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" alt="QR code for Guardian Portal"></div>
+        <div class="name">Guardian Portal</div>
+        <div class="who">Family / friends, no login</div>
+        <a class="link" href="https://aaraksha-guardian.vercel.app" target="_blank" rel="noopener">aaraksha-guardian.vercel.app</a>
+      </div>
+      <div class="access-card">
+        <div class="qr"><img src="data:image/png;base64,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" alt="QR code for Rescuer App"></div>
+        <div class="name">Rescuer App</div>
+        <div class="who">Volunteers &amp; rescue teams</div>
+        <a class="link" href="https://aaraksha-rescuer.vercel.app" target="_blank" rel="noopener">aaraksha-rescuer.vercel.app</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="etiquette">
+    <h2>Shared-environment ground rules</h2>
+    <div class="callout warn">
+      <span class="ctitle">Everyone is testing against the same live database</span>
+      <p>The demo accounts below are shared — if you resolve Rahul Verma's active SOS or complete Priya Deka's rescue job, the next teammate to open that account sees a blank state instead of the scenario it was built to demonstrate.</p>
+      <p><strong>Rule of thumb:</strong> use the seeded demo accounts to <em>view</em> pre-built states. For anything destructive or one-time — triggering a fresh SOS, testing account deletion, filing a real E-FIR, registering — <strong>create your own throwaway account</strong> (a fake name and a phone number nobody else is using works fine; any Aadhaar number that passes the Verhoeff checksum will do, or just try a few — most won't validate, and that's the point).</p>
+    </div>
+    <div class="callout info">
+      <span class="ctitle">First request after a quiet period is slow</span>
+      <p>The backend runs on a free tier that spins down after ~15 minutes with no traffic. The first request after that can take 50+ seconds while it wakes up — refresh once and it'll be normal-speed for the rest of your session. Not a bug.</p>
+    </div>
+  </section>
+
+  <section id="limits">
+    <h2>What's running in fallback mode — don't file these as bugs</h2>
+    <div class="prose"><p>Three optional third-party integrations were deliberately left unconfigured on this deployment. The app is built to degrade gracefully when they're missing — that's the intended behavior, not broken functionality.</p></div>
+    <div class="limits-table-wrap">
+      <table class="limits-table">
+        <tr><th>Integration</th><th>What you'll actually see</th></tr>
+        <tr><td class="what">Twilio (SMS)</td><td class="why">No real SMS is sent. Forgot-password OTPs show up directly in the app's UI instead of arriving by text — that's the built-in dev fallback, not a delivery failure. The offline-SOS-over-SMS mechanism can't be demonstrated in this deployment at all (it needs a real phone number bound to Twilio) — treat that feature as "reviewed via code, not live-testable here."</td></tr>
+        <tr><td class="what">Gemini (AI)</td><td class="why">AI-generated packing lists and the AI Safety Briefing both fall back to static, pre-written content instead of a live model call. The UI won't look broken — it'll just be the same fallback text every time.</td></tr>
+        <tr><td class="what">OpenWeatherMap</td><td class="why">Live weather no longer feeds into the Travel Safety Index. TSI scores you see are the rule-based terrain/connectivity/season factors only, weather delta will read as neutral.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="portal portal--tourist" id="tourist">
+    <div class="portal-head">
+      <div>
+        <h2>🧭 Tourist PWA</h2>
+        <div class="who">The traveler's app — trip planning, safety tools, community</div>
+      </div>
+      <span class="portal-badge">amber · mobile-first</span>
+    </div>
+    <div class="portal-body">
+      <div class="creds">
+        <table>
+          <tr><th>Account</th><th>Phone</th><th>Password</th><th>Pre-built state</th></tr>
+          <tr><td class="acct">Aryan Demo</td><td><code>9999999999</code></td><td><code>Demo@123</code></td><td class="state">Active trip, 1 check-in, 1 resolved SOS — the general-purpose account, use this one first</td></tr>
+          <tr><td class="acct">Priya Sharma</td><td><code>9876500001</code></td><td><code>Demo@123</code></td><td class="state">Completed trip, ready to export — use this one for Journey Passport testing</td></tr>
+          <tr><td class="acct">Rahul Verma</td><td><code>9876500002</code></td><td><code>Demo@123</code></td><td class="state">Live, unresolved SOS with a rescue team already en route — <strong>view only, don't resolve it</strong></td></tr>
+          <tr><td class="acct">Sneha Das</td><td><code>9876500003</code></td><td><code>Demo@123</code></td><td class="state">A Dead Man's Switch is actively running on this account right now</td></tr>
+          <tr><td class="acct">Karan Mehta</td><td><code>9000055501</code></td><td><code>DemoPass123</code></td><td class="state">SOS assigned to a volunteer (not a team) — pairs with the Rescuer App section below</td></tr>
+        </table>
+      </div>
+
+      <ul class="feature-list">
+        <li>Multi-stop itinerary + Travel Safety Index</li>
+        <li>AI packing list (fallback content — see limits)</li>
+        <li>Budget tracking, group trips (invite codes)</li>
+        <li>Digital Journey Passport (PDF, hash-chain verified)</li>
+        <li>One-tap hold-to-confirm SOS, 7 categories</li>
+        <li>Phone-shake panic gesture SOS</li>
+        <li>Dead Man's Switch check-in timer</li>
+        <li>Manual check-ins</li>
+        <li>Digital Tourist ID — rotating QR, 5-min expiry</li>
+        <li>Geo-fencing zone alerts</li>
+        <li>File an E-FIR with on-device photo tagging</li>
+        <li>Privacy &amp; Data Rights (export / delete)</li>
+        <li>Community reviews, scam reports, hotspots</li>
+        <li>Curated destination news feed</li>
+        <li>3 languages — English, Hindi, Assamese</li>
+      </ul>
+
+      <h3 class="flowtitle"><span class="num">01</span> First look — dashboard &amp; trip safety</h3>
+      <ol class="flow">
+        <li>Log in as Aryan Demo. <span class="expect">The dashboard opens directly to the active trip, showing a TSI score out of 100.</span></li>
+        <li>Tap the active trip card. <span class="expect">Full itinerary, stops, and per-stop risk detail.</span></li>
+        <li>Switch the app language (Profile → language selector) to Hindi, then Assamese. <span class="expect">Every label changes — flag anything left in English.</span></li>
+      </ol>
+
+      <h3 class="flowtitle"><span class="num">02</span> Plan a trip from scratch</h3>
+      <ol class="flow">
+        <li>From My Trips, start a new trip. Add 2–3 stops from the destination catalog.</li>
+        <li>Set a budget and dates, save. <span class="expect">A TSI score appears automatically, no manual trigger.</span></li>
+        <li>Open the AI packing list feature. <span class="expect">Static fallback content (see limits section) — this is expected, not a bug.</span></li>
+      </ol>
+
+      <h3 class="flowtitle"><span class="num">03</span> SOS — on your own throwaway account</h3>
+      <ol class="flow">
+        <li>Register a fresh account (don't use a demo account for this one).</li>
+        <li>From the Safety Center, hold the SOS button for the full 2 seconds. <span class="expect">A confirmation state, then an active SOS is created — check it shows up correctly under "My SOS History."</span></li>
+        <li>Try releasing the hold early (under 2s). <span class="expect">No SOS should fire — this is the accidental-press guard.</span></li>
+        <li>Set up a Dead Man's Switch with the shortest interval available. Let it lapse without checking in. <span class="expect">An SOS auto-fires with your last known location, no action from you.</span></li>
+      </ol>
+
+      <h3 class="flowtitle"><span class="num">04</span> File an E-FIR</h3>
+      <ol class="flow">
+        <li>From Safety Center, choose "File a Report" (distinct from the SOS button — this is for something that already happened).</li>
+        <li>Attach a photo containing a car, bag, or similar object. <span class="expect">On-device detection tags what it sees and may suggest a category — always overridable.</span></li>
+        <li>Submit and check "My Reports" for the case number and status.</li>
+      </ol>
+
+      <h3 class="flowtitle"><span class="num">05</span> Privacy &amp; data rights</h3>
+      <ol class="flow">
+        <li>On your own throwaway account (never a shared demo account), open Profile → Privacy.</li>
+        <li>Export your data. <span class="expect">A real file download — open it and confirm no password hash or other secret is in there.</span></li>
+        <li>Request account deletion while you have an open SOS. <span class="expect">Denied, with a stated reason.</span></li>
+        <li>Resolve the SOS, then request deletion again. <span class="expect">Succeeds — and you should no longer be able to log back in with that account.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="portal portal--govt" id="govt">
+    <div class="portal-head">
+      <div>
+        <h2>🖥️ Govt Command Center</h2>
+        <div class="who">District officers, dispatchers, checkpoint staff — desktop-first</div>
+      </div>
+      <span class="portal-badge">emerald · ops dashboard</span>
+    </div>
+    <div class="portal-body">
+      <div class="creds">
+        <table>
+          <tr><th>Role</th><th>Email</th><th>Password</th></tr>
+          <tr><td class="acct">Super Admin</td><td><code>admin@aaraksha.gov.in</code></td><td><code>Admin@123</code></td></tr>
+          <tr><td class="acct">District Admin</td><td><code>district.officer@aaraksha.gov.in</code></td><td><code>District@123</code></td></tr>
+          <tr><td class="acct">Checkpoint Officer</td><td><code>checkpoint.officer@aaraksha.gov.in</code></td><td><code>Checkpoint@123</code></td></tr>
+          <tr><td class="acct">Police</td><td><code>police.officer@aaraksha.gov.in</code></td><td><code>Police@123</code></td></tr>
+        </table>
+      </div>
+
+      <ul class="feature-list">
+        <li>Live ops map — every active tourist, real time</li>
+        <li>2D / 3D terrain toggle</li>
+        <li>Anomaly markers (gone-quiet, off-route)</li>
+        <li>Risk density overlay</li>
+        <li>SOS triage — team or volunteer dispatch</li>
+        <li>Weighted "Recommended" rescuer suggestion</li>
+        <li>Auto-generated SOS incident PDF</li>
+        <li>E-FIR officer queue, role-based</li>
+        <li>Volunteer verification &amp; roster</li>
+        <li>District risk overview + predictive risk model</li>
+        <li>Checkpoint QR scanning</li>
+        <li>Analytics + PDF export</li>
+        <li>Role-scoped access per account</li>
+      </ul>
+
+      <h3 class="flowtitle"><span class="num">01</span> Live map first look</h3>
+      <ol class="flow">
+        <li>Log in as Super Admin, open the Live Map.</li>
+        <li>Toggle 3D terrain on. <span class="expect">The same live markers now sit on real elevation relief, not a flat plane.</span></li>
+        <li>Find Rahul Verma's active SOS marker and the rescue team en route. <span class="expect">An OSRM road route, not a straight line, connecting them.</span></li>
+      </ol>
+
+      <h3 class="flowtitle"><span class="num">02</span> SOS assignment</h3>
+      <ol class="flow">
+        <li>Trigger a fresh SOS from your own throwaway tourist account (see Tourist section, flow 03) so you have an unassigned one to work with.</li>
+        <li>In SOS Management, open it. <span class="expect">A combined list of nearby official teams <em>and</em> verified volunteers, ranked with a "Recommended" pick and a full score breakdown (distance, category fit, reputation).</span></li>
+        <li>Assign a rescuer, confirm the SOS status flips to Assigned and the rescuer's own status flips to Deployed/En Route.</li>
+      </ol>
+
+      <h3 class="flowtitle"><span class="num">03</span> E-FIR queue</h3>
+      <ol class="flow">
+        <li>File an E-FIR from a tourist account (Tourist flow 04) if none are pending.</li>
+        <li>Log in as Police or District Admin, open the E-FIR queue. <span class="expect">The new report appears, correctly prioritized, with a BNS legal-reference field.</span></li>
+        <li>Self-assign it, move it through the status ladder (Assigned → Under Investigation → Resolved), adding notes at each step.</li>
+        <li>Check the tourist's own account. <span class="expect">Status updates should reach them in real time, no refresh needed.</span></li>
+      </ol>
+
+      <h3 class="flowtitle"><span class="num">04</span> Volunteer verification</h3>
+      <ol class="flow">
+        <li>Register a new volunteer from the Rescuer App (see that section) if none are pending review.</li>
+        <li>As Super Admin, open the volunteer verification queue and approve the pending one. <span class="expect">Full identity detail shown before you approve — check nothing's truncated or missing.</span></li>
+      </ol>
+
+      <h3 class="flowtitle"><span class="num">05</span> Accessibility pass</h3>
+      <ol class="flow">
+        <li>Try navigating the SOS detail modal and the E-FIR detail modal using only the keyboard (Tab to move focus, Escape to close).</li>
+        <li><span class="expect">Focus should land inside the modal on open, a visible ring should show on every focused control, and Escape should close it.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="portal portal--guardian" id="guardian">
+    <div class="portal-head">
+      <div>
+        <h2>👪 Guardian Portal</h2>
+        <div class="who">Family &amp; friends — no account, no install</div>
+      </div>
+      <span class="portal-badge">sky · zero-login</span>
+    </div>
+    <div class="portal-body">
+      <div class="prose">
+        <p>There's no login screen here by design — a cryptographically random token in the URL is the entire access model. Every tourist account has its own unique link, found on their own Profile page inside the Tourist PWA.</p>
+      </div>
+      <div class="creds">
+        <table>
+          <tr><th>Whose link</th><th>What it shows</th><th></th></tr>
+          <tr><td class="acct">Aryan Demo</td><td class="state">Safe / normal state — a good baseline to compare against</td><td><a href="https://aaraksha-guardian.vercel.app/track/3148fdaad79212ee16afa4c83e25721cc3c58ed72db11342566e7c691a726a5b9d75800733d74f74ff97fa9deefc82056b3cafa7b5897f430286326ece8bcf9e" target="_blank" rel="noopener">Open link</a></td></tr>
+          <tr><td class="acct">Rahul Verma</td><td class="state">Active SOS, rescue en route — the "help-dispatched" state</td><td><a href="https://aaraksha-guardian.vercel.app/track/5edff5d42ee6d3fea92e42ccfc0204431ec92bb46e8986f626b684745892d8efba0608d0e01120a7215010b8f44d07648725c9818566a13b27e06160cdfcaf58" target="_blank" rel="noopener">Open link</a></td></tr>
+        </table>
+      </div>
+
+      <ul class="feature-list">
+        <li>Zero-friction access via URL token</li>
+        <li>Five distinct status states (safe / check-in due / SOS active / help dispatched / no signal)</li>
+        <li>Live location on a map</li>
+        <li>Assigned rescuer's live position + road route</li>
+        <li>Battery level, medical info</li>
+        <li>Auto-refresh, roughly every 30 seconds</li>
+      </ul>
+
+      <h3 class="flowtitle"><span class="num">01</span> Compare the two states</h3>
+      <ol class="flow">
+        <li>Open Aryan Demo's link. <span class="expect">A calm "safe" state, last-known location, no urgency styling.</span></li>
+        <li>Open Rahul Verma's link. <span class="expect">Visibly different — active-SOS styling, the rescue team's marker on the map, a live road route to Rahul's position.</span></li>
+      </ol>
+
+      <h3 class="flowtitle"><span class="num">02</span> Watch it update live</h3>
+      <ol class="flow">
+        <li>Keep Rahul Verma's Guardian link open in one tab.</li>
+        <li>In another tab, log in as Govt Super Admin and change the SOS status (e.g. update rescuer progress if the option is available).</li>
+        <li><span class="expect">The Guardian tab should reflect the change within the auto-refresh window, without you touching it.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="portal portal--rescuer" id="rescuer">
+    <div class="portal-head">
+      <div>
+        <h2>🚑 Rescuer App</h2>
+        <div class="who">Official rescue teams &amp; verified citizen volunteers</div>
+      </div>
+      <span class="portal-badge">teal · live GPS</span>
+    </div>
+    <div class="portal-body">
+      <div class="creds">
+        <table>
+          <tr><th>Account</th><th>Phone</th><th>Password</th><th>Pre-built state</th></tr>
+          <tr><td class="acct">Priya Deka</td><td><code>9000055503</code></td><td><code>DemoPass123</code></td><td class="state">Verified volunteer, already EN_ROUTE to Karan Mehta's SOS — open this one first</td></tr>
+        </table>
+      </div>
+
+      <ul class="feature-list">
+        <li>Nearby-SOS proximity alerts</li>
+        <li>AVAILABLE / OFF_DUTY status toggle</li>
+        <li>Full-screen live map with real OSRM road routing</li>
+        <li>"Start Navigation" deep link to Google Maps</li>
+        <li>Self-reported EN_ROUTE / ARRIVED status</li>
+        <li>Points &amp; reputation for verified volunteers</li>
+      </ul>
+
+      <h3 class="flowtitle"><span class="num">01</span> See an active job</h3>
+      <ol class="flow">
+        <li>Log in as Priya Deka. <span class="expect">Straight into the active job screen — no need to hunt for it, since she's already EN_ROUTE.</span></li>
+        <li>Check the live map. <span class="expect">A real road route to Karan Mehta's SOS location, live distance/duration, not a straight line.</span></li>
+        <li>Tap "Start Navigation." <span class="expect">Deep-links out to Google Maps turn-by-turn for the same destination.</span></li>
+      </ol>
+
+      <h3 class="flowtitle"><span class="num">02</span> Register a new volunteer</h3>
+      <ol class="flow">
+        <li>Log out, register as a brand-new volunteer (own name, phone, a Verhoeff-valid Aadhaar number).</li>
+        <li>Toggle yourself AVAILABLE. <span class="expect">You won't get real dispatch alerts until a govt operator verifies you — cross-reference with Govt flow 04.</span></li>
+      </ol>
+
+      <h3 class="flowtitle"><span class="num">03</span> Self-status updates</h3>
+      <ol class="flow">
+        <li>As Priya Deka on her active job, mark ARRIVED.</li>
+        <li>Check the Govt Command Center's SOS view for that case. <span class="expect">The status change should be visible there — closing the case out, however, stays an exclusive govt-operator action, by design.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="flagship">
+    <h2>The flagship end-to-end flow</h2>
+    <div class="flagship">
+      <div class="prose"><p>This is the one flow that proves every portal is really one system, not four separate demos. Best done with two people — one on the Tourist app, one on Govt — but doable solo across browser tabs.</p></div>
+      <div class="flagship-chain">
+        <span class="chain-node">Tourist: fresh throwaway account</span>
+        <span class="chain-arrow">→</span>
+        <span class="chain-node">Trigger SOS</span>
+        <span class="chain-arrow">→</span>
+        <span class="chain-node">Govt: SOS appears live on map</span>
+        <span class="chain-arrow">→</span>
+        <span class="chain-node">Assign a rescuer</span>
+        <span class="chain-arrow">→</span>
+        <span class="chain-node">Rescuer: job appears</span>
+        <span class="chain-arrow">→</span>
+        <span class="chain-node">Mark EN_ROUTE</span>
+        <span class="chain-arrow">→</span>
+        <span class="chain-node">Guardian link: shows it live</span>
+      </div>
+      <ol class="flow">
+        <li>Register a throwaway tourist account. Grab its Guardian link from the Profile page and open it in a separate tab or a different device.</li>
+        <li>Trigger a real SOS (hold 2s). Watch it appear on the Govt Command Center's live map without a page refresh.</li>
+        <li>As a govt operator, open the SOS and assign the "Recommended" rescuer.</li>
+        <li>Log into the Rescuer App as whichever volunteer or team got assigned. Confirm the job shows up with a real road route.</li>
+        <li>Mark EN_ROUTE, then ARRIVED, from the Rescuer App.</li>
+        <li>Check the Guardian link the whole time. <span class="expect">Every state change — SOS active, rescuer assigned, rescuer en route — should show up there live, without anyone touching that tab.</span></li>
+        <li>As the govt operator, resolve the SOS to close the loop.</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    <p>Compiled 2026-08-27 against the live deployment on Vercel (frontends) + Render (backend, Singapore region) + Render Postgres. Report anything that breaks, confuses, or looks wrong — including things outside these scripted flows.</p>
+  </footer>
+
+</div>
