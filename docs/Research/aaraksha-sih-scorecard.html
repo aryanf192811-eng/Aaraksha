@@ -468,6 +468,46 @@ footer p { margin: 0 0 0.5rem; }
     </div>
   </section>
 
+  <section>
+    <h2>Hard evidence, not assumption</h2>
+    <div class="prose">
+      <p>"The Northeast has low connectivity" is an assumption a judge can wave off. This isn't: TRAI's own <em>Recommendations on Improving Telecom Infrastructure in the North Eastern Region</em> (23 September 2023) found <strong>9,190 of 43,200 inhabited villages in the NER had zero mobile coverage</strong> at the time of the report — roughly 21%. Arunachal Pradesh alone accounts for 2,886 of those, the worst of any state in the region, and Aaraksha already tracks Tawang, an Arunachal high-altitude destination, by name in its seeded catalog. National average teledensity was 84.46% at the same time; Assam sat at 71%, and the six-state NE Licensed Service Area at 79.6%.</p>
+      <p>What's deliberately <strong>not</strong> claimed here: a precise rescue-response-time reduction (the "12 hours to 3 minutes" framing suggested in the source advice). No public NE-India-specific baseline for tourist-rescue response time was found in this research pass — inventing one would be exactly the unsupported-number problem judges are primed to catch. The honest, sourced claim is the coverage gap itself: for roughly a fifth of the region's villages, Aaraksha's offline SMS path is the difference between an SOS existing at all and not existing.</p>
+      <p class="prose" style="margin-top:0.9rem;"><strong>One-sentence anchor</strong> — grounded in the TRAI figure, not an invented delta: <em>"TRAI's own 2023 report found roughly one in five North Eastern villages has zero mobile coverage — concentrated exactly in the high-altitude districts we track — and Aaraksha is built so a tourist in that fifth still has a working SOS path over satellite GPS and raw SMS, not silence."</em></p>
+    </div>
+    <ul class="source-list">
+      <li><a href="https://trai.gov.in/sites/default/files/2024-09/Recommendations_23092023.pdf" target="_blank" rel="noopener">TRAI — Recommendations on Improving Telecom Infrastructure in the North Eastern Region (23 Sep 2023)</a></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Q&amp;A ownership &amp; honest-uncertainty bank</h2>
+    <div class="prose"><p>A judge testing domain understanding rewards a clean handoff and an honest "not yet, and here's the path" far more than a confident guess. Assign each area to whoever actually built it before the finale — the template below is structured around the real technical areas, fill in names:</p></div>
+    <div class="crosscheck-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+      <div class="cc-item"><div class="label">Predictive Risk Model</div><div class="mark">___</div></div>
+      <div class="cc-item"><div class="label">Backend / security</div><div class="mark">___</div></div>
+      <div class="cc-item"><div class="label">DPDP / GIGW compliance</div><div class="mark">___</div></div>
+      <div class="cc-item"><div class="label">Rescue dispatch / routing</div><div class="mark">___</div></div>
+      <div class="cc-item"><div class="label">Frontend / accessibility</div><div class="mark">___</div></div>
+    </div>
+    <div class="prose">
+      <p>The likely gotcha questions are the gaps already named in this document — pre-write honest, specific answers for these rather than being caught flat-footed:</p>
+    </div>
+    <ul class="checklist">
+      <li><span class="n">Q</span><div><p><strong>"What's your business model / who pays for this at scale?"</strong> — "We haven't built a procurement or funding model yet — that's a real gap. What we can speak to is the technical side of state deployment: the schema and API are already role-scoped for multi-district government use, so the missing piece is business, not architecture."</p></div></li>
+      <li><span class="n">Q</span><div><p><strong>"Has any real tourist or officer used this?"</strong> — "Not yet — every account you're seeing is a seeded demo scenario, not field data. We'd want a small pilot with a handful of real users before claiming validated impact, and that's the honest next step, not something we're claiming today."</p></div></li>
+      <li><span class="n">Q</span><div><p><strong>"Your road routing calls a public OSRM server — what happens at production scale?"</strong> — "That's a real dependency risk. It's free and unowned infrastructure; a production deployment would need a self-hosted OSRM instance, which is a known, bounded piece of work, not a redesign."</p></div></li>
+      <li><span class="n">Q</span><div><p><strong>"Your risk model's recall is under 50% — doesn't that mean it misses risk?"</strong> — "Correctly read — recall is the model's honest weak point, which is exactly why it's advisory and shown alongside the rule-based TSI rather than gating any alert on its own. We'd rather show a modest, real number than round it up."</p></div></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Live-deployment tactic — status, not yet executed</h2>
+    <div class="prose">
+      <p>Scanning a QR code into a live URL in front of judges is a strong tactic and technically straightforward for a PWA — but it's a deployment decision (a stable public URL, most likely a proper host rather than an ephemeral tunnel) worth making deliberately, not something to stand up silently. The landing page already links out to a Cloudflare quick-tunnel URL for the govt portal, which regenerates on every restart and isn't meant to be a permanent address — worth replacing with a real deploy (Vercel/Netlify for the frontends, a small VPS or managed Postgres for the backend) with enough runway before the finale to test it under real conference wifi, not the night before.</p>
+    </div>
+  </section>
+
   <footer>
     <p>Compiled 2026-08-27 as an independent research pass, not a leaked or official scoring key. Treat the per-criterion numbers as a calibrated estimate for team prep, not a guarantee — actual panels weigh presentation and Q&amp;A performance the codebase itself cannot predict.</p>
   </footer>
