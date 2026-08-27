@@ -10,7 +10,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Plus, Trash2, Loader2, Save } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Loader2, Save, UserCircle, HeartPulse, Phone } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
@@ -88,22 +88,32 @@ export default function ProfileEditPage() {
       <form onSubmit={onSubmit} className="px-5 mt-5 space-y-4">
         {/* Basic info */}
         <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 space-y-4">
-          <h3 className="font-bold text-on-surface">{t('profileEdit.basicInfo')}</h3>
+          <h3 className="font-bold text-on-surface flex items-center gap-2">
+            <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <UserCircle className="w-4.5 h-4.5 text-primary" />
+            </span>
+            {t('profileEdit.basicInfo')}
+          </h3>
           <div className="space-y-1.5">
             <Label className="text-sm font-semibold">{t('profileEdit.fullName')}</Label>
             <Input className="h-12 rounded-xl" {...form.register('fullName')} />
-            {form.formState.errors.fullName && <p className="text-xs text-red-500">{form.formState.errors.fullName.message}</p>}
+            {form.formState.errors.fullName && <p className="text-xs text-sos-dark">{form.formState.errors.fullName.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label className="text-sm font-semibold">{t('profileEdit.emailOptional')}</Label>
             <Input type="email" className="h-12 rounded-xl" {...form.register('email')} />
-            {form.formState.errors.email && <p className="text-xs text-red-500">{form.formState.errors.email.message}</p>}
+            {form.formState.errors.email && <p className="text-xs text-sos-dark">{form.formState.errors.email.message}</p>}
           </div>
         </div>
 
         {/* Health info */}
         <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 space-y-4">
-          <h3 className="font-bold text-on-surface">{t('profile.healthInformation')}</h3>
+          <h3 className="font-bold text-on-surface flex items-center gap-2">
+            <span className="w-8 h-8 rounded-full bg-sos/10 flex items-center justify-center flex-shrink-0">
+              <HeartPulse className="w-4.5 h-4.5 text-sos-dark" />
+            </span>
+            {t('profile.healthInformation')}
+          </h3>
           <div className="space-y-1.5">
             <Label className="text-sm font-semibold">{t('profile.bloodGroup')}</Label>
             <Select
@@ -128,23 +138,28 @@ export default function ProfileEditPage() {
               )}
               {...form.register('medicalInfo')}
             />
-            {form.formState.errors.medicalInfo && <p className="text-xs text-red-500">{form.formState.errors.medicalInfo.message}</p>}
+            {form.formState.errors.medicalInfo && <p className="text-xs text-sos-dark">{form.formState.errors.medicalInfo.message}</p>}
             <p className="text-xs text-on-surface-variant">{t('profileEdit.medicalInfoHint')}</p>
           </div>
         </div>
 
         {/* Emergency contacts */}
         <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 space-y-3">
-          <h3 className="font-bold text-on-surface">{t('profile.emergencyContacts')}</h3>
+          <h3 className="font-bold text-on-surface flex items-center gap-2">
+            <span className="w-8 h-8 rounded-full bg-trust/10 flex items-center justify-center flex-shrink-0">
+              <Phone className="w-4 h-4 text-trust-dark" />
+            </span>
+            {t('profile.emergencyContacts')}
+          </h3>
           {fields.map((field, idx) => (
             <div key={field.id} className="bg-surface-container rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-xs font-bold text-on-surface uppercase tracking-wide">
-                  <span className={cn('w-2 h-2 rounded-full', idx === 0 ? 'bg-green-500' : 'bg-primary')} />
+                  <span className={cn('w-2 h-2 rounded-full', idx === 0 ? 'bg-tsi-low' : 'bg-primary')} />
                   {idx === 0 ? t('profileEdit.primaryContact') : t('profileEdit.secondaryContact')}
                 </span>
                 <button type="button" onClick={() => remove(idx)}>
-                  <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
+                  <Trash2 className="w-4 h-4 text-sos/60 hover:text-sos-dark transition-colors" />
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -153,7 +168,7 @@ export default function ProfileEditPage() {
                 <Input placeholder={t('profileEdit.relationPlaceholder')} className="h-10 rounded-lg text-sm col-span-2" {...form.register(`emergencyContacts.${idx}.relation`)} />
               </div>
               {form.formState.errors.emergencyContacts?.[idx] && (
-                <p className="text-xs text-red-500">{t('profileEdit.fillAllFields')}</p>
+                <p className="text-xs text-sos-dark">{t('profileEdit.fillAllFields')}</p>
               )}
             </div>
           ))}
