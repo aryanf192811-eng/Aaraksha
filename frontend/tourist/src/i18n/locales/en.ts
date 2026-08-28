@@ -21,7 +21,7 @@ export default {
     trips: 'Trips',
     checkIn: 'Check In',
     community: 'Community',
-    profile: 'Profile',
+    sos: 'SOS',
   },
   enums: {
     sosCategory: {
@@ -92,8 +92,7 @@ export default {
     dmsRunning: 'Dead Man\'s Switch is active',
     holdToAlert: 'One tap away from emergency help',
     safetyReady: 'Safety tools ready for when you travel',
-    keepHolding: 'Keep holding...',
-    releaseToSend: 'Release to send SOS',
+    sosActiveStatus: 'SOS active — help is on the way',
     categoryPickerTitle: 'What kind of emergency?',
     categoryPickerSubtitle: 'Tap a category to send SOS immediately.',
     sosUrgentEyebrow: 'Emergency active',

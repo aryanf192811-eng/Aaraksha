@@ -229,12 +229,16 @@ export default function CommunityPage() {
                   <Flame className="w-3.5 h-3.5 text-tsi-high" /> {t('community.hotspotsTitle')}
                 </p>
                 <div className="space-y-2">
-                  {hotspots.map((h) => {
+                  {hotspots.map((h, i) => {
                     const Icon = SCAM_ICONS[h.top_category as ScamCategory] ?? HelpCircle
                     return (
                       <button key={h.destination_id} type="button"
                         onClick={() => { setSelectedDest(h.destination_id); setValue('destinationId', h.destination_id) }}
                         className="w-full bg-surface-container-lowest rounded-2xl shadow-sm p-4 flex items-center gap-3 text-left hover:shadow-md transition-all">
+                        <span className={cn('w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-black',
+                          i === 0 ? 'bg-tsi-high text-white' : 'bg-tsi-high/10 text-tsi-high')}>
+                          {i + 1}
+                        </span>
                         <div className="w-10 h-10 rounded-full bg-tsi-high/10 flex items-center justify-center flex-shrink-0">
                           <Icon className="w-4.5 h-4.5 text-tsi-high" />
                         </div>
@@ -266,13 +270,16 @@ export default function CommunityPage() {
 
             {reports.map((report) => {
               const Icon = SCAM_ICONS[report.category as ScamCategory] ?? HelpCircle
+              const catColor = SCAM_COLORS[report.category as ScamCategory] ?? SCAM_COLORS.OTHER
               return (
                 <div key={report.id} className="bg-surface-container-lowest rounded-2xl shadow-sm p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon className="w-4 h-4 text-on-surface-variant" />
-                    <span className="text-sm font-bold text-on-surface">{scamLabel(t, report.category)}</span>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0', catColor)}>
+                      <Icon className="w-4.5 h-4.5" />
+                    </div>
+                    <span className="text-sm font-bold text-on-surface flex-1">{scamLabel(t, report.category)}</span>
                     {report.verified && (
-                      <span className="text-xs bg-tsi-low/10 text-tsi-low px-2 py-0.5 rounded-full font-semibold ml-auto flex items-center gap-0.5">
+                      <span className="text-xs bg-tsi-low/10 text-tsi-low px-2 py-0.5 rounded-full font-semibold flex items-center gap-0.5 flex-shrink-0">
                         <Check className="w-3 h-3" /> {t('community.verified')}
                       </span>
                     )}
@@ -343,14 +350,19 @@ export default function CommunityPage() {
               return (
                 <div key={r.id} className="bg-surface-container-lowest rounded-2xl shadow-sm p-5">
                   <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="font-bold text-on-surface text-sm">{r.tourist_name}</p>
-                      {isAllSelected && r.destination_name && (
-                        <p className="text-xs font-semibold text-primary-dark">{r.destination_name}, {r.destination_state}</p>
-                      )}
-                      <p className="text-xs text-on-surface-variant">
-                        {r.visited_date ? t('community.visitedOn', { date: r.visited_date }) : formatTimeAgo(r.created_at)}
-                      </p>
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-trust/15 text-trust-dark font-display font-bold text-sm flex items-center justify-center flex-shrink-0">
+                        {r.tourist_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-on-surface text-sm">{r.tourist_name}</p>
+                        {isAllSelected && r.destination_name && (
+                          <p className="text-xs font-semibold text-primary-dark">{r.destination_name}, {r.destination_state}</p>
+                        )}
+                        <p className="text-xs text-on-surface-variant">
+                          {r.visited_date ? t('community.visitedOn', { date: r.visited_date }) : formatTimeAgo(r.created_at)}
+                        </p>
+                      </div>
                     </div>
                     <StarRating value={r.rating} readOnly size="sm" />
                   </div>
@@ -380,11 +392,14 @@ export default function CommunityPage() {
 
                   {r.review_text && <p className="text-sm text-on-surface mb-3">{r.review_text}</p>}
 
-                  {r.photo_urls.length > 0 && (
+                  {r.photo_urls.length === 1 ? (
+                    <img src={`${import.meta.env.VITE_API_URL?.replace('/api', '')}${r.photo_urls[0]}`} alt=""
+                      className="w-full h-40 rounded-2xl object-cover mb-3 shadow-sm" />
+                  ) : r.photo_urls.length > 1 && (
                     <div className="flex gap-2 mb-3 overflow-x-auto">
                       {r.photo_urls.map((url, i) => (
                         <img key={i} src={`${import.meta.env.VITE_API_URL?.replace('/api', '')}${url}`} alt=""
-                          className="w-20 h-20 rounded-xl object-cover flex-shrink-0 border border-outline-variant" />
+                          className="w-24 h-24 rounded-xl object-cover flex-shrink-0 shadow-sm" />
                       ))}
                     </div>
                   )}

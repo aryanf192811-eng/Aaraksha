@@ -29,7 +29,12 @@ interface SOSButtonProps {
   isActive?: boolean
   disabled?: boolean
   loading?: boolean
-  size?: 'default' | 'compact'
+  /** 'nav' is a small icon-only variant sized for the bottom nav's raised
+   *  center slot — no internal "SEND SOS"/"SOS ACTIVE" caption (no room;
+   *  the nav renders its own "SOS" label below it), but the live hold
+   *  percentage still shows — that feedback is safety-critical and never
+   *  gets dropped for space. */
+  size?: 'default' | 'compact' | 'nav'
   className?: string
   /** Switches to the 3s two-stage hold described above. Default false — every
    *  existing single-stage call site is unaffected. */
@@ -132,7 +137,7 @@ export function SOSButton({
   // Unmount mid-hold shouldn't leak the animation frame loop.
   useEffect(() => () => { if (rafRef.current != null) cancelAnimationFrame(rafRef.current) }, [])
 
-  const boxSize = size === 'default' ? 176 : 96 // px — matches w-44 / w-24
+  const boxSize = size === 'default' ? 176 : size === 'compact' ? 96 : 64 // px — matches w-44 / w-24 / w-16
   const strokeWidth = 6
   const radius = (boxSize - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
@@ -156,12 +161,21 @@ export function SOSButton({
 
   return (
     <div className={cn('relative flex items-center justify-center', className)}>
-      {/* Pulse rings — active while an SOS is live, and as a standing
-          affordance even at rest so the button reads as "always armed". */}
-      <span className={cn('absolute inline-flex h-full w-full rounded-full bg-sos animate-pulse-ring',
-        isActive ? 'opacity-40' : 'opacity-20')} />
-      <span className={cn('absolute inline-flex h-full w-full rounded-full bg-sos animate-pulse-ring-delayed',
-        isActive ? 'opacity-30' : 'opacity-10')} />
+      {/* Pulse rings — active while an SOS is live, and (default/compact
+          only) as a standing affordance even at rest so the button reads as
+          "always armed". The nav variant sits in the bottom bar on every
+          screen, permanently in view — a constant ambient pulse there reads
+          as flicker, not reassurance, so it only animates when there's a
+          real reason to: an actual active SOS. Motion should mean
+          something, not just decorate a persistent nav element. */}
+      {(size !== 'nav' || isActive) && (
+        <>
+          <span className={cn('absolute inline-flex h-full w-full rounded-full bg-sos animate-pulse-ring',
+            isActive ? 'opacity-40' : 'opacity-20')} />
+          <span className={cn('absolute inline-flex h-full w-full rounded-full bg-sos animate-pulse-ring-delayed',
+            isActive ? 'opacity-30' : 'opacity-10')} />
+        </>
+      )}
 
       {/* Hold-progress ring, plus (twoStage only) a threshold tick mark at
           66% — the point past which releasing sends the default-category
@@ -196,7 +210,7 @@ export function SOSButton({
           holdProgress > 0 && 'scale-95',
           'focus:outline-none focus:ring-4 focus:ring-sos-light focus:ring-offset-2',
           'disabled:opacity-60 disabled:cursor-not-allowed',
-          size === 'default' ? 'w-44 h-44 text-2xl' : 'w-24 h-24 text-sm',
+          size === 'default' ? 'w-44 h-44 text-2xl' : size === 'compact' ? 'w-24 h-24 text-sm' : 'w-16 h-16 text-xs',
           isActive
             ? 'bg-sos-dark text-white animate-sos-pulse shadow-sos-dark/50'
             : 'bg-sos hover:bg-sos-dark text-white shadow-sos/40',
@@ -206,15 +220,15 @@ export function SOSButton({
           : 'Hold for 2 seconds to send SOS emergency alert'}
       >
         {loading ? (
-          <Loader2 className={cn('animate-spin', size === 'default' ? 'w-10 h-10' : 'w-6 h-6')} />
+          <Loader2 className={cn('animate-spin', size === 'default' ? 'w-10 h-10' : size === 'compact' ? 'w-6 h-6' : 'w-5 h-5')} />
         ) : holdProgress > 0 ? (
-          <span className={cn('font-black tabular-nums', size === 'default' ? 'text-3xl' : 'text-xl')}>
+          <span className={cn('font-black tabular-nums', size === 'default' ? 'text-3xl' : size === 'compact' ? 'text-xl' : 'text-[11px]')}>
             {Math.round(holdProgress)}%
           </span>
         ) : (
           <>
-            <AlertTriangle className={cn(size === 'default' ? 'w-10 h-10' : 'w-6 h-6')} fill="currentColor" />
-            <span>{isActive ? 'SOS ACTIVE' : 'SEND SOS'}</span>
+            <AlertTriangle className={cn(size === 'default' ? 'w-10 h-10' : size === 'compact' ? 'w-6 h-6' : 'w-5 h-5')} fill="currentColor" />
+            {size !== 'nav' && <span>{isActive ? 'SOS ACTIVE' : 'SEND SOS'}</span>}
           </>
         )}
         {size === 'default' && !isActive && !loading && (

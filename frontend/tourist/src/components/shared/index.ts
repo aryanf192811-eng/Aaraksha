@@ -1,6 +1,7 @@
 // src/components/shared/index.ts
 export { TSIBadge } from './TSIBadge'
 export { SOSButton } from './SOSButton'
+export { NavSOSButton } from './NavSOSButton'
 export { DMSCard } from './DMSCard'
 export { OfflineBanner } from './OfflineBanner'
 export { Skeleton, TripCardSkeleton, PageSkeleton } from './LoadingSkeleton'

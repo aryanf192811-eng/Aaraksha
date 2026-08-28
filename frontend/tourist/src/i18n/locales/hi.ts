@@ -19,7 +19,7 @@ export default {
     trips: 'यात्राएं',
     checkIn: 'चेक इन',
     community: 'समुदाय',
-    profile: 'प्रोफ़ाइल',
+    sos: 'SOS',
   },
   enums: {
     sosCategory: {
@@ -90,8 +90,7 @@ export default {
     dmsRunning: 'डेड मैन्स स्विच सक्रिय है',
     holdToAlert: 'आपातकालीन मदद बस एक टैप दूर है',
     safetyReady: 'यात्रा के लिए सुरक्षा उपकरण तैयार हैं',
-    keepHolding: 'दबाए रखें...',
-    releaseToSend: 'SOS भेजने के लिए छोड़ें',
+    sosActiveStatus: 'SOS सक्रिय — मदद रास्ते में है',
     categoryPickerTitle: 'किस तरह की आपात स्थिति है?',
     categoryPickerSubtitle: 'तुरंत SOS भेजने के लिए एक श्रेणी चुनें।',
     sosUrgentEyebrow: 'आपातकाल सक्रिय',

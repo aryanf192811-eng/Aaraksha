@@ -25,7 +25,7 @@ export default {
     trips: 'ভ্ৰমণ',
     checkIn: 'চেক ইন',
     community: 'সম্প্ৰদায়',
-    profile: "প্ৰ'ফাইল",
+    sos: 'SOS',
   },
   enums: {
     sosCategory: {
@@ -96,8 +96,7 @@ export default {
     dmsRunning: 'ডেড মেনছ ছুইচ সক্ৰিয় আছে',
     holdToAlert: 'জৰুৰীকালীন সহায় মাত্ৰ এক টেপৰ দূৰত্বত',
     safetyReady: 'ভ্ৰমণৰ বাবে সুৰক্ষা সঁজুলি সাজু',
-    keepHolding: 'ধৰি ৰাখক...',
-    releaseToSend: 'SOS পঠিয়াবলৈ এৰি দিয়ক',
+    sosActiveStatus: 'SOS সক্ৰিয় — সহায় পথত আছে',
     categoryPickerTitle: 'কি ধৰণৰ জৰুৰী অৱস্থা?',
     categoryPickerSubtitle: 'তৎক্ষণাৎ SOS পঠিয়াবলৈ এটা শ্ৰেণী বাছক।',
     sosUrgentEyebrow: 'জৰুৰীকালীন সক্ৰিয়',

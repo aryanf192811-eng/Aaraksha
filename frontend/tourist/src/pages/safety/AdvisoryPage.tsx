@@ -16,12 +16,18 @@ import { getDestinationImage } from '../../lib/destinationImages'
 import { tEnum } from '../../lib/i18nEnums'
 import { cn } from '../../lib/utils'
 
-const ZONE_CONFIG: Record<string, { icon: ComponentType<{ className?: string }>; color: string }> = {
-  SAFE:         { icon: CheckCircle2, color: 'bg-tsi-low/10 border-tsi-low/30 text-tsi-low' },
-  CAUTION:      { icon: AlertTriangle, color: 'bg-primary/10 border-primary/20 text-primary' },
-  HIGH_RISK:    { icon: ShieldAlert,  color: 'bg-tsi-high/10 border-tsi-high/30 text-tsi-high' },
-  RESTRICTED:   { icon: Ban,          color: 'bg-sos/10 border-sos/30 text-sos-dark' },
-  ILP_REQUIRED: { icon: ClipboardList, color: 'bg-purple-50 border-purple-200 text-purple-700' },
+// `badge` is a separate, fully-literal class string (not derived from
+// `color` at runtime via string replace) — Tailwind's static scanner only
+// generates CSS for class names it can find verbatim in source, so a
+// runtime-mangled string like `color.replace('/10','/90')` would silently
+// produce an unstyled badge (see TripListPage.tsx's tsiDotColor comment for
+// the same pitfall).
+const ZONE_CONFIG: Record<string, { icon: ComponentType<{ className?: string }>; color: string; badge: string }> = {
+  SAFE:         { icon: CheckCircle2, color: 'bg-tsi-low/10 border-tsi-low/30 text-tsi-low', badge: 'bg-tsi-low/90 border-white/20 text-white' },
+  CAUTION:      { icon: AlertTriangle, color: 'bg-primary/10 border-primary/20 text-primary', badge: 'bg-primary/90 border-white/20 text-on-surface' },
+  HIGH_RISK:    { icon: ShieldAlert,  color: 'bg-tsi-high/10 border-tsi-high/30 text-tsi-high', badge: 'bg-tsi-high/90 border-white/20 text-white' },
+  RESTRICTED:   { icon: Ban,          color: 'bg-sos/10 border-sos/30 text-sos-dark', badge: 'bg-sos/90 border-white/20 text-white' },
+  ILP_REQUIRED: { icon: ClipboardList, color: 'bg-purple-50 border-purple-200 text-purple-700', badge: 'bg-purple-600/90 border-white/20 text-white' },
 }
 
 export default function AdvisoryPage() {
@@ -79,10 +85,10 @@ export default function AdvisoryPage() {
             !selectedZone ? 'bg-on-surface text-surface border-on-surface' : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant')}>
           {t('advisory.all')}
         </button>
-        {Object.entries(ZONE_CONFIG).map(([zone, { icon: Icon, color }]) => (
+        {Object.entries(ZONE_CONFIG).map(([zone, { icon: Icon, badge }]) => (
           <button key={zone} onClick={() => setSelectedZone(zone === selectedZone ? '' : zone)}
             className={cn('px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-all flex items-center gap-1',
-              selectedZone === zone ? `${color} border` : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant')}>
+              selectedZone === zone ? badge : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant')}>
             <Icon className="w-3.5 h-3.5" /> {tEnum(t, 'zoneType', zone)}
           </button>
         ))}
@@ -96,25 +102,26 @@ export default function AdvisoryPage() {
           const ZoneIcon = zone.icon
           const activity = activityByDest.get(dest.id) ?? activityByDest.get(dest.name.toUpperCase())
           return (
-            <div key={dest.id} className="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
-              <div className="flex items-start gap-3 p-5 pb-3">
-                <img src={getDestinationImage(dest.name, { w: 200, q: 78 })} alt=""
-                  className="w-14 h-14 rounded-2xl object-cover flex-shrink-0" />
-                <div className="flex-1 min-w-0 flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="font-black text-on-surface text-base truncate">{dest.name}</h3>
-                    <p className="text-xs text-on-surface-variant">{dest.state}</p>
-                  </div>
-                  <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full border flex items-center gap-1 flex-shrink-0', zone.color)}>
-                    <ZoneIcon className="w-3.5 h-3.5" /> {tEnum(t, 'zoneType', dest.zone_type)}
-                  </span>
+            <div key={dest.id} className="bg-surface-container-lowest rounded-3xl shadow-md overflow-hidden">
+              <div className="relative h-32">
+                <img src={getDestinationImage(dest.name, { w: 800, q: 80 })} alt=""
+                  className="absolute inset-0 w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                <span className={cn('absolute top-3 right-3 text-xs font-bold px-2.5 py-1 rounded-full border backdrop-blur-md flex items-center gap-1', zone.badge)}>
+                  <ZoneIcon className="w-3.5 h-3.5" /> {tEnum(t, 'zoneType', dest.zone_type)}
+                </span>
+                <div className="absolute bottom-3 left-4 right-4">
+                  <h3 className="font-display font-black text-white text-lg leading-tight truncate drop-shadow-sm">{dest.name}</h3>
+                  <p className="text-xs text-white/85">{dest.state}</p>
                 </div>
               </div>
 
-              <div className="px-5 pb-5">
+              <div className="px-5 pt-4 pb-5">
                 {activity && activity.total > 0 && (
-                  <div className="bg-surface-container rounded-xl px-3 py-2 mb-3 flex items-center gap-2">
-                    <Users className="w-3.5 h-3.5 text-on-surface-variant flex-shrink-0" />
+                  <div className="bg-surface-container rounded-xl px-3 py-2 mb-3 flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-trust/15 flex items-center justify-center flex-shrink-0">
+                      <Users className="w-3.5 h-3.5 text-trust-dark" />
+                    </div>
                     <p className="text-xs text-on-surface-variant">
                       <span className="font-bold text-on-surface">{t('advisory.touristsHereNow', { count: activity.total })}</span> {t('advisory.hereRightNow')}
                       {activity.highRisk > 0 && (
