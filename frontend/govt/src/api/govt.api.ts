@@ -292,6 +292,9 @@ const govtApi = {
   verifyVolunteer: (id: string) =>
     api.patch<APIResponse<Volunteer>>(`/govt/volunteers/${id}/verify`),
 
+  rejectVolunteer: (id: string) =>
+    api.patch<APIResponse<Volunteer>>(`/govt/volunteers/${id}/reject`),
+
   getAnalytics: (period?: string) =>
     api.get<APIResponse<AnalyticsResponse>>('/govt/analytics', { params: { period } }),
 

@@ -82,5 +82,6 @@ router.get('/volunteers',              requireGovtRole(...COMMAND_CENTER_ROLES),
 router.post('/volunteers',             requireGovtRole(...COMMAND_CENTER_ROLES), validate(CreateVolunteerByGovtSchema), ctrl.createVolunteer)
 router.get('/volunteers/pending',      requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getPendingVolunteers)
 router.patch('/volunteers/:id/verify', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.verifyVolunteer)
+router.patch('/volunteers/:id/reject', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.rejectVolunteer)
 
 module.exports = router

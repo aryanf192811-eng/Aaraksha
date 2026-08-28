@@ -335,8 +335,15 @@ async function verifyVolunteer(volunteerId) {
   return volunteer
 }
 
+async function rejectVolunteer(volunteerId) {
+  const volunteer = await new VolunteerRepository().reject(volunteerId)
+  if (!volunteer) throw Object.assign(new Error(ERRORS.VOLUNTEER_NOT_FOUND), { statusCode: 404 })
+  logger.info({ volunteerId }, 'Volunteer application rejected')
+  return volunteer
+}
+
 module.exports = {
   getDashboard, getActiveSOS, assignRescue, resolveSOS, getNearbyRescuers, getActiveRescuers,
   getLiveTourists, getRiskOverview, getRiskModelInfo, getRescueTeams, updateTeamStatus, getAnalytics,
-  getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer,
+  getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer, rejectVolunteer,
 }

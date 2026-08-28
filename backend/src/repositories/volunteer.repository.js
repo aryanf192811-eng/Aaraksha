@@ -99,6 +99,17 @@ class VolunteerRepository extends BaseRepository {
     )
   }
 
+  // Rejecting a pending applicant reuses is_active — the same soft-hide
+  // flag every volunteer query already filters on (WHERE is_active = TRUE)
+  // — so a rejected applicant disappears from both the pending queue and
+  // the roster immediately, no migration needed.
+  async reject(id) {
+    return this.queryOne(
+      `UPDATE volunteers SET is_active = FALSE WHERE id = $1 AND is_active = TRUE RETURNING ${SAFE_COLS}`,
+      [id]
+    )
+  }
+
   // lat/lng are optional — a status flip alone (e.g. going OFF_DUTY for the
   // night) shouldn't require a fresh GPS fix, but the app sends one
   // whenever it has it so a volunteer's position stays current for the

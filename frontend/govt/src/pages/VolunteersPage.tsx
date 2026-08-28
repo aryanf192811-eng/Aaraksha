@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   HeartHandshake, ShieldCheck, MapPin, Loader2, CheckCircle2, Clock, IdCard,
-  AlertTriangle, UserPlus, Copy, Check, Award, Radio,
+  AlertTriangle, UserPlus, Copy, Check, Award, Radio, UserX,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
@@ -62,6 +62,15 @@ export default function VolunteersPage() {
     mutationFn: (id: string) => govtApi.verifyVolunteer(id),
     onSuccess: (res) => {
       toast.success(`${res.data.data.full_name} verified — now assignable to nearby SOS incidents`)
+      queryClient.invalidateQueries({ queryKey: ['govt', 'volunteers'] })
+      setReviewing(null)
+    },
+  })
+
+  const { mutate: reject, isPending: rejecting } = useMutation({
+    mutationFn: (id: string) => govtApi.rejectVolunteer(id),
+    onSuccess: (res) => {
+      toast.success(`${res.data.data.full_name}'s application was rejected`)
       queryClient.invalidateQueries({ queryKey: ['govt', 'volunteers'] })
       setReviewing(null)
     },
@@ -214,8 +223,8 @@ export default function VolunteersPage() {
       <Dialog open={!!reviewing} onOpenChange={(open) => !open && setReviewing(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Verify identity — {reviewing?.full_name}</DialogTitle>
-            <DialogDescription>Confirm this registration before granting dispatch access.</DialogDescription>
+            <DialogTitle>Review application — {reviewing?.full_name}</DialogTitle>
+            <DialogDescription>Verify to grant dispatch access, or reject if the ID doesn't check out.</DialogDescription>
           </DialogHeader>
 
           {reviewing && (
@@ -252,7 +261,11 @@ export default function VolunteersPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setReviewing(null)} className="rounded-full">Cancel</Button>
-            <Button disabled={verifying} onClick={() => reviewing && verify(reviewing.id)}
+            <Button variant="outline" disabled={rejecting || verifying} onClick={() => reviewing && reject(reviewing.id)}
+              className="rounded-full font-bold flex items-center gap-2 border-sos/40 text-sos hover:bg-sos/10 hover:text-sos">
+              {rejecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><UserX className="w-4 h-4" /> Reject</>}
+            </Button>
+            <Button disabled={verifying || rejecting} onClick={() => reviewing && verify(reviewing.id)}
               className="bg-primary-dark hover:bg-primary-dark text-white rounded-full font-bold flex items-center gap-2">
               {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ShieldCheck className="w-4 h-4" /> Confirm & Verify</>}
             </Button>

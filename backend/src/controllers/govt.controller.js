@@ -182,10 +182,17 @@ const verifyVolunteer = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+const rejectVolunteer = async (req, res, next) => {
+  try {
+    const volunteer = await govtService.rejectVolunteer(req.params.id)
+    sendSuccess(res, volunteer, 'Volunteer application rejected')
+  } catch (err) { next(err) }
+}
+
 module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRiskModelInfo, getRescueTeams,
   getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, getNearbyRescuers, getActiveRescuers,
   resolveSOS, updateTeamStatus, downloadIncidentReport,
   scanCheckpoint, getRecentCheckpointScans, postDestinationNews,
-  getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer,
+  getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer, rejectVolunteer,
   getAnomalies, resolveAnomaly,
   getIncidentQueue, getIncident, getAssignableOfficers, assignIncident, updateIncidentStatus, downloadEfirReport }
