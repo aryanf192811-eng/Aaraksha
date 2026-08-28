@@ -18,12 +18,18 @@ export function useDMS() {
     queryKey: ['dms', 'active'],
     queryFn: () => dmsApi.getActiveDMS().then((r) => r.data.data),
     // Poll fast once close to the deadline — the backend cron that actually
-    // fires the auto-SOS only ticks once a minute, so a flat 30s poll left
-    // up to ~90s where the countdown sat at "0:00" with nothing visibly
-    // happening, reading as "auto-SOS isn't working" during a demo.
+    // fires the auto-SOS runs every 5s, so a flat 30s poll left up to ~90s
+    // where the countdown sat at "0:00" with nothing visibly happening,
+    // reading as "auto-SOS isn't working" during a demo. Tightened further
+    // inside the last 10s specifically for short demo-duration switches
+    // (as low as 5s total) — a 5s poll against a 10s countdown left a wide
+    // enough window that "I'm Safe" could still render clickable a couple
+    // seconds after the switch had already triggered server-side.
     refetchInterval: (query) => {
       const remaining = query.state.data?.seconds_remaining
-      return remaining != null && remaining <= 90 ? 5_000 : 30_000
+      if (remaining == null) return 30_000
+      if (remaining <= 10) return 2_000
+      return remaining <= 90 ? 5_000 : 30_000
     },
   })
 
@@ -82,6 +88,23 @@ export function useDMS() {
       toast.success('Checked in! DMS reset.')
       queryClient.setQueryData(['dms', 'active'], withSecondsRemaining(res.data.data.dms))
       queryClient.invalidateQueries({ queryKey: ['checkins'] })
+    },
+    // A real race, mostly with short demo-duration switches: the backend's
+    // trigger cron (every 5s) can flip status to TRIGGERED between the
+    // button rendering as clickable and this request landing — the server
+    // correctly 404s rather than silently reviving an already-fired switch,
+    // but without this the button just failed with a generic error and the
+    // card kept showing a stale, now-broken "I'm Safe" action. Refetching
+    // pulls in the real TRIGGERED state so the card switches to its
+    // "auto-SOS already sent" view instead of staying stuck.
+    onError: (err: unknown) => {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status === 404) {
+        toast.error("Too late — your Dead Man's Switch already triggered and sent an SOS. Check the Safety Center.", { duration: 8000 })
+        queryClient.invalidateQueries({ queryKey: ['dms', 'active'] })
+      } else {
+        toast.error("Couldn't check in — try again")
+      }
     },
   })
 

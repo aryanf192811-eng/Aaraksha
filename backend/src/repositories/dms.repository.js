@@ -9,14 +9,19 @@ class DMSRepository extends BaseRepository {
       ? data.intervalSeconds * 1000
       : data.intervalMinutes * 60 * 1000
     const nextTrigger = new Date(Date.now() + totalMs)
-    // Demo-mode switches (interval_seconds set) skip the 10-minute-early
-    // warning entirely — it would already be "due" the instant the switch
-    // is armed, since the whole window is shorter than the warning offset.
-    const warningSentAt = data.intervalSeconds != null ? new Date() : null
+    // warning_sent_at starts NULL for every switch, demo or real — demo-mode
+    // switches are excluded from ever being warning-cron candidates directly
+    // in findNeedingWarning()'s WHERE clause (interval_seconds IS NULL)
+    // rather than by pre-filling this column with a fake "already warned"
+    // timestamp. That old sentinel trick meant this field carried two
+    // unrelated meanings ("exempt from the warning cron" vs "a warning was
+    // actually sent"), and frontend/shared/SafetyTimeline.tsx's escalation
+    // ladder trusted the second meaning — so every demo-mode switch showed
+    // as already "in warning" the instant it was armed, a real bug.
     return this.queryOne(`
-      INSERT INTO dead_mans_switches (tourist_id, trip_id, interval_minutes, interval_seconds, next_trigger_at, warning_sent_at)
-      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [data.touristId, data.tripId ?? null, data.intervalMinutes, data.intervalSeconds ?? null, nextTrigger, warningSentAt]
+      INSERT INTO dead_mans_switches (tourist_id, trip_id, interval_minutes, interval_seconds, next_trigger_at)
+      VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [data.touristId, data.tripId ?? null, data.intervalMinutes, data.intervalSeconds ?? null, nextTrigger]
     )
   }
 
@@ -45,13 +50,17 @@ class DMSRepository extends BaseRepository {
     return this.queryOne(q, touristId ? [id, touristId] : [id])
   }
 
-  // Find all DMS that need warning (10 minutes before trigger, not yet warned)
+  // Find all DMS that need warning (10 minutes before trigger, not yet
+  // warned). Demo-mode switches (interval_seconds set) are excluded outright
+  // — their whole window is typically shorter than the 10-minute warning
+  // offset, so it would already be "due" the instant the switch is armed.
   async findNeedingWarning() {
     return this.query(`
       SELECT dms.*, t.full_name, t.phone
       FROM dead_mans_switches dms
       JOIN tourists t ON t.id = dms.tourist_id
       WHERE dms.status = 'ACTIVE'
+        AND dms.interval_seconds IS NULL
         AND dms.warning_sent_at IS NULL
         AND (dms.next_trigger_at - INTERVAL '10 minutes') <= NOW()`,
     )
@@ -73,14 +82,13 @@ class DMSRepository extends BaseRepository {
   async reset(id, intervalMinutes, intervalSeconds) {
     const totalMs = intervalSeconds != null ? intervalSeconds * 1000 : intervalMinutes * 60 * 1000
     const nextTrigger = new Date(Date.now() + totalMs)
-    // Demo-mode switches re-arm already "warned" too, for the same reason
-    // create() sets it up front — see comment there.
-    const warningSentAt = intervalSeconds != null ? new Date() : null
+    // A fresh countdown always starts un-warned — see create()'s comment on
+    // why this is no longer pre-filled for demo mode.
     return this.queryOne(`
       UPDATE dead_mans_switches
-      SET last_reset_at=NOW(), next_trigger_at=$2, warning_sent_at=$3
+      SET last_reset_at=NOW(), next_trigger_at=$2, warning_sent_at=NULL
       WHERE id=$1 RETURNING *`,
-      [id, nextTrigger, warningSentAt]
+      [id, nextTrigger]
     )
   }
 

@@ -205,7 +205,19 @@ function TSIBarChart() {
 export default function LandingPage() {
   const navigate = useNavigate()
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const hasHydrated = useAuthStore(s => s.hasHydrated)
   const [scrolledPastHero, setScrolledPastHero] = useState(false)
+
+  // The installed PWA's start_url is "/" — this page — so a returning,
+  // already-logged-in tourist reopening the app landed on the marketing
+  // splash every time, with a manual "Dashboard" tap required to actually
+  // continue in. That reads exactly like being logged out even though the
+  // IndexedDB-persisted session was fine the whole time. Gated on
+  // hasHydrated so this doesn't fire against the default (not-yet-loaded)
+  // isAuthenticated:false before the async IndexedDB read resolves.
+  useEffect(() => {
+    if (hasHydrated && isAuthenticated) navigate('/dashboard', { replace: true })
+  }, [hasHydrated, isAuthenticated, navigate])
 
   // The hero is dark photography full-bleed from the true top of the
   // screen — the header has no background of its own while over it (the
@@ -230,6 +242,12 @@ export default function LandingPage() {
     meta?.setAttribute('content', '#0f172a')
     return () => { if (original) meta?.setAttribute('content', original) }
   }, [])
+
+  // Same gate PrivateRoute uses — render nothing for the one brief tick
+  // before IndexedDB hydration resolves, rather than flashing the full
+  // marketing hero at a returning, already-logged-in tourist right before
+  // redirecting them away from it.
+  if (!hasHydrated) return null
 
   return (
     <div className="min-h-screen bg-surface text-on-surface font-sans antialiased">
