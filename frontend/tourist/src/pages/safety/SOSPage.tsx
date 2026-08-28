@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft, Battery, Loader2, Timer, CheckCircle2, Wifi, WifiOff,
-  HeartPulse, Compass, Mountain, Waves, ShieldAlert, HelpCircle, PowerOff, Smartphone, Bell, FileWarning,
+  PowerOff, Smartphone, Bell, FileWarning,
   Check, ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -26,16 +26,8 @@ import { queryClient } from '../../lib/queryClient'
 import { useSafetyStore } from '../../store/safety.store'
 import { tEnum } from '../../lib/i18nEnums'
 import type { SOSCategory } from '../../constants/enums'
+import { SOS_CATEGORY_CONFIG as CATEGORY_CONFIG } from '../../constants/sosCategories'
 import { cn } from '../../lib/utils'
-
-const CATEGORY_CONFIG = [
-  { value: 'MEDICAL',  Icon: HeartPulse,  color: 'bg-sos-light text-sos-dark' },
-  { value: 'LOST',     Icon: Compass,     color: 'bg-primary/15 text-primary-dark' },
-  { value: 'TRAPPED',  Icon: Mountain,    color: 'bg-tsi-high/10 text-tsi-high' },
-  { value: 'DISASTER', Icon: Waves,       color: 'bg-blue-100 text-blue-700' },
-  { value: 'CRIME',    Icon: ShieldAlert, color: 'bg-purple-100 text-purple-700' },
-  { value: 'OTHER',    Icon: HelpCircle,  color: 'bg-surface-container-high text-on-surface-variant' },
-] as const
 
 const DMS_INTERVALS = [
   { labelKey: 'sos.interval30', value: 30 }, { labelKey: 'sos.interval60', value: 60 },

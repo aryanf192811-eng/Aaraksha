@@ -19,18 +19,20 @@
 // and works against the tourism-appeal goal, not for it. It stays compact
 // and confident in the calm states and only escalates when there's an
 // actual reason to.
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Plus, Map, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper, Compass, ShieldAlert, CheckCircle2 } from 'lucide-react'
+import { Plus, Map, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper, Compass, CheckCircle2, X } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed, ExploreDestinations, RescueTrackingCard } from '../components/shared'
+import { ActiveSOSBanner } from '../components/shared/ActiveSOSBanner'
 import { RescueReadinessChecklist } from '../components/shared/RescueReadinessChecklist'
 import { SafetyTimeline, useEscalationLevel } from '../components/shared/SafetyTimeline'
 import { useAuthStore } from '../store/auth.store'
 import { useSafetyStore } from '../store/safety.store'
 import { useDMS } from '../hooks/useDMS'
+import { useSOS } from '../hooks/useSOS'
 import tripApi from '../api/trip.api'
 import newsApi from '../api/news.api'
 import type { Trip } from '../types/api.types'
@@ -38,6 +40,7 @@ import { formatDate, cn } from '../lib/utils'
 import { getDestinationImage } from '../lib/destinationImages'
 import { tEnum } from '../lib/i18nEnums'
 import { TRIP_STATUSES } from '../constants/enums'
+import { SOS_CATEGORY_CONFIG, DEFAULT_SOS_CATEGORY } from '../constants/sosCategories'
 
 const STATUS_COLORS: Record<string, string> = {
   PLANNED:   'bg-slate-100 text-slate-600',
@@ -59,6 +62,15 @@ export default function DashboardPage() {
   const { dms } = useDMS()
   const activeSOSId = useSafetyStore((s) => s.activeSOSId)
   const escalationLevel = useEscalationLevel(dms)
+  const { sendSOS, sending } = useSOS()
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false)
+  const [holdPct, setHoldPct] = useState(0)
+
+  const handleQuickSend = () => { sendSOS(DEFAULT_SOS_CATEGORY).catch(() => {}) }
+  const handleCategoryPick = (category: typeof DEFAULT_SOS_CATEGORY) => {
+    setShowCategoryPicker(false)
+    sendSOS(category).catch(() => {})
+  }
 
   const { data: tripsData, isLoading } = useQuery({
     queryKey: ['trips'],
@@ -98,29 +110,20 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* ── State 1: SOS active — takes priority over everything below ── */}
+      {/* ── State 1: SOS active — takes priority over everything below ──
+          ActiveSOSBanner always renders real content (status, category,
+          elapsed time, a false-alarm cancel flow) even in the stretch
+          before a rescuer is assigned, when RescueTrackingCard alone
+          renders nothing — that gap used to show up as a blank page. */}
       {activeSOSId ? (
-        <div className="px-5 pb-4">
-          <button
-            onClick={() => navigate('/sos')}
-            className="w-full rounded-3xl bg-gradient-to-br from-sos-dark to-sos p-5 text-left cursor-pointer shadow-[0_8px_40px_-8px_rgba(220,38,38,0.5)]"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
-              </span>
-              <p className="text-[11px] font-extrabold text-white uppercase tracking-widest">{t('dashboard.sosUrgentEyebrow')}</p>
-            </div>
-            <p className="font-display font-extrabold text-white text-xl leading-tight">{t('dashboard.sosUrgentTitle')}</p>
-            <p className="text-sm text-white/85 mt-1">{t('dashboard.sosUrgentBody')}</p>
-            <span className="inline-flex items-center gap-1.5 mt-3 text-sm font-bold text-sos-dark bg-white px-4 py-2 rounded-full">
-              <ShieldAlert className="w-4 h-4" /> {t('dashboard.viewRescueStatus')}
-            </span>
+        <div className="px-5 pb-4 space-y-3">
+          <ActiveSOSBanner />
+          <RescueTrackingCard />
+          <SafetyTimeline dms={dms} />
+          <button onClick={() => navigate('/sos')}
+            className="w-full text-center text-xs font-semibold text-on-surface-variant hover:text-on-surface py-1 transition-colors">
+            {t('dashboard.viewRescueStatus')}
           </button>
-          <div className="mt-3">
-            <RescueTrackingCard />
-          </div>
         </div>
       ) : (
         <>
@@ -161,7 +164,9 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              <SafetyStrip dms={dms} activeSOSId={activeSOSId} onOpen={() => navigate('/sos')} t={t} />
+              <SafetyStrip dms={dms} activeSOSId={activeSOSId} onOpen={() => navigate('/sos')} t={t}
+                sending={sending} holdPct={holdPct} onHoldProgress={setHoldPct}
+                onQuickSend={handleQuickSend} onHoldComplete={() => setShowCategoryPicker(true)} />
 
               {latestNews && latestNews.length > 0 && (
                 <div className="px-5 mt-8">
@@ -207,7 +212,9 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              <SafetyStrip dms={dms} activeSOSId={activeSOSId} onOpen={() => navigate('/sos')} t={t} minimal />
+              <SafetyStrip dms={dms} activeSOSId={activeSOSId} onOpen={() => navigate('/sos')} t={t} minimal
+                sending={sending} holdPct={holdPct} onHoldProgress={setHoldPct}
+                onQuickSend={handleQuickSend} onHoldComplete={() => setShowCategoryPicker(true)} />
 
               <div className="px-5 mt-8">
                 <h2 className="font-display text-2xl font-extrabold text-on-surface mb-1">{t('dashboard.exploreTitle')}</h2>
@@ -270,6 +277,34 @@ export default function DashboardPage() {
           )}
         </>
       )}
+
+      {/* ── Inline category picker — reached by holding the SOS button all
+          the way to 100% instead of releasing at the 66% quick-send point.
+          Sends immediately on tap. */}
+      {showCategoryPicker && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end" onClick={() => setShowCategoryPicker(false)}>
+          <div className="bg-surface-container-lowest rounded-t-3xl w-full p-6 pb-10 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-display text-lg font-black text-on-surface">{t('dashboard.categoryPickerTitle')}</h2>
+              <button onClick={() => setShowCategoryPicker(false)} aria-label={t('common.cancel')}>
+                <X className="w-5 h-5 text-on-surface-variant" />
+              </button>
+            </div>
+            <p className="text-sm text-on-surface-variant mb-5">{t('dashboard.categoryPickerSubtitle')}</p>
+            <div className="grid grid-cols-3 gap-2.5">
+              {SOS_CATEGORY_CONFIG.map(({ value, Icon, color }) => (
+                <button key={value} type="button" onClick={() => handleCategoryPick(value)}
+                  className="bg-surface-container rounded-2xl p-3.5 flex flex-col items-center gap-2 active:scale-95 transition-transform">
+                  <div className={cn('w-10 h-10 rounded-full flex items-center justify-center', color)}>
+                    <Icon className="w-4.5 h-4.5" />
+                  </div>
+                  <span className="text-xs font-bold text-on-surface text-center leading-tight">{tEnum(t, 'sosCategory', value)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -278,21 +313,40 @@ export default function DashboardPage() {
 // drops the DMS card entirely (no-trip state: a Dead Man's Switch isn't
 // even something the user can act on yet without a trip) so the no-trip
 // page reads as a trust signal, not a feature to configure right now.
-function SafetyStrip({ dms, activeSOSId, onOpen, t, minimal }: {
+function SafetyStrip({ dms, activeSOSId, onOpen, t, minimal, sending, holdPct, onHoldProgress, onQuickSend, onHoldComplete }: {
   dms: ReturnType<typeof useDMS>['dms']
   activeSOSId: string | null
   onOpen: () => void
   t: (key: string, opts?: Record<string, unknown>) => string
   minimal?: boolean
+  sending: boolean
+  holdPct: number
+  onHoldProgress: (pct: number) => void
+  onQuickSend: () => void
+  onHoldComplete: () => void
 }) {
+  const holding = holdPct > 0
+  const armed = holdPct >= 66
   return (
     <div className="px-5 mt-5">
       <div className="rounded-3xl bg-surface-container-lowest border border-outline-variant p-4 flex items-center gap-3.5">
-        <SOSButton onTrigger={onOpen} isActive={!!activeSOSId} size="compact" />
+        <SOSButton
+          onTrigger={onOpen}
+          isActive={!!activeSOSId}
+          size="compact"
+          loading={sending}
+          twoStage
+          onQuickSend={onQuickSend}
+          onHoldComplete={onHoldComplete}
+          onHoldProgress={onHoldProgress}
+        />
         <div className="flex-1 min-w-0">
           <p className="font-display font-bold text-on-surface text-base">{t('dashboard.safety')}</p>
-          <p className="text-xs text-on-surface-variant mt-0.5 leading-snug">
-            {dms ? t('dashboard.dmsRunning') : minimal ? t('dashboard.safetyReady') : t('dashboard.holdToAlert')}
+          <p className={cn('text-xs mt-0.5 leading-snug transition-colors',
+            holding && armed ? 'text-sos-dark font-bold' : 'text-on-surface-variant')}>
+            {holding
+              ? (armed ? t('dashboard.releaseToSend') : t('dashboard.keepHolding'))
+              : (dms ? t('dashboard.dmsRunning') : minimal ? t('dashboard.safetyReady') : t('dashboard.holdToAlert'))}
           </p>
         </div>
         <button onClick={onOpen} className="flex-shrink-0 text-xs font-bold text-trust-dark bg-trust-light px-3.5 py-2.5 rounded-full cursor-pointer whitespace-nowrap">
