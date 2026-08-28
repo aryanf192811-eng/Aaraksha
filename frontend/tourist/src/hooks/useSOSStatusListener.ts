@@ -4,12 +4,14 @@
 // dispatched or that their SOS was resolved — those govt-side actions only
 // used to notify the govt dashboard room.
 import { useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { connectSocket } from '../lib/socket'
 import { useAuthStore } from '../store/auth.store'
 import { useSafetyStore } from '../store/safety.store'
 import { queryClient } from '../lib/queryClient'
 import { SOCKET_EVENTS } from '../constants/enums'
+import sosApi from '../api/sos.api'
 
 interface SOSStatusPayload {
   sosId: string
@@ -21,6 +23,21 @@ interface SOSStatusPayload {
 export function useSOSStatusListener() {
   const token = useAuthStore((s) => s.token)
   const setActiveSOSId = useSafetyStore((s) => s.setActiveSOSId)
+
+  // Rehydrate activeSOSId from the server on mount/login — it's pure
+  // client-side state (see safety.store.ts) with no persistence, so a
+  // fresh login or hard reload while a real SOS is genuinely still open
+  // server-side would otherwise leave the SOS button showing its normal
+  // (not "active") state until the next status-changing socket event.
+  const { data: activeRescue } = useQuery({
+    queryKey: ['sos', 'active-rescue'],
+    queryFn: () => sosApi.getActiveRescue().then(r => r.data.data),
+    enabled: !!token,
+    staleTime: 0,
+  })
+  useEffect(() => {
+    if (activeRescue) setActiveSOSId(activeRescue.sosId)
+  }, [activeRescue, setActiveSOSId])
 
   useEffect(() => {
     if (!token) return

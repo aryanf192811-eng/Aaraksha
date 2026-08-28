@@ -89,3 +89,5 @@ stitch_*.zip
 # Playwright MCP session artifacts (screenshots, DOM snapshots, console
 # logs) generated while manually verifying changes — not test fixtures.
 .playwright-mcp/
+
+.vercel

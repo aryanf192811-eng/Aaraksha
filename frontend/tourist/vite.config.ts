@@ -82,6 +82,13 @@ export default defineConfig({
   // cloudflared/ngrok tunnel (or over LAN) for real-device demo testing —
   // Vite otherwise rejects requests whose Host header isn't localhost.
   server: { port: 5173, strictPort: true, host: true, allowedHosts: true },
+  // maplibre-gl loads its vector-tile decoding Web Worker as a separate
+  // chunk at runtime — Vite's default dependency pre-bundling rewrites that
+  // worker's import path in a way the browser can't resolve (a 404 on
+  // maplibre-gl-worker.mjs), which silently leaves the map blank. Excluding
+  // it from pre-bundling serves the package as real, unbundled ESM instead,
+  // which resolves the worker correctly (same fix as frontend/govt).
+  optimizeDeps: { exclude: ['maplibre-gl'] },
   // Mirrors backend/vitest.config.js: globals so tests don't need to import
   // describe/it/expect, TZ pinned so date-formatting tests are deterministic
   // regardless of the machine/CI runner's local timezone.

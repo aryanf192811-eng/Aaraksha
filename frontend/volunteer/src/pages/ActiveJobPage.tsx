@@ -5,56 +5,62 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Siren, Navigation2, LocateFixed, User, Clock, CheckCircle2, MapPinned } from 'lucide-react'
-import { MapContainer, TileLayer, Marker, Polyline, Circle, useMap } from 'react-leaflet'
-import 'leaflet/dist/leaflet.css'
-import L from 'leaflet'
+import { Siren, Navigation2, LocateFixed, User, Clock, CheckCircle2, MapPinned, UserCheck, Flag, Check } from 'lucide-react'
+// MapLibre GL over free vector tiles (OpenFreeMap, no API key) instead of
+// Leaflet + raster OSM — same swap as the tourist app's RescueTrackingCard,
+// so both sides of the live rescue view now share one rendering engine and
+// one premium look, not just the same status-stepper language.
+import { Map as MapLibreMap, Marker as MapLibreMarker, type GeoJSONSource } from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import type { Feature, LineString, Polygon } from 'geojson'
 import volunteerApi from '../api/volunteer.api'
 import { getRoute, type Route } from '../lib/osrm'
 import { cn } from '../lib/utils'
 
-// Fix Leaflet's default marker icon — its bundled asset paths break under
-// Vite's bundling, so point at the CDN copies instead (standard workaround,
-// same as guardian/src/pages/TrackingPage.tsx).
-delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-})
+const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 
 const CATEGORY_LABELS: Record<string, string> = {
   MEDICAL: 'Medical', LOST: 'Lost', TRAPPED: 'Trapped',
   DISASTER: 'Disaster', MISSING: 'Missing', CRIME: 'Crime', OTHER: 'Emergency',
 }
 
-// divIcon marker-badge factory — same pattern as the checkpoint scanner /
-// guardian portal, a colored circular badge instead of the default pin.
-function badgeIcon(color: string, IconSvg: string) {
-  return L.divIcon({
-    className: '',
-    html: `<div style="background:${color};width:36px;height:36px;border-radius:9999px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.35);border:2px solid white">${IconSvg}</div>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-  })
+// Same 3-stage assignment lifecycle the tourist side's RescueTrackingCard
+// shows, rendered the same node+connecting-line way (Uber/Rapido-style trip
+// status, not flat color bars) — kept in sync so both ends of the same
+// real-time event visually agree.
+const STATUS_STEPS = [
+  { key: 'ASSIGNED', label: 'Assigned', Icon: UserCheck },
+  { key: 'EN_ROUTE', label: 'En Route', Icon: Navigation2 },
+  { key: 'ARRIVED', label: 'Arrived', Icon: Flag },
+] as const
+
+// Colored circular marker badge — same visual language as before, now a
+// plain DOM element handed to a MapLibre Marker instead of a Leaflet divIcon.
+function markerEl(color: string, iconSvg: string) {
+  const el = document.createElement('div')
+  el.style.cssText = `background:${color};width:36px;height:36px;border-radius:9999px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.35);border:2px solid white`
+  el.innerHTML = iconSvg
+  return el
 }
 
-const RESCUER_ICON = badgeIcon('#0f766e', '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>')
-const SOS_ICON = badgeIcon('#ef4444', '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>')
+const RESCUER_MARKER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>'
+const SOS_MARKER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
 
-// Recenter control — direct copy of guardian/src/pages/TrackingPage.tsx's
-// RecenterControl, floating button since the map has no default zoom UI.
-function RecenterControl({ bounds }: { bounds: [number, number][] }) {
-  const map = useMap()
-  return (
-    <button
-      onClick={() => (bounds.length > 1 ? map.fitBounds(bounds, { padding: [48, 48] }) : map.flyTo(bounds[0], 14))}
-      title="Recenter" aria-label="Recenter"
-      className="absolute bottom-40 right-3 z-[1000] w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-    >
-      <LocateFixed className="w-5 h-5 text-on-surface" />
-    </button>
-  )
+// MapLibre has no "circle in real meters" primitive like Leaflet's Circle —
+// approximate the SOS 300m radius as a 64-point polygon (equirectangular
+// approximation, accurate enough at this scale) and draw it as a fill+line
+// GeoJSON layer instead.
+function circlePolygonLngLat(center: [number, number], radiusMeters: number, points = 64): [number, number][] {
+  const [lat, lng] = center
+  const latRad = (lat * Math.PI) / 180
+  const coords: [number, number][] = []
+  for (let i = 0; i <= points; i++) {
+    const angle = (i / points) * 2 * Math.PI
+    const dLat = (radiusMeters * Math.cos(angle)) / 111320
+    const dLng = (radiusMeters * Math.sin(angle)) / (111320 * Math.cos(latRad))
+    coords.push([lng + dLng, lat + dLat])
+  }
+  return coords
 }
 
 function formatEta(minutes: number): string {
@@ -73,6 +79,10 @@ export default function ActiveJobPage() {
   const [route, setRoute] = useState<Route | null>(null)
   const lastPushRef = useRef(0)
   const watchIdRef = useRef<number | null>(null)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<MapLibreMap | null>(null)
+  const rescuerMarkerRef = useRef<MapLibreMarker | null>(null)
+  const sosMarkerRef = useRef<MapLibreMarker | null>(null)
 
   const { data: assignment, refetch } = useQuery({
     queryKey: ['volunteer', 'active-assignment'],
@@ -128,6 +138,94 @@ export default function ActiveJobPage() {
     getRoute(rescuerPos[0], rescuerPos[1], sosPos[0], sosPos[1]).then(setRoute)
   }, [rescuerPos?.[0], rescuerPos?.[1], sosPos?.[0], sosPos?.[1]])
 
+  // Map instance: created once the page mounts (assignment already loaded —
+  // see the `if (!assignment) return null` guard below, which keeps this
+  // component, and its container div, unmounted until then).
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return
+    const initialCenter = rescuerPos ?? sosPos ?? [26.15, 91.77]
+    const map = new MapLibreMap({
+      container: mapContainerRef.current,
+      style: MAP_STYLE,
+      center: [initialCenter[1], initialCenter[0]],
+      zoom: 13,
+    })
+    mapRef.current = map
+    return () => {
+      map.remove()
+      mapRef.current = null
+      rescuerMarkerRef.current = null
+      sosMarkerRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Markers, SOS radius, and route line — updated in place on every
+  // position/route change so nothing flickers on each GPS tick.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    const apply = () => {
+      if (sosPos) {
+        const sosLngLat: [number, number] = [sosPos[1], sosPos[0]]
+        if (!sosMarkerRef.current) {
+          sosMarkerRef.current = new MapLibreMarker({ element: markerEl('#ef4444', SOS_MARKER_SVG) }).setLngLat(sosLngLat).addTo(map)
+        } else {
+          sosMarkerRef.current.setLngLat(sosLngLat)
+        }
+        const circleGeojson: Feature<Polygon> = {
+          type: 'Feature', properties: {},
+          geometry: { type: 'Polygon', coordinates: [circlePolygonLngLat(sosPos, 300)] },
+        }
+        const existingCircle = map.getSource('sos-radius') as GeoJSONSource | undefined
+        if (existingCircle) {
+          existingCircle.setData(circleGeojson)
+        } else {
+          map.addSource('sos-radius', { type: 'geojson', data: circleGeojson })
+          map.addLayer({ id: 'sos-radius-fill', type: 'fill', source: 'sos-radius', paint: { 'fill-color': '#ef4444', 'fill-opacity': 0.15 } })
+          map.addLayer({ id: 'sos-radius-outline', type: 'line', source: 'sos-radius', paint: { 'line-color': '#ef4444', 'line-width': 1.5 } })
+        }
+      }
+
+      if (rescuerPos) {
+        const rescuerLngLat: [number, number] = [rescuerPos[1], rescuerPos[0]]
+        if (!rescuerMarkerRef.current) {
+          rescuerMarkerRef.current = new MapLibreMarker({ element: markerEl('#0f766e', RESCUER_MARKER_SVG) }).setLngLat(rescuerLngLat).addTo(map)
+        } else {
+          rescuerMarkerRef.current.setLngLat(rescuerLngLat)
+        }
+      }
+
+      if (sosPos && rescuerPos) {
+        const lineCoords = (route?.coordinates ?? [rescuerPos, sosPos]).map(([lat, lng]) => [lng, lat])
+        const geojson: Feature<LineString> = {
+          type: 'Feature', properties: {},
+          geometry: { type: 'LineString', coordinates: lineCoords },
+        }
+        const existingRoute = map.getSource('job-route') as GeoJSONSource | undefined
+        if (existingRoute) {
+          existingRoute.setData(geojson)
+        } else {
+          map.addSource('job-route', { type: 'geojson', data: geojson })
+          map.addLayer({
+            id: 'job-route', type: 'line', source: 'job-route',
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: { 'line-color': '#0f766e', 'line-width': route ? 5 : 4, 'line-opacity': route ? 0.9 : 0.7, 'line-dasharray': route ? [1, 0] : [2, 2] },
+          })
+        }
+        if (map.getLayer('job-route')) {
+          map.setPaintProperty('job-route', 'line-width', route ? 5 : 4)
+          map.setPaintProperty('job-route', 'line-opacity', route ? 0.9 : 0.7)
+          map.setPaintProperty('job-route', 'line-dasharray', route ? [1, 0] : [2, 2])
+        }
+      }
+    }
+
+    if (map.isStyleLoaded()) apply()
+    else map.once('load', apply)
+  }, [sosPos?.[0], sosPos?.[1], rescuerPos?.[0], rescuerPos?.[1], route])
+
   const { mutate: updateStatus, isPending: updatingStatus } = useMutation({
     mutationFn: (status: 'EN_ROUTE' | 'ARRIVED') => volunteerApi.updateAssignmentStatus(status),
     onSuccess: (res) => {
@@ -140,46 +238,76 @@ export default function ActiveJobPage() {
 
   const category = CATEGORY_LABELS[assignment.category] || assignment.category
   const bounds: [number, number][] = [sosPos, rescuerPos].filter(Boolean) as [number, number][]
-  const center = rescuerPos ?? sosPos ?? [26.15, 91.77]
-  const polylinePositions = route?.coordinates ?? (sosPos && rescuerPos ? [rescuerPos, sosPos] : [])
+  const currentStepIndex = Math.max(0, STATUS_STEPS.findIndex((s) => s.key === assignment.status))
 
   return (
     <div className="h-[100dvh] w-full relative bg-surface-container-high overflow-hidden">
       {/* ── Live map, full screen ─────────────────────────────── */}
-      <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+      <div ref={mapContainerRef} className="w-full h-full" />
 
-        {sosPos && (
-          <>
-            <Circle center={sosPos} radius={300} color="#ef4444" fillColor="#ef4444" fillOpacity={0.15} />
-            <Marker position={sosPos} icon={SOS_ICON} />
-          </>
-        )}
-        {rescuerPos && <Marker position={rescuerPos} icon={RESCUER_ICON} />}
-        {polylinePositions.length > 1 && (
-          <Polyline
-            positions={polylinePositions}
-            pathOptions={route ? { color: '#0f766e', weight: 5, opacity: 0.9 } : { color: '#0f766e', weight: 4, opacity: 0.7, dashArray: '8 8' }}
-          />
-        )}
-        {bounds.length > 0 && <RecenterControl bounds={bounds} />}
-      </MapContainer>
+      {bounds.length > 0 && (
+        <button
+          onClick={() => {
+            const map = mapRef.current
+            if (!map) return
+            if (bounds.length > 1) {
+              const lngs = bounds.map((b) => b[1]), lats = bounds.map((b) => b[0])
+              map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 48, duration: 600 })
+            } else {
+              map.flyTo({ center: [bounds[0][1], bounds[0][0]], zoom: 14 })
+            }
+          }}
+          title="Recenter" aria-label="Recenter"
+          className="absolute bottom-40 right-3 z-[1000] w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        >
+          <LocateFixed className="w-5 h-5 text-on-surface" />
+        </button>
+      )}
 
-      {/* ── Top overlay: job summary ──────────────────────────── */}
+      {/* ── Top overlay: job summary + assignment progress ────── */}
       <div className="absolute top-0 left-0 right-0 z-[1000] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-4 bg-gradient-to-b from-black/60 to-transparent">
-        <div className="flex items-center gap-2 bg-white/95 backdrop-blur rounded-2xl px-4 py-3 shadow-lg">
-          <div className="w-9 h-9 rounded-full bg-sos flex items-center justify-center flex-shrink-0">
-            <Siren className="w-4.5 h-4.5 text-white" />
+        <div className="bg-white/95 backdrop-blur rounded-2xl px-4 py-3.5 shadow-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-9 h-9 rounded-full bg-sos flex items-center justify-center flex-shrink-0">
+              <Siren className="w-4.5 h-4.5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black text-on-surface truncate">{category}{assignment.tourist_name ? ` · ${assignment.tourist_name}` : ''}</p>
+              <p className="text-xs text-on-surface-variant flex items-center gap-1">
+                <User className="w-3 h-3" /> Assigned to you
+              </p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-black text-on-surface truncate">{category}{assignment.tourist_name ? ` · ${assignment.tourist_name}` : ''}</p>
-            <p className="text-xs text-on-surface-variant flex items-center gap-1">
-              <User className="w-3 h-3" /> Assigned to you
-              <span className={cn('ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide',
-                assignment.status === 'ARRIVED' ? 'bg-safe/15 text-safe' : 'bg-primary/10 text-primary')}>
-                {assignment.status.replace('_', ' ')}
-              </span>
-            </p>
+
+          {/* Same node+connecting-line progress language as the tourist
+              app's RescueTrackingCard — both sides of one real-time event
+              agree, right down to the icons. */}
+          <div className="flex items-center">
+            {STATUS_STEPS.map((step, i) => {
+              const isDone = i < currentStepIndex
+              const isCurrent = i === currentStepIndex
+              const StepIcon = step.Icon
+              return (
+                <div key={step.key} className="flex items-center flex-1 last:flex-none">
+                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                    <div className={cn('relative w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0',
+                      isDone ? 'bg-primary text-white'
+                        : isCurrent ? 'bg-primary/15 text-primary ring-2 ring-primary'
+                          : 'bg-surface-container-high text-on-surface-variant/50')}>
+                      {isCurrent && <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping" />}
+                      {isDone ? <Check className="w-3.5 h-3.5 relative" strokeWidth={3} /> : <StepIcon className="w-3 h-3 relative" />}
+                    </div>
+                    <span className={cn('text-[9px] font-bold uppercase tracking-wide text-center leading-tight w-14',
+                      i <= currentStepIndex ? 'text-primary' : 'text-on-surface-variant/50')}>
+                      {step.label}
+                    </span>
+                  </div>
+                  {i < STATUS_STEPS.length - 1 && (
+                    <div className={cn('h-0.5 flex-1 mx-1 -mt-4', i < currentStepIndex ? 'bg-primary' : 'bg-outline-variant')} />
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -188,18 +316,29 @@ export default function ActiveJobPage() {
       <div className="absolute bottom-0 left-0 right-0 z-[1000] bg-white rounded-t-3xl shadow-[0_-4px_24px_rgba(0,0,0,0.12)] px-5 pt-4 pb-[calc(env(safe-area-inset-bottom)+20px)]">
         <div className="w-10 h-1 bg-outline-variant rounded-full mx-auto mb-4" />
 
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <MapPinned className="w-4 h-4 text-primary" />
-            <span className="text-sm font-bold text-on-surface">
-              {route ? `${route.distanceKm.toFixed(1)} km` : 'Calculating route…'}
-            </span>
+        <div className="grid grid-cols-2 gap-2.5 mb-4">
+          <div className="bg-surface-container rounded-2xl p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <MapPinned className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-on-surface leading-tight">
+                {route ? `${route.distanceKm.toFixed(1)} km` : '—'}
+              </p>
+              <p className="text-[10px] text-on-surface-variant uppercase tracking-wide">Distance</p>
+            </div>
           </div>
-          {route && (
-            <span className="flex items-center gap-1 text-sm font-bold text-on-surface-variant">
-              <Clock className="w-4 h-4" /> ETA {formatEta(route.durationMin)}
-            </span>
-          )}
+          <div className="bg-surface-container rounded-2xl p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Clock className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-on-surface leading-tight">
+                {route ? formatEta(route.durationMin) : 'Calculating…'}
+              </p>
+              <p className="text-[10px] text-on-surface-variant uppercase tracking-wide">ETA</p>
+            </div>
+          </div>
         </div>
 
         {sosPos && (

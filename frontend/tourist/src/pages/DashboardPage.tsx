@@ -25,8 +25,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Map, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper, Compass, CheckCircle2, X } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed, ExploreDestinations, RescueTrackingCard } from '../components/shared'
-import { ActiveSOSBanner } from '../components/shared/ActiveSOSBanner'
+import { TSIBadge, SOSButton, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed, ExploreDestinations } from '../components/shared'
 import { RescueReadinessChecklist } from '../components/shared/RescueReadinessChecklist'
 import { SafetyTimeline, useEscalationLevel } from '../components/shared/SafetyTimeline'
 import { useAuthStore } from '../store/auth.store'
@@ -66,10 +65,15 @@ export default function DashboardPage() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [holdPct, setHoldPct] = useState(0)
 
-  const handleQuickSend = () => { sendSOS(DEFAULT_SOS_CATEGORY).catch(() => {}) }
+  // Sending navigates straight to the Safety Center — that page already
+  // owns the live status/rescue-tracking/false-alarm experience, so there's
+  // no separate in-place "SOS active" view to keep in sync here.
+  const handleQuickSend = () => {
+    sendSOS(DEFAULT_SOS_CATEGORY).then(() => navigate('/sos')).catch(() => {})
+  }
   const handleCategoryPick = (category: typeof DEFAULT_SOS_CATEGORY) => {
     setShowCategoryPicker(false)
-    sendSOS(category).catch(() => {})
+    sendSOS(category).then(() => navigate('/sos')).catch(() => {})
   }
 
   const { data: tripsData, isLoading } = useQuery({
@@ -110,34 +114,23 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* ── State 1: SOS active — takes priority over everything below ──
-          ActiveSOSBanner always renders real content (status, category,
-          elapsed time, a false-alarm cancel flow) even in the stretch
-          before a rescuer is assigned, when RescueTrackingCard alone
-          renders nothing — that gap used to show up as a blank page. */}
-      {activeSOSId ? (
-        <div className="px-5 pb-4 space-y-3">
-          <ActiveSOSBanner />
-          <RescueTrackingCard />
-          <SafetyTimeline dms={dms} />
-          <button onClick={() => navigate('/sos')}
-            className="w-full text-center text-xs font-semibold text-on-surface-variant hover:text-on-surface py-1 transition-colors">
-            {t('dashboard.viewRescueStatus')}
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="px-5 pb-4">
-            <h1 className="font-display text-[2rem] font-extrabold text-on-surface leading-[1.1]">
-              {t('dashboard.welcome', { name: firstName })}
-            </h1>
-          </div>
+      {/* ── Dashboard content — always this, regardless of SOS state.
+          Sending an SOS (from the compact hold button below) navigates
+          straight to the Safety Center instead of swapping in an
+          alternate in-place view here — that in-place view broke the
+          flow and was removed on explicit request. The Safety Center
+          already owns the false-alarm/status/rescue-tracking experience. ── */}
+      <div className="px-5 pb-4">
+        <h1 className="font-display text-[2rem] font-extrabold text-on-surface leading-[1.1]">
+          {t('dashboard.welcome', { name: firstName })}
+        </h1>
+      </div>
 
-          {activeTrip ? (
-            <>
-              {/* ── State 2: trip in progress — "am I okay, here, today" leads ── */}
-              <div className="px-5">
-                <button
+      {activeTrip ? (
+        <>
+          {/* ── State 2: trip in progress — "am I okay, here, today" leads ── */}
+          <div className="px-5">
+            <button
                   onClick={() => navigate(`/trips/${activeTrip.id}`)}
                   className="relative w-full h-56 rounded-[2rem] overflow-hidden shadow-glass-lg text-left cursor-pointer"
                 >
@@ -269,13 +262,11 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* ── Rescue Readiness ─────────────────────────────────────── */}
-          {tourist && (
-            <div className="px-5 mt-8">
-              <RescueReadinessChecklist tourist={tourist} activeTrip={activeTrip} dms={dms} />
-            </div>
-          )}
-        </>
+      {/* ── Rescue Readiness ─────────────────────────────────────── */}
+      {tourist && (
+        <div className="px-5 mt-8">
+          <RescueReadinessChecklist tourist={tourist} activeTrip={activeTrip} dms={dms} />
+        </div>
       )}
 
       {/* ── Inline category picker — reached by holding the SOS button all
