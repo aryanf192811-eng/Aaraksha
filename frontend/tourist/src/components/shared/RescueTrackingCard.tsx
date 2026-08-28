@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 // Leaflet + raster OSM — real road labels/rendering at a premium level
 // Leaflet's raster tiles can't match, same rendering engine already proven
 // in the govt app's TerrainMap.tsx, no billed key required.
-import { Map as MapLibreMap, Marker as MapLibreMarker, type GeoJSONSource } from 'maplibre-gl'
+import { Map as MapLibreMap, Marker as MapLibreMarker, NavigationControl, type GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { Feature, LineString } from 'geojson'
 import { ShieldCheck, Phone, Navigation, LocateFixed, UserCheck, Navigation2, Flag, Check } from 'lucide-react'
@@ -40,12 +40,26 @@ const STATUS_STEPS = [
   { key: 'ARRIVED', label: 'Arrived', Icon: Flag },
 ] as const
 
-function markerEl(color: string, glyph: string) {
+// Real teardrop map-pin SVGs, anchored at the tip (Marker's `anchor:
+// 'bottom'`) so the point — not the shape's center — sits exactly on the
+// coordinate, matching how native map apps pin a location. Replaces the
+// old flat colored dot, which read as a placeholder rather than a
+// rescue-grade live map.
+function pinMarkerEl(color: string, iconInner: string, pulse = false) {
   const el = document.createElement('div')
-  el.style.cssText = `background:${color};border:2px solid white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;color:white;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,0.3)`
-  el.textContent = glyph
+  el.style.cssText = 'position:relative;width:34px;height:42px'
+  el.innerHTML = `
+    ${pulse ? `<span class="rescue-pin-pulse" style="position:absolute;left:50%;bottom:1px;width:16px;height:16px;margin-left:-8px;border-radius:9999px;background:${color}"></span>` : ''}
+    <svg width="34" height="42" viewBox="0 0 34 42" style="position:relative;display:block;filter:drop-shadow(0 3px 5px rgba(0,0,0,.35))">
+      <path d="M17 0C7.61 0 0 7.61 0 17c0 12.75 17 25 17 25s17-12.25 17-25C34 7.61 26.39 0 17 0z" fill="${color}"/>
+      <circle cx="17" cy="17" r="11" fill="white"/>
+      ${iconInner}
+    </svg>`
   return el
 }
+
+const RESCUER_PIN_ICON = '<path d="M11.5 17.5l3.5 3.5 7.5-8" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
+const SOS_PIN_ICON = '<circle cx="17" cy="17" r="5" fill="#ef4444"/>'
 
 function formatEta(minutes: number | null): string {
   if (minutes == null) return '—'
@@ -117,10 +131,11 @@ export function RescueTrackingCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rescuerPos?.[0], rescuerPos?.[1], sosPos?.[0], sosPos?.[1], hasValidCoords])
 
-  // Map instance: created once the preview box mounts (hasValidCoords flips
-  // true), non-interactive (drag/scroll/zoom off) — this is a static "here's
-  // where things stand" preview, not a pannable map, matching the old
-  // Leaflet MapContainer's dragging={false} scrollWheelZoom={false}.
+  // Map instance: created once the box mounts (hasValidCoords flips true).
+  // Pannable and pinch-zoomable — a genuinely dynamic map, not a locked
+  // preview — but scrollZoom stays off so scrolling the page past the card
+  // doesn't get trapped by the map underneath it; a NavigationControl
+  // supplies the desktop +/- zoom scrollZoom would otherwise have given.
   useEffect(() => {
     if (!hasValidCoords || !rescuerPos || !mapContainerRef.current || mapRef.current) return
     const map = new MapLibreMap({
@@ -128,9 +143,15 @@ export function RescueTrackingCard() {
       style: MAP_STYLE,
       center: [rescuerPos[1], rescuerPos[0]],
       zoom: 14,
-      interactive: false,
+      dragPan: true,
+      dragRotate: false,
+      scrollZoom: false,
+      touchZoomRotate: true,
+      doubleClickZoom: true,
+      keyboard: false,
       attributionControl: false,
     })
+    map.addControl(new NavigationControl({ showCompass: false }), 'bottom-left')
     mapRef.current = map
     return () => {
       map.remove()
@@ -152,12 +173,14 @@ export function RescueTrackingCard() {
       const sosLngLat: [number, number] = [sosPos[1], sosPos[0]]
 
       if (!rescuerMarkerRef.current) {
-        rescuerMarkerRef.current = new MapLibreMarker({ element: markerEl('#10b981', '●') }).setLngLat(rescuerLngLat).addTo(map)
+        rescuerMarkerRef.current = new MapLibreMarker({ element: pinMarkerEl('#10b981', RESCUER_PIN_ICON), anchor: 'bottom' })
+          .setLngLat(rescuerLngLat).addTo(map)
       } else {
         rescuerMarkerRef.current.setLngLat(rescuerLngLat)
       }
       if (!sosMarkerRef.current) {
-        sosMarkerRef.current = new MapLibreMarker({ element: markerEl('#ef4444', '!') }).setLngLat(sosLngLat).addTo(map)
+        sosMarkerRef.current = new MapLibreMarker({ element: pinMarkerEl('#ef4444', SOS_PIN_ICON, true), anchor: 'bottom' })
+          .setLngLat(sosLngLat).addTo(map)
       }
 
       const lineCoords = (route?.coordinates ?? [rescuerPos, sosPos]).map(([lat, lng]) => [lng, lat])
@@ -192,10 +215,14 @@ export function RescueTrackingCard() {
     if (follow) {
       map.easeTo({ center: [rescuerPos[1], rescuerPos[0]], zoom: Math.max(map.getZoom(), 15), duration: 600 })
     } else if (sosPos) {
+      // maxZoom guards against fitBounds zooming in past the point where
+      // tiles render anything recognizable — with the rescuer essentially
+      // on top of the tourist (near-zero-distance bounding box), it would
+      // otherwise drive the camera to an extreme zoom that renders blank.
       map.fitBounds(
         [[Math.min(rescuerPos[1], sosPos[1]), Math.min(rescuerPos[0], sosPos[0])],
          [Math.max(rescuerPos[1], sosPos[1]), Math.max(rescuerPos[0], sosPos[0])]],
-        { padding: 40, duration: 600 }
+        { padding: 48, duration: 600, maxZoom: 16 }
       )
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -270,7 +297,14 @@ export function RescueTrackingCard() {
       </div>
 
       {hasValidCoords && rescuerPos && (
-        <div className="h-44 relative">
+        <div className="h-64 relative">
+          <style>{`
+            @keyframes rescue-pin-pulse {
+              0% { transform: scale(.6); opacity: .7; }
+              70%, 100% { transform: scale(2.4); opacity: 0; }
+            }
+            .rescue-pin-pulse { animation: rescue-pin-pulse 1.8s ease-out infinite; }
+          `}</style>
           <div ref={mapContainerRef} className="w-full h-full" />
 
           {/* Live status pill — top-left, same "glass pill over photo/map"
