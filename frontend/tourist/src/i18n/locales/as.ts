@@ -288,6 +288,8 @@ export default {
     descriptionPlaceholder: 'কি হৈছিল বৰ্ণনা কৰক... (নূন্যতম ১০ আখৰ)',
     incidentDateLabel: 'ঘটনাৰ তাৰিখ (বৈকল্পিক)',
     submitReport: 'প্ৰতিবেদন দাখিল কৰক',
+    tripDetailsSection: 'ভ্ৰমণৰ বিৱৰণ',
+    whatWasItLikeSection: 'ই কেনেকুৱা আছিল',
     reportDisclaimer: 'প্ৰতিবেদনসমূহ বেনামী আৰু ভৱিষ্যতৰ পৰ্যটকসকলক সুৰক্ষিত থাকিবলৈ সহায় কৰে।',
     toastReportSubmitted: "প্ৰতিবেদন দাখিল কৰা হ'ল। পৰ্যটকসকলক সুৰক্ষিত ৰখাৰ বাবে ধন্যবাদ!",
     reviewModalTitle: 'আপোনাৰ অভিজ্ঞতা শ্বেয়াৰ কৰক',

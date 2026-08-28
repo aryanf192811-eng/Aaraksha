@@ -13,6 +13,7 @@ import {
   Compass, IndianRupee, Wallet, UserX, AlertTriangle, HelpCircle,
   Star, MessageSquare, Camera, ThumbsUp, ThumbsDown, Lightbulb, Users2,
   Clock, ShieldCheck, ShieldQuestion, ShieldAlert, Sparkles, Flame, ChevronRight,
+  MapPin, CalendarDays,
 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -431,14 +432,21 @@ export default function CommunityPage() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end">
           <div className="bg-surface-container-lowest rounded-t-3xl w-full max-h-[85vh] overflow-y-auto p-6 pb-10">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-black text-on-surface">{t('community.reportModalTitle')}</h2>
+              <h2 className="text-xl font-black text-on-surface flex items-center gap-2.5">
+                <span className="w-9 h-9 rounded-full bg-sos/15 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-4.5 h-4.5 text-sos-dark" />
+                </span>
+                {t('community.reportModalTitle')}
+              </h2>
               <button onClick={() => setShowReportForm(false)}><X className="w-6 h-6 text-on-surface-variant" /></button>
             </div>
             <form onSubmit={handleSubmit(d => submitReport(d))} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label className="font-semibold text-sm">{t('community.destinationLabel')}</Label>
+              <div className="bg-trust/5 border border-trust/20 rounded-2xl p-4 space-y-2">
+                <p className="flex items-center gap-2 text-sm font-bold text-trust-dark">
+                  <MapPin className="w-4 h-4" /> {t('community.destinationLabel')}
+                </p>
                 <Select onValueChange={v => setValue('destinationId', v)} defaultValue={isAllSelected ? undefined : selectedDest}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder={t('community.selectDestination')} /></SelectTrigger>
+                  <SelectTrigger className="h-11 rounded-xl bg-surface-container-lowest w-full"><SelectValue placeholder={t('community.selectDestination')} /></SelectTrigger>
                   <SelectContent>
                     {(destinations || []).map((d) => (
                       <SelectItem key={d.id} value={d.id}>{d.name}, {d.state}</SelectItem>
@@ -448,8 +456,10 @@ export default function CommunityPage() {
                 {errors.destinationId && <p className="text-xs text-sos-dark">{errors.destinationId.message}</p>}
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="font-semibold text-sm">{t('community.incidentTypeLabel')}</Label>
+              <div className="bg-sos/5 border border-sos/20 rounded-2xl p-4 space-y-3">
+                <p className="flex items-center gap-2 text-sm font-bold text-sos-dark">
+                  <AlertTriangle className="w-4 h-4" /> {t('community.incidentTypeLabel')}
+                </p>
                 <div className="grid grid-cols-3 gap-2">
                   {SCAM_CATEGORY_VALUES.map((value) => {
                     const Icon = SCAM_ICONS[value]
@@ -457,7 +467,7 @@ export default function CommunityPage() {
                     return (
                       <button key={value} type="button"
                         onClick={() => setValue('category', value)}
-                        className={cn('relative border-2 rounded-xl p-2.5 text-center transition-colors',
+                        className={cn('relative border-2 rounded-xl p-2.5 text-center transition-colors bg-surface-container-lowest',
                           selected ? 'border-primary bg-primary/10' : 'border-outline-variant hover:border-primary/50')}>
                         {selected && (
                           <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-primary flex items-center justify-center">
@@ -473,18 +483,17 @@ export default function CommunityPage() {
                   })}
                 </div>
                 {errors.category && <p className="text-xs text-sos-dark">{errors.category.message}</p>}
-              </div>
 
-              <div className="space-y-1.5">
-                <Label className="font-semibold text-sm">{t('community.descriptionLabel')}</Label>
                 <textarea rows={3} placeholder={t('community.descriptionPlaceholder')} {...register('description')}
-                  className="w-full border border-outline-variant bg-surface-container rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-colors" />
+                  className="w-full border border-outline-variant bg-surface-container-lowest rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-colors" />
                 {errors.description && <p className="text-xs text-sos-dark">{errors.description.message}</p>}
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="font-semibold text-sm">{t('community.incidentDateLabel')}</Label>
-                <Input type="date" className="h-11 rounded-xl" {...register('incidentDate')} />
+              <div className="bg-primary/5 border border-primary/15 rounded-2xl p-4 space-y-2">
+                <p className="flex items-center gap-2 text-sm font-bold text-primary-dark">
+                  <CalendarDays className="w-4 h-4" /> {t('community.incidentDateLabel')}
+                </p>
+                <Input type="date" className="h-11 rounded-xl bg-surface-container-lowest" {...register('incidentDate')} />
               </div>
 
               <Button type="submit" disabled={isPending} className="w-full h-12 bg-on-surface text-surface rounded-full font-bold flex items-center justify-center gap-2">
@@ -568,85 +577,92 @@ function ReviewFormSheet({ destinationId, onClose }: { destinationId: string; on
           <button onClick={onClose}><X className="w-6 h-6 text-on-surface-variant" /></button>
         </div>
 
-        <div className="space-y-5">
-          <div className="text-center">
-            <Label className="font-semibold text-sm block mb-2">{t('community.overallRating')}</Label>
-            <div className="flex justify-center"><StarRating value={rating} onChange={setRating} size="lg" /></div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="font-semibold text-sm">{t('community.yourExperience')}</Label>
+        <div className="space-y-4">
+          <div className="bg-primary/5 border border-primary/15 rounded-2xl p-4 space-y-3">
+            <div className="text-center">
+              <Label className="font-semibold text-sm block mb-2">{t('community.overallRating')}</Label>
+              <div className="flex justify-center"><StarRating value={rating} onChange={setRating} size="lg" /></div>
+            </div>
             <textarea rows={3} placeholder={t('community.experiencePlaceholder')}
               value={reviewText} onChange={(e) => setReviewText(e.target.value)}
-              className="w-full border border-outline-variant rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary" />
+              className="w-full border border-outline-variant bg-surface-container-lowest rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="font-semibold text-sm">{t('community.visitedOnLabel')}</Label>
-              <Input type="date" className="h-11 rounded-xl" value={visitedDate} onChange={(e) => setVisitedDate(e.target.value)} />
+          <div className="bg-trust/5 border border-trust/20 rounded-2xl p-4 space-y-3">
+            <p className="flex items-center gap-2 text-sm font-bold text-trust-dark">
+              <CalendarDays className="w-4 h-4" /> {t('community.tripDetailsSection')}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="font-semibold text-xs">{t('community.visitedOnLabel')}</Label>
+                <Input type="date" className="h-11 rounded-xl bg-surface-container-lowest" value={visitedDate} onChange={(e) => setVisitedDate(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-semibold text-xs">{t('community.actualCost')}</Label>
+                <Input type="number" placeholder="1200" className="h-11 rounded-xl bg-surface-container-lowest" value={actualCostInr} onChange={(e) => setActualCostInr(e.target.value)} />
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="font-semibold text-sm">{t('community.actualCost')}</Label>
-              <Input type="number" placeholder="1200" className="h-11 rounded-xl" value={actualCostInr} onChange={(e) => setActualCostInr(e.target.value)} />
+              <Label className="font-semibold text-xs">{t('community.timeSpent')}</Label>
+              <Input type="number" step="0.5" placeholder="5" className="h-11 rounded-xl bg-surface-container-lowest" value={timeSpentHours} onChange={(e) => setTimeSpentHours(e.target.value)} />
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="font-semibold text-sm">{t('community.timeSpent')}</Label>
-            <Input type="number" step="0.5" placeholder="5" className="h-11 rounded-xl" value={timeSpentHours} onChange={(e) => setTimeSpentHours(e.target.value)} />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="font-semibold text-sm">{t('community.crowdLevelLabel')}</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['LOW', 'MEDIUM', 'HIGH'] as const).map((v) => (
-                <button key={v} type="button" onClick={() => setCrowdLevel(v)}
-                  className={cn('rounded-xl border-2 py-2 text-xs font-bold transition-all',
-                    crowdLevel === v ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
-                  {tEnum(t, 'crowdLevel', v)}
-                </button>
-              ))}
+          <div className="bg-tsi-low/5 border border-tsi-low/20 rounded-2xl p-4 space-y-3">
+            <p className="flex items-center gap-2 text-sm font-bold text-tsi-low">
+              <ShieldCheck className="w-4 h-4" /> {t('community.whatWasItLikeSection')}
+            </p>
+            <div className="space-y-1.5">
+              <Label className="font-semibold text-xs">{t('community.crowdLevelLabel')}</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['LOW', 'MEDIUM', 'HIGH'] as const).map((v) => (
+                  <button key={v} type="button" onClick={() => setCrowdLevel(v)}
+                    className={cn('rounded-xl border-2 py-2 text-xs font-bold transition-all bg-surface-container-lowest',
+                      crowdLevel === v ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
+                    {tEnum(t, 'crowdLevel', v)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-semibold text-xs">{t('community.didYouFeelSafe')}</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['YES', 'SOMEWHAT', 'NO'] as const).map((v) => (
+                  <button key={v} type="button" onClick={() => setFeltSafe(v)}
+                    className={cn('rounded-xl border-2 py-2 text-xs font-bold transition-all bg-surface-container-lowest',
+                      feltSafe === v ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
+                    {tEnum(t, 'feltSafe', v)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="bg-surface-container-lowest rounded-xl p-3 space-y-2.5">
+              <MiniRating label={t('community.cleanliness')} value={cleanlinessRating} onChange={setCleanlinessRating} />
+              <MiniRating label={t('community.parkingTransport')} value={transportRating} onChange={setTransportRating} />
+              <MiniRating label={t('community.foodAvailability')} value={foodAvailabilityRating} onChange={setFoodAvailabilityRating} />
+              <MiniRating label={t('community.accessibility')} value={accessibilityRating} onChange={setAccessibilityRating} />
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="font-semibold text-sm">{t('community.didYouFeelSafe')}</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['YES', 'SOMEWHAT', 'NO'] as const).map((v) => (
-                <button key={v} type="button" onClick={() => setFeltSafe(v)}
-                  className={cn('rounded-xl border-2 py-2 text-xs font-bold transition-all',
-                    feltSafe === v ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
-                  {tEnum(t, 'feltSafe', v)}
-                </button>
-              ))}
+          <div className="bg-surface-container rounded-2xl p-4 space-y-3">
+            <div className="space-y-1.5">
+              <Label className="font-semibold text-sm flex items-center gap-1.5"><ThumbsUp className="w-3.5 h-3.5 text-tsi-low" /> {t('community.whatDidYouLike')}</Label>
+              <Input placeholder={t('community.likedPlaceholder')} className="h-11 rounded-xl bg-surface-container-lowest" value={likedText} onChange={(e) => setLikedText(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-semibold text-sm flex items-center gap-1.5"><ThumbsDown className="w-3.5 h-3.5 text-sos" /> {t('community.whatCouldImprove')}</Label>
+              <Input placeholder={t('community.dislikedPlaceholder')} className="h-11 rounded-xl bg-surface-container-lowest" value={dislikedText} onChange={(e) => setDislikedText(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-semibold text-sm flex items-center gap-1.5"><Lightbulb className="w-3.5 h-3.5 text-primary" /> {t('community.tipsLabel')}</Label>
+              <Input placeholder={t('community.tipsPlaceholder')} className="h-11 rounded-xl bg-surface-container-lowest" value={tipsText} onChange={(e) => setTipsText(e.target.value)} />
             </div>
           </div>
 
-          <div className="bg-surface-container rounded-xl p-3 space-y-2.5">
-            <MiniRating label={t('community.cleanliness')} value={cleanlinessRating} onChange={setCleanlinessRating} />
-            <MiniRating label={t('community.parkingTransport')} value={transportRating} onChange={setTransportRating} />
-            <MiniRating label={t('community.foodAvailability')} value={foodAvailabilityRating} onChange={setFoodAvailabilityRating} />
-            <MiniRating label={t('community.accessibility')} value={accessibilityRating} onChange={setAccessibilityRating} />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="font-semibold text-sm flex items-center gap-1.5"><ThumbsUp className="w-3.5 h-3.5 text-tsi-low" /> {t('community.whatDidYouLike')}</Label>
-            <Input placeholder={t('community.likedPlaceholder')} className="h-11 rounded-xl" value={likedText} onChange={(e) => setLikedText(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="font-semibold text-sm flex items-center gap-1.5"><ThumbsDown className="w-3.5 h-3.5 text-sos" /> {t('community.whatCouldImprove')}</Label>
-            <Input placeholder={t('community.dislikedPlaceholder')} className="h-11 rounded-xl" value={dislikedText} onChange={(e) => setDislikedText(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="font-semibold text-sm flex items-center gap-1.5"><Lightbulb className="w-3.5 h-3.5 text-primary" /> {t('community.tipsLabel')}</Label>
-            <Input placeholder={t('community.tipsPlaceholder')} className="h-11 rounded-xl" value={tipsText} onChange={(e) => setTipsText(e.target.value)} />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="font-semibold text-sm flex items-center gap-1.5"><Camera className="w-3.5 h-3.5" /> {t('community.photosLabel')}</Label>
+          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-1.5">
+            <Label className="font-semibold text-sm flex items-center gap-1.5 text-purple-700"><Camera className="w-3.5 h-3.5" /> {t('community.photosLabel')}</Label>
             <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handlePhotoChange}
-              className="w-full text-xs text-on-surface-variant file:mr-3 file:py-2 file:px-3 file:rounded-full file:border-0 file:bg-primary/10 file:text-primary file:text-xs file:font-bold" />
+              className="w-full text-xs text-on-surface-variant file:mr-3 file:py-2 file:px-3 file:rounded-full file:border-0 file:bg-purple-100 file:text-purple-700 file:text-xs file:font-bold" />
             {photos.length > 0 && <p className="text-xs text-on-surface-variant">{t('community.photosSelected', { count: photos.length })}</p>}
           </div>
 

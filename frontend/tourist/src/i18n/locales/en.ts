@@ -284,6 +284,8 @@ export default {
     descriptionPlaceholder: 'Describe what happened... (min 10 characters)',
     incidentDateLabel: 'Incident Date (optional)',
     submitReport: 'Submit Report',
+    tripDetailsSection: 'Trip details',
+    whatWasItLikeSection: 'What was it like',
     reportDisclaimer: 'Reports are anonymous and help future travellers stay safe.',
     toastReportSubmitted: 'Report submitted. Thank you for keeping travellers safe!',
     reviewModalTitle: 'Share Your Experience',

@@ -282,6 +282,8 @@ export default {
     descriptionPlaceholder: 'जो हुआ उसका वर्णन करें... (कम से कम 10 अक्षर)',
     incidentDateLabel: 'घटना की तारीख (वैकल्पिक)',
     submitReport: 'रिपोर्ट सबमिट करें',
+    tripDetailsSection: 'यात्रा विवरण',
+    whatWasItLikeSection: 'यह कैसा था',
     reportDisclaimer: 'रिपोर्ट गुमनाम हैं और भविष्य के यात्रियों को सुरक्षित रहने में मदद करती हैं।',
     toastReportSubmitted: 'रिपोर्ट सबमिट हो गई। यात्रियों को सुरक्षित रखने के लिए धन्यवाद!',
     reviewModalTitle: 'अपना अनुभव साझा करें',
