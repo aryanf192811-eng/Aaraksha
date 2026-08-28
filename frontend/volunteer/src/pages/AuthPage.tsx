@@ -22,7 +22,7 @@ function IconField({ icon: Icon, ...props }: { icon: ComponentType<{ className?:
     <div className="relative">
       <Icon className="w-4.5 h-4.5 text-on-surface-variant absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
       <input {...props}
-        className="w-full h-12 rounded-xl border border-outline-variant pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+        className="w-full h-12 rounded-xl border border-outline-variant bg-surface-container pl-11 pr-4 text-sm transition-colors focus:outline-none focus:border-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20" />
     </div>
   )
 }
@@ -147,6 +147,13 @@ export default function AuthPage() {
           </>
         ) : (
           <form onSubmit={(e) => { e.preventDefault(); register() }} className="space-y-4">
+            <div className="flex items-start gap-2.5 bg-primary/5 border border-primary/15 rounded-xl p-3 mb-1">
+              <ShieldCheck className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-on-surface-variant leading-relaxed">
+                This is an <strong className="text-on-surface">application</strong>, not an instant account — a district
+                officer reviews and verifies every responder before you can be alerted to nearby emergencies.
+              </p>
+            </div>
             <div className="space-y-1.5">
               <label className="text-sm font-semibold text-on-surface">Full Name</label>
               <IconField icon={User} value={fullName} onChange={(e) => setFullName(e.target.value)} />
@@ -163,7 +170,7 @@ export default function AuthPage() {
               <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-on-surface">Govt ID Type</label>
                 <select value={govtIdType} onChange={(e) => setGovtIdType(e.target.value as typeof govtIdType)}
-                  className="w-full h-12 rounded-xl border border-outline-variant px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+                  className="w-full h-12 rounded-xl border border-outline-variant bg-surface-container px-3 text-sm transition-colors focus:outline-none focus:border-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20">
                   {GOVT_ID_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </div>
@@ -191,7 +198,7 @@ export default function AuthPage() {
             </button>
 
             <p className="text-xs text-on-surface-variant leading-relaxed">
-              Your government ID is hashed, never stored as plain text. A district officer verifies your account before you can be alerted to nearby emergencies.
+              Your government ID is hashed and never stored as plain text.
             </p>
 
             <button type="submit" disabled={registering}

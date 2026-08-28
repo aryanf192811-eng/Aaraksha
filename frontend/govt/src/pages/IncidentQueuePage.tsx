@@ -5,6 +5,7 @@ import { FileWarning, Loader2, X, Phone, Clock, MapPin, UserCheck, CheckCircle2,
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
+import { Textarea } from '../components/ui/textarea'
 import govtApi, { type IncidentEntry, type IncidentStatus } from '../api/govt.api'
 import { queryClient } from '../lib/queryClient'
 import { formatTimeAgo, formatDateTime, cn } from '../lib/utils'
@@ -329,9 +330,9 @@ export default function IncidentQueuePage() {
               {NEXT_STATUSES[selected.status]?.length > 0 && (
                 <div className="space-y-2 pt-3 border-t border-outline-variant">
                   <p className="font-bold text-on-surface flex items-center gap-1.5"><ShieldAlert className="w-4 h-4" /> Update Status</p>
-                  <textarea placeholder="Investigation / resolution notes..." aria-label="Investigation / resolution notes" value={resolutionNotes}
+                  <Textarea placeholder="Investigation / resolution notes..." aria-label="Investigation / resolution notes" value={resolutionNotes}
                     onChange={e => setResolutionNotes(e.target.value)} rows={2}
-                    className="w-full border border-outline-variant rounded-xl px-3 py-2 text-sm resize-none outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/50" />
+                    className="rounded-xl resize-none" />
                   <div className="flex flex-wrap gap-2">
                     {NEXT_STATUSES[selected.status].map(next => (
                       <Button key={next} variant="outline" disabled={updating}

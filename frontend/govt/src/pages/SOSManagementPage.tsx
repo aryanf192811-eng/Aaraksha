@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Ba
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
+import { Textarea } from '../components/ui/textarea'
 import govtApi, { type NearbyRescuer } from '../api/govt.api'
 import { queryClient } from '../lib/queryClient'
 import { formatTimeAgo, cn } from '../lib/utils'
@@ -378,9 +379,9 @@ export default function SOSManagementPage() {
 
               {selectedSOS.status !== 'RESOLVED' && selectedSOS.status !== 'FALSE_ALARM' && (
                 <div className="space-y-2 pt-3 border-t border-outline-variant">
-                  <textarea placeholder="Resolution notes..." aria-label="Resolution notes" value={resolutionNotes}
+                  <Textarea placeholder="Resolution notes..." aria-label="Resolution notes" value={resolutionNotes}
                     onChange={e => setResolutionNotes(e.target.value)} rows={2}
-                    className="w-full border border-outline-variant rounded-xl px-3 py-2 text-sm resize-none outline-none focus:border-emerald-500 focus-visible:ring-2 focus-visible:ring-primary/50" />
+                    className="rounded-xl resize-none" />
                   <Button variant="outline" disabled={resolving} onClick={() => resolveSOS(selectedSOS.id)}
                     className="w-full h-11 rounded-full border-2 border-green-500 text-green-700 font-bold hover:bg-green-50 flex items-center justify-center gap-2">
                     {resolving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /> Mark as Resolved</>}
