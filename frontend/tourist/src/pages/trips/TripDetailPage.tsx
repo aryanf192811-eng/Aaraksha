@@ -18,7 +18,7 @@ import 'leaflet/dist/leaflet.css'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog'
-import { TSIBadge, EmptyState, PageSkeleton, NewsFeed, TSIBreakdown, JourneyRiskGraph, SafetyAdvisory, DestinationSearchField } from '../../components/shared'
+import { TSIBadge, EmptyState, PageSkeleton, NewsFeed, TSIBreakdown, JourneyRiskGraph, SafetyAdvisory, DestinationSearchField, ConfirmDialog } from '../../components/shared'
 import tripApi from '../../api/trip.api'
 import packingApi from '../../api/packing.api'
 import passportApi from '../../api/passport.api'
@@ -152,6 +152,11 @@ export default function TripDetailPage() {
   const [addStopOpen, setAddStopOpen] = useState(false)
   const [addActivityForStop, setAddActivityForStop] = useState<number | null>(null)
   const [expenseStopIdx, setExpenseStopIdx] = useState<number | null>(null)
+  // Deleting a stop drops every activity/cost logged under it, and
+  // deleting an activity removes real logged spend from the budget total —
+  // both confirmed before firing, not fired straight from the trash icon.
+  const [confirmDeleteStop, setConfirmDeleteStop] = useState<number | null>(null)
+  const [confirmDeleteActivity, setConfirmDeleteActivity] = useState<{ stopIdx: number; activityIdx: number } | null>(null)
 
   const addStop = (stop: Stop) => {
     saveStops([...(trip?.stops ?? []), stop])
@@ -159,6 +164,7 @@ export default function TripDetailPage() {
   }
   const removeStop = (idx: number) => {
     saveStops((trip?.stops ?? []).filter((_, i) => i !== idx))
+    setConfirmDeleteStop(null)
   }
   const addActivity = (stopIdx: number, activity: Activity) => {
     const next = (trip?.stops ?? []).map((s, i) => i === stopIdx ? { ...s, activities: [...s.activities, activity] } : s)
@@ -169,6 +175,7 @@ export default function TripDetailPage() {
   const removeActivity = (stopIdx: number, activityIdx: number) => {
     const next = (trip?.stops ?? []).map((s, i) => i === stopIdx ? { ...s, activities: s.activities.filter((_, ai) => ai !== activityIdx) } : s)
     saveStops(next)
+    setConfirmDeleteActivity(null)
   }
 
   const handleShare = async () => {
@@ -368,7 +375,7 @@ export default function TripDetailPage() {
                           <p className="text-xs text-tsi-high">{t('tripDetail.altitudeLabel', { m: stop.altitude_m })}</p>
                         )}
                       </div>
-                      <button onClick={() => removeStop(idx)} disabled={savingStops} title={t('tripDetail.removeStop')}
+                      <button onClick={() => setConfirmDeleteStop(idx)} disabled={savingStops} title={t('tripDetail.removeStop')}
                         className="w-6 h-6 rounded-full flex items-center justify-center text-sos/60 hover:text-sos-dark hover:bg-sos/10 transition-colors flex-shrink-0">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -385,7 +392,7 @@ export default function TripDetailPage() {
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             {act.cost > 0 && <span className="text-on-surface-variant font-medium">{formatINR(act.cost)}</span>}
-                            <button onClick={() => removeActivity(idx, aIdx)} disabled={savingStops} title={t('tripDetail.removeActivity')}
+                            <button onClick={() => setConfirmDeleteActivity({ stopIdx: idx, activityIdx: aIdx })} disabled={savingStops} title={t('tripDetail.removeActivity')}
                               className="text-on-surface-variant/50 hover:text-sos-dark transition-colors">
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -644,6 +651,25 @@ export default function TripDetailPage() {
       </div>
 
       <AddStopDialog open={addStopOpen} onOpenChange={setAddStopOpen} onAdd={addStop} pending={savingStops} />
+
+      <ConfirmDialog
+        open={confirmDeleteStop !== null}
+        onOpenChange={(v) => !v && setConfirmDeleteStop(null)}
+        title={t('tripDetail.removeStopTitle')}
+        description={t('tripDetail.removeStopDesc')}
+        confirmLabel={t('tripDetail.removeStop')}
+        pending={savingStops}
+        onConfirm={() => confirmDeleteStop !== null && removeStop(confirmDeleteStop)}
+      />
+      <ConfirmDialog
+        open={confirmDeleteActivity !== null}
+        onOpenChange={(v) => !v && setConfirmDeleteActivity(null)}
+        title={t('tripDetail.removeActivityTitle')}
+        description={t('tripDetail.removeActivityDesc')}
+        confirmLabel={t('tripDetail.removeActivity')}
+        pending={savingStops}
+        onConfirm={() => confirmDeleteActivity && removeActivity(confirmDeleteActivity.stopIdx, confirmDeleteActivity.activityIdx)}
+      />
     </div>
   )
 }
