@@ -25,7 +25,6 @@ export default {
     trips: 'ভ্ৰমণ',
     checkIn: 'চেক ইন',
     community: 'সম্প্ৰদায়',
-    sos: 'SOS',
   },
   enums: {
     sosCategory: {

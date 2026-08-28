@@ -22,7 +22,6 @@ export function NavSOSButton() {
   const activeSOSId = useSafetyStore((s) => s.activeSOSId)
   const { sendSOS, sending } = useSOS()
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
-  const [holdPct, setHoldPct] = useState(0)
 
   const handleQuickSend = () => {
     sendSOS(DEFAULT_SOS_CATEGORY).then(() => navigate('/sos')).catch(() => {})
@@ -34,12 +33,15 @@ export function NavSOSButton() {
 
   return (
     <>
-      <div className="absolute left-1/2 -translate-x-1/2 -top-7 flex flex-col items-center gap-1">
+      <div className="absolute left-1/2 -translate-x-1/2 -top-4 flex flex-col items-center">
         {/* A raised FAB reads as premium when it looks like it's rising out
             of the bar, not just floating above it — the collar (a plain
             surface-colored disc, slightly larger than the button, sitting
             behind it) gives that "mound" the button emerges from, same
-            language as Uber/food-delivery apps' central action button. */}
+            language as Uber/food-delivery apps' central action button. Kept
+            deliberately close to the bar (a small lift, not a tall float) —
+            "SOS" is written on the button itself now, so there's no
+            separate caption underneath pulling it further up. */}
         <div className="relative">
           <span className="absolute -inset-[9px] rounded-full bg-surface shadow-[0_2px_8px_rgba(15,23,42,0.08),0_8px_20px_rgba(15,23,42,0.1)]" />
           <SOSButton
@@ -50,14 +52,9 @@ export function NavSOSButton() {
             twoStage
             onQuickSend={handleQuickSend}
             onHoldComplete={() => setShowCategoryPicker(true)}
-            onHoldProgress={setHoldPct}
             className="relative shadow-[0_2px_6px_rgba(220,38,38,0.3),0_10px_20px_-4px_rgba(220,38,38,0.35)] rounded-full"
           />
         </div>
-        <span className={cn('text-[10px] font-bold uppercase tracking-wide transition-colors',
-          holdPct > 0 || activeSOSId ? 'text-sos-dark' : 'text-on-surface-variant')}>
-          {t('nav.sos')}
-        </span>
       </div>
 
       {/* Inline category picker — reached by holding the nav SOS button all

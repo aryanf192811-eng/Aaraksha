@@ -21,7 +21,6 @@ export default {
     trips: 'Trips',
     checkIn: 'Check In',
     community: 'Community',
-    sos: 'SOS',
   },
   enums: {
     sosCategory: {

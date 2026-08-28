@@ -225,10 +225,15 @@ export function SOSButton({
           <span className={cn('font-black tabular-nums', size === 'default' ? 'text-3xl' : size === 'compact' ? 'text-xl' : 'text-[11px]')}>
             {Math.round(holdProgress)}%
           </span>
+        ) : size === 'nav' ? (
+          // Small enough that an icon reads as decoration, not information —
+          // the label itself, written directly on the button, is the
+          // clearer "clean UI" choice at this size (per live user feedback).
+          <span className="text-sm font-black tracking-wide">SOS</span>
         ) : (
           <>
-            <AlertTriangle className={cn(size === 'default' ? 'w-10 h-10' : size === 'compact' ? 'w-6 h-6' : 'w-5 h-5')} fill="currentColor" />
-            {size !== 'nav' && <span>{isActive ? 'SOS ACTIVE' : 'SEND SOS'}</span>}
+            <AlertTriangle className={cn(size === 'default' ? 'w-10 h-10' : 'w-6 h-6')} fill="currentColor" />
+            <span>{isActive ? 'SOS ACTIVE' : 'SEND SOS'}</span>
           </>
         )}
         {size === 'default' && !isActive && !loading && (
