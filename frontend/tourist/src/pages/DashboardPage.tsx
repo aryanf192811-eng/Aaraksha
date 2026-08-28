@@ -143,6 +143,8 @@ export default function DashboardPage() {
 
               <SafetyStrip dms={dms} activeSOSId={activeSOSId} onOpen={() => navigate('/sos')} t={t} />
 
+              <QuickActionsRow navigate={navigate} t={t} />
+
               {latestNews && latestNews.length > 0 && (
                 <div className="px-5 mt-8">
                   <div className="flex items-center justify-between mb-3">
@@ -156,8 +158,6 @@ export default function DashboardPage() {
                   <NewsFeed items={latestNews.slice(0, 2)} showDestinationName />
                 </div>
               )}
-
-              <QuickActionsRow navigate={navigate} t={t} />
 
               <div className="px-5 mt-8">
                 <h2 className="font-display text-xl font-extrabold text-on-surface mb-1">{t('dashboard.exploreTitle')}</h2>
