@@ -170,9 +170,14 @@ export function SOSButton({
           something, not just decorate a persistent nav element. */}
       {(size !== 'nav' || isActive) && (
         <>
-          <span className={cn('absolute inline-flex h-full w-full rounded-full bg-sos animate-pulse-ring',
+          {/* Purely decorative — pointer-events-none so an animated ring
+              never sits in the hit-test chain and steals a click meant for
+              something else on the page (confirmed live: this was
+              intermittently swallowing taps on the false-alarm confirm
+              button on the Safety Center page, sitting nearby). */}
+          <span className={cn('absolute inline-flex h-full w-full rounded-full bg-sos animate-pulse-ring pointer-events-none',
             isActive ? 'opacity-40' : 'opacity-20')} />
-          <span className={cn('absolute inline-flex h-full w-full rounded-full bg-sos animate-pulse-ring-delayed',
+          <span className={cn('absolute inline-flex h-full w-full rounded-full bg-sos animate-pulse-ring-delayed pointer-events-none',
             isActive ? 'opacity-30' : 'opacity-10')} />
         </>
       )}

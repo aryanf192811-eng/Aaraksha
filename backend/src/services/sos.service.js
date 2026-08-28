@@ -9,9 +9,10 @@ const { TouristRepository } = require('../repositories/tourist.repository')
 const { TripMemberRepository } = require('../repositories/tripMember.repository')
 const { VolunteerRepository } = require('../repositories/volunteer.repository')
 const { VolunteerDispatchRepository } = require('../repositories/volunteerDispatch.repository')
+const { RescueRepository } = require('../repositories/rescue.repository')
 const { notifyOnSOS, notifyVolunteersOnSOS } = require('./notification/notification.service')
 const { emitSOSReceived, emitSOSResolved, emitGroupSOSAlert, emitGuardianSOSAlert, emitVolunteerSOSAlert } = require('../socket/emitters')
-const { SOS_TRIGGER_TYPES, SOS_STATUSES } = require('../constants/enums')
+const { SOS_TRIGGER_TYPES, SOS_STATUSES, TEAM_STATUSES, VOLUNTEER_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const { estimateRescueEtaMinutes } = require('../utils/geo')
 const logger = require('../utils/logger')
@@ -156,11 +157,33 @@ async function markFalseAlarm(sosId, touristId) {
     throw Object.assign(new Error(ERRORS.SOS_ALREADY_CLOSED), { statusCode: 400 })
   }
 
-  const updated = await repo.updateStatus(sosId, SOS_STATUSES.FALSE_ALARM)
-  // The findById check above is TOCTOU-racy against a concurrent resolve/
-  // false-alarm; the DB-level guard in updateStatus is the real source of
-  // truth, so re-check its result rather than trusting the pre-check alone.
+  // Mirrors govt.service.js#resolveSOS's rescuer-release step — a tourist
+  // cancelling their own SOS is just as final as a govt operator resolving
+  // it, but this path never released the assigned team/volunteer back to
+  // AVAILABLE, leaving them permanently stuck DEPLOYED with no active job
+  // pointing at them. Confirmed live: reproducible on the very first
+  // tourist-side false-alarm of an already-assigned SOS.
+  const updated = await withTransaction(async (client) => {
+    const sosRepo_t = new SOSRepository(client)
+    const rescueRepo_t = new RescueRepository(client)
+
+    const updated = await sosRepo_t.updateStatus(sosId, SOS_STATUSES.FALSE_ALARM)
+    // The findById check above is TOCTOU-racy against a concurrent resolve/
+    // false-alarm; the DB-level guard in updateStatus is the real source of
+    // truth, so re-check its result rather than trusting the pre-check alone.
+    if (!updated) return null
+
+    const assignment = await rescueRepo_t.resolveAssignment(sosId)
+    if (assignment?.team_id) {
+      await rescueRepo_t.updateTeamStatus(assignment.team_id, TEAM_STATUSES.AVAILABLE)
+    } else if (assignment?.volunteer_id) {
+      const volunteerRepo_t = new VolunteerRepository(client)
+      await volunteerRepo_t.updateStatus(assignment.volunteer_id, VOLUNTEER_STATUSES.AVAILABLE)
+    }
+    return updated
+  })
   if (!updated) throw Object.assign(new Error(ERRORS.SOS_ALREADY_CLOSED), { statusCode: 400 })
+
   emitSOSResolved(updated, 'Tourist confirmed false alarm')
   logger.info({ sosId, touristId }, 'SOS marked false alarm')
   return updated

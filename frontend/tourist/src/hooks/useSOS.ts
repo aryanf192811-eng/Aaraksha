@@ -41,6 +41,12 @@ export function useSOS() {
     onSuccess: (res) => {
       setActiveSOSId(res.data.data.id)
       queryClient.invalidateQueries({ queryKey: ['sos', 'mine'] })
+      // ActiveSOSBanner/RescueTrackingCard/the escalation timeline all read
+      // from this exact key (sosApi.getActiveRescue) — without invalidating
+      // it here, the Safety Center stayed on its idle "Hold to alert" state
+      // after a real send until either its own 20s poll happened to fire or
+      // the page was manually reloaded. The toast fired; the page didn't.
+      queryClient.invalidateQueries({ queryKey: ['sos', 'active-rescue'] })
     },
   })
 
