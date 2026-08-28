@@ -33,6 +33,12 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Default is 2 MiB — maplibre-gl (added this session for the live
+        // rescue-tracking map) pushed the main bundle to ~2.6 MB, which
+        // made the SW-precache build step fail outright rather than just
+        // warn. Raised with real headroom rather than tuned to the exact
+        // current size, so the next dependency bump doesn't retrigger this.
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         // Falls back to the cached shell for any non-precached route on a
         // fully offline cold load (e.g. deep-linking into /trips/:id while
         // offline) — without this a route Workbox hasn't precached the HTML
@@ -92,5 +98,5 @@ export default defineConfig({
   // Mirrors backend/vitest.config.js: globals so tests don't need to import
   // describe/it/expect, TZ pinned so date-formatting tests are deterministic
   // regardless of the machine/CI runner's local timezone.
-  test: { globals: true, environment: 'jsdom', env: { TZ: 'UTC' } },
+  test: { globals: true, environment: 'jsdom', env: { TZ: 'UTC' }, setupFiles: ['./src/test/setup.ts'] },
 })
