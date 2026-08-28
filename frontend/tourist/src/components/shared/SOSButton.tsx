@@ -18,6 +18,7 @@
 //     reads as "I want to specify what's wrong," not "send immediately."
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '../../lib/utils'
 
 const SINGLE_STAGE_DURATION_MS = 2000
@@ -116,7 +117,16 @@ export function SOSButton({
   }, [holdDurationMs, twoStage, onTrigger, onHoldComplete, onHoldProgress, stopHold])
 
   const startHold = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
-    if (disabled || loading || isActive) return
+    if (disabled || loading) return
+    if (isActive) {
+      // isActive doesn't set the native `disabled` attribute (the button
+      // stays visually "SOS ACTIVE" but still looks pressable) — without
+      // this, holding it while a real SOS is already active is a silent
+      // no-op: no ring, no message, nothing. Confirmed live as genuinely
+      // confusing during a full simulation pass.
+      toast.info('Your SOS is already active — check the Safety Center for live status.', { id: 'sos-already-active' })
+      return
+    }
     // A hold is already in progress (from another finger, or a re-entrant
     // pointerdown) — ignore additional pointers rather than restarting or
     // double-counting the hold.
