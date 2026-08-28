@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, MapPin, Battery, MessageSquare, CheckCircle2, Loader2, RefreshCw, RotateCcw } from 'lucide-react'
+import { ArrowLeft, MapPin, Battery, MessageSquare, CheckCircle2, Loader2, RefreshCw, RotateCcw, Smartphone } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { useDMS } from '../../hooks/useDMS'
 import { useGeolocation } from '../../hooks/useGeolocation'
@@ -13,6 +13,10 @@ import { useBattery } from '../../hooks/useBattery'
 import checkinApi from '../../api/checkin.api'
 import { queryClient } from '../../lib/queryClient'
 import { formatTimeAgo, cn } from '../../lib/utils'
+
+// Same env var the offline-SOS sms: link already uses (useSOS.ts) — one
+// number, one inbound Twilio webhook, two message patterns it understands.
+const EMERGENCY_NUMBER = import.meta.env.VITE_EMERGENCY_NUMBERS || ''
 
 export default function CheckinPage() {
   const navigate = useNavigate()
@@ -78,6 +82,25 @@ export default function CheckinPage() {
       </div>
 
       <div className="px-5 mt-5 space-y-5">
+        {/* No signal at all? A plain text message works too — same inbound
+            SMS pipeline that already handles offline SOS, just a lighter
+            "SAFE" keyword instead of the app-generated structured message,
+            since a person should be able to type this by hand from any
+            phone, not just one running the app. */}
+        {EMERGENCY_NUMBER && (
+          <div className="bg-trust/5 border border-trust/20 rounded-2xl p-4 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-trust/15 flex items-center justify-center flex-shrink-0">
+              <Smartphone className="w-4.5 h-4.5 text-trust-dark" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-trust-dark">{t('checkin.smsFallbackTitle')}</p>
+              <p className="text-xs text-trust-dark/80 mt-0.5">
+                {t('checkin.smsFallbackDesc', { number: EMERGENCY_NUMBER })}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Check-in readiness — GPS + battery as one instrument card, not
             two duplicate boxes stacked with a gap between them. */}
         <div className={cn('bg-surface-container-lowest rounded-2xl shadow-sm border transition-colors overflow-hidden',
@@ -187,11 +210,15 @@ export default function CheckinPage() {
               {recentCheckins.map((c, i) => (
                 <div key={c.id} className={cn('flex items-center gap-3 px-5 py-3', i > 0 && 'border-t border-outline-variant')}>
                   <div className="w-7 h-7 bg-tsi-low/10 rounded-full flex items-center justify-center flex-shrink-0">
-                    {c.type === 'DMS_RESET' ? <RotateCcw className="w-4 h-4 text-tsi-low" /> : <CheckCircle2 className="w-4 h-4 text-tsi-low" />}
+                    {c.type === 'DMS_RESET' ? <RotateCcw className="w-4 h-4 text-tsi-low" />
+                      : c.type === 'SMS' ? <Smartphone className="w-4 h-4 text-tsi-low" />
+                      : <CheckCircle2 className="w-4 h-4 text-tsi-low" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-on-surface">
-                      {c.type === 'DMS_RESET' ? t('checkin.dmsResetLabel') : t('checkin.manualCheckin')}
+                      {c.type === 'DMS_RESET' ? t('checkin.dmsResetLabel')
+                        : c.type === 'SMS' ? t('checkin.smsCheckinLabel')
+                        : t('checkin.manualCheckin')}
                     </p>
                     {c.message && <p className="text-xs text-on-surface-variant truncate">"{c.message}"</p>}
                   </div>

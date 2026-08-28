@@ -51,6 +51,7 @@ const CHECKIN_TYPES = Object.freeze({
   MANUAL: 'MANUAL',
   DMS_RESET: 'DMS_RESET',
   AUTO: 'AUTO',
+  SMS: 'SMS',
 })
 
 const GOVT_ROLES = Object.freeze({

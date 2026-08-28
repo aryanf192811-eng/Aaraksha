@@ -16,15 +16,29 @@ const twilioInbound = async (req, res, next) => {
       logger.error({ err: { message: err.message }, from: From }, 'Inbound SMS processing failed')
     )
 
+    // classifyInboundSMS is a cheap synchronous regex test — safe to call
+    // before the actual (async) processing above has resolved, so the
+    // immediate reply actually matches what was sent instead of always
+    // being the SOS-alarm text regardless of message type.
+    // UNKNOWN must NOT reuse the SOS reply — that told anyone whose message
+    // didn't parse ("just checking in, all is well" doesn't match either
+    // pattern) that a real SOS was received and rescue teams were on the
+    // way, which was never true. False reassurance about a nonexistent
+    // emergency is worse than no reply at all.
+    const kind = webhookService.classifyInboundSMS(Body)
+    const replyLines = kind === 'CHECKIN'
+      ? ['    Aaraksha received your check-in.', '    You\'re marked safe. Any active Dead Man\'s Switch has been reset.']
+      : kind === 'SOS'
+        ? ['    Aaraksha received your SOS.', '    Emergency contacts and government rescue teams are being notified.', '    Stay safe. Help is coming.']
+        : ['    Aaraksha couldn\'t understand that message.', '    Text SAFE to check in, or use the app\'s SOS button for emergencies.']
+
     // Always respond with TwiML within 5 seconds (Twilio requirement)
     res.set('Content-Type', 'text/xml')
     res.send([
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<Response>',
       '  <Message>',
-      '    Aaraksha received your SOS.',
-      '    Emergency contacts and government rescue teams are being notified.',
-      '    Stay safe. Help is coming.',
+      ...replyLines,
       '  </Message>',
       '</Response>',
     ].join('\n'))
