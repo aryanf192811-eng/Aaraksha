@@ -183,12 +183,30 @@ async function updateTrip(tripId, touristId, data, tourist) {
   const existing = await tripRepo.findById(tripId, touristId)
   if (!existing) throw Object.assign(new Error(ERRORS.TRIP_NOT_FOUND), { statusCode: 404 })
 
-  const enrichedStops = await enrichStops(data.stops || [])
-  const tsiResult = calculateTSI({ ...data, travel_type: data.travelType, stops: enrichedStops }, {})
+  // PUT is validated as a partial update (UpdateTripSchema = TripFieldsSchema
+  // .partial()) — the route genuinely accepts { stops: [...] } alone. But
+  // trip.repository.js#update() runs one unconditional full-column UPDATE,
+  // so an omitted field must fall back to its current value here or that
+  // column gets overwritten with NULL, which the NOT NULL columns
+  // (title/start_date/end_date) reject outright with a raw DB error.
+  const merged = {
+    title:         data.title ?? existing.title,
+    description:   data.description ?? existing.description,
+    travelType:    data.travelType ?? existing.travel_type,
+    startDate:     data.startDate ?? existing.start_date,
+    endDate:       data.endDate ?? existing.end_date,
+    stops:         data.stops ?? existing.stops,
+    budgetInr:     data.budgetInr ?? existing.budget_inr,
+    coverImageUrl: data.coverImageUrl ?? existing.cover_image_url,
+    isPublic:      data.isPublic ?? existing.is_public,
+  }
+
+  const enrichedStops = await enrichStops(merged.stops || [])
+  const tsiResult = calculateTSI({ ...merged, travel_type: merged.travelType, stops: enrichedStops }, {})
   const readiness = computeRescueReadiness(tourist, { tsi_score: tsiResult.score, rescue_readiness: existing.rescue_readiness || {} }, false)
 
   return tripRepo.update(tripId, touristId, {
-    ...data, stops: enrichedStops,
+    ...merged, stops: enrichedStops,
     tsiScore: tsiResult.score, tsiLabel: tsiResult.label,
     tsiFactors: tsiResult.factors, tsiRecommendations: tsiResult.recommendations,
     rescueReadiness: readiness.items, rescueReadinessScore: readiness.score,

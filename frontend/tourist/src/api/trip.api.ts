@@ -22,7 +22,7 @@ export interface StopInput {
   arrivalDate?: string | null
   departureDate?: string | null
   activities?: ActivityInput[]
-  notes?: string
+  notes?: string | null
   connectivity?: string
   difficulty?: string
   altitude_m?: number

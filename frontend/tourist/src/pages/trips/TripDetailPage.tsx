@@ -9,14 +9,16 @@ import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft, Share2, Download, Map, List, Package, FileText, AlertTriangle,
   Rocket, Sparkles, RefreshCw, Loader2, Check, Lightbulb, HeartPulse, Backpack, LocateFixed,
-  Users, Copy, LogOut, Clock, Newspaper, ChevronDown,
+  Users, Copy, LogOut, Clock, Newspaper, ChevronDown, Plus, Trash2, Wallet, MapPin,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Button } from '../../components/ui/button'
-import { TSIBadge, EmptyState, PageSkeleton, NewsFeed, TSIBreakdown, JourneyRiskGraph, SafetyAdvisory } from '../../components/shared'
+import { Input } from '../../components/ui/input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog'
+import { TSIBadge, EmptyState, PageSkeleton, NewsFeed, TSIBreakdown, JourneyRiskGraph, SafetyAdvisory, DestinationSearchField } from '../../components/shared'
 import tripApi from '../../api/trip.api'
 import packingApi from '../../api/packing.api'
 import passportApi from '../../api/passport.api'
@@ -25,9 +27,9 @@ import { queryClient } from '../../lib/queryClient'
 import { useAuthStore } from '../../store/auth.store'
 import { formatDate, formatINR, formatTimeAgo, cn } from '../../lib/utils'
 import { tEnum } from '../../lib/i18nEnums'
-import { TRIP_STATUSES } from '../../constants/enums'
+import { TRIP_STATUSES, ACTIVITY_TYPES } from '../../constants/enums'
 import { getDestinationImage } from '../../lib/destinationImages'
-import type { Stop, PackingItem } from '../../types/api.types'
+import type { Stop, Activity, PackingItem } from '../../types/api.types'
 
 const ACTIVITY_TYPE_COLORS: Record<string, string> = {
   TRANSPORT: '#3b82f6', STAY: '#8b5cf6', ACTIVITY: '#10b981', MEAL: '#f59e0b', OTHER: '#94a3b8',
@@ -133,6 +135,41 @@ export default function TripDetailPage() {
     mutationFn: (items: PackingItem[]) => tripApi.updateChecklist(id!, items),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trips', id] }),
   })
+
+  // Single write path for every itinerary/expense edit below (add/remove a
+  // stop, add/remove an activity) — a full replace of trip.stops via the
+  // PUT /trips/:id the backend already validates and accepts. The budget
+  // tab's pie chart / total-vs-budget bar / over-budget badge are already
+  // wired to read live from stops[].activities[].cost (see budgetByType
+  // below) — they were empty for every real trip only because nothing ever
+  // wrote to this array after trip creation. This closes that gap.
+  const { mutate: saveStops, isPending: savingStops } = useMutation({
+    mutationFn: (nextStops: Stop[]) => tripApi.updateTrip(id!, { stops: nextStops }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['trips', id] }) },
+    onError: () => toast.error(t('tripDetail.toastStopsUpdateFailed')),
+  })
+
+  const [addStopOpen, setAddStopOpen] = useState(false)
+  const [addActivityForStop, setAddActivityForStop] = useState<number | null>(null)
+  const [expenseStopIdx, setExpenseStopIdx] = useState<number | null>(null)
+
+  const addStop = (stop: Stop) => {
+    saveStops([...(trip?.stops ?? []), stop])
+    setAddStopOpen(false)
+  }
+  const removeStop = (idx: number) => {
+    saveStops((trip?.stops ?? []).filter((_, i) => i !== idx))
+  }
+  const addActivity = (stopIdx: number, activity: Activity) => {
+    const next = (trip?.stops ?? []).map((s, i) => i === stopIdx ? { ...s, activities: [...s.activities, activity] } : s)
+    saveStops(next)
+    setAddActivityForStop(null)
+    setExpenseStopIdx(null)
+  }
+  const removeActivity = (stopIdx: number, activityIdx: number) => {
+    const next = (trip?.stops ?? []).map((s, i) => i === stopIdx ? { ...s, activities: s.activities.filter((_, ai) => ai !== activityIdx) } : s)
+    saveStops(next)
+  }
 
   const handleShare = async () => {
     if (!trip?.is_public || !trip.public_token) {
@@ -324,23 +361,35 @@ export default function TripDetailPage() {
                       <h3 className="font-display font-bold text-on-surface">{stop.city}</h3>
                       <p className="text-xs text-on-surface-variant">{stop.state} · {t('tripDetail.dayCount', { count: stop.days })}</p>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <span className="text-xs font-bold text-on-surface-variant">{tEnum(t, 'zoneType', stop.zone_type)}</span>
-                      {stop.altitude_m > 2000 && (
-                        <p className="text-xs text-tsi-high">{t('tripDetail.altitudeLabel', { m: stop.altitude_m })}</p>
-                      )}
+                    <div className="flex items-start gap-2 flex-shrink-0">
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-on-surface-variant">{tEnum(t, 'zoneType', stop.zone_type)}</span>
+                        {stop.altitude_m > 2000 && (
+                          <p className="text-xs text-tsi-high">{t('tripDetail.altitudeLabel', { m: stop.altitude_m })}</p>
+                        )}
+                      </div>
+                      <button onClick={() => removeStop(idx)} disabled={savingStops} title={t('tripDetail.removeStop')}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-sos/60 hover:text-sos-dark hover:bg-sos/10 transition-colors flex-shrink-0">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 
                   {stop.activities.length > 0 && (
                     <div className="mt-3 space-y-1.5">
                       {stop.activities.map((act, aIdx) => (
-                        <div key={aIdx} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
+                        <div key={aIdx} className="flex items-center justify-between text-sm group">
+                          <div className="flex items-center gap-2 min-w-0">
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ACTIVITY_TYPE_COLORS[act.type || 'OTHER'] }} />
                             <span className="text-on-surface truncate">{act.name}</span>
                           </div>
-                          {act.cost > 0 && <span className="text-on-surface-variant font-medium flex-shrink-0">{formatINR(act.cost)}</span>}
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {act.cost > 0 && <span className="text-on-surface-variant font-medium">{formatINR(act.cost)}</span>}
+                            <button onClick={() => removeActivity(idx, aIdx)} disabled={savingStops} title={t('tripDetail.removeActivity')}
+                              className="text-on-surface-variant/50 hover:text-sos-dark transition-colors">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -351,15 +400,60 @@ export default function TripDetailPage() {
                       <HeartPulse className="w-3 h-3" /> {t('tripDetail.nearestHospital', { km: stop.hospital_km })}
                     </p>
                   )}
+
+                  {addActivityForStop === idx ? (
+                    <AddActivityForm onAdd={(a) => addActivity(idx, a)} onCancel={() => setAddActivityForStop(null)} pending={savingStops} />
+                  ) : (
+                    <button onClick={() => setAddActivityForStop(idx)}
+                      className="mt-2.5 flex items-center gap-1 text-xs font-semibold text-primary-dark hover:underline">
+                      <Plus className="w-3.5 h-3.5" /> {t('tripDetail.addActivity')}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
+
+            <Button variant="outline" onClick={() => setAddStopOpen(true)}
+              className="w-full h-12 rounded-2xl border-dashed flex items-center justify-center gap-2 font-bold">
+              <Plus className="w-4 h-4" /> {t('tripDetail.addStop')}
+            </Button>
           </div>
         )}
 
         {/* ── Budget Tab ────────────────────────────────────── */}
         {tab === 'budget' && (
           <div className="space-y-4">
+            {/* Log an expense — same write path as the itinerary tab's
+                per-stop "+ Add Activity", but entry-point-first for anyone
+                who thinks in expenses rather than itinerary structure. */}
+            <div className="bg-primary/5 border border-primary/15 rounded-3xl shadow-sm p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold text-primary-dark flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                    <Wallet className="w-4 h-4 text-primary-dark" />
+                  </span>
+                  {t('tripDetail.logExpense')}
+                </p>
+                {stops.length > 0 && expenseStopIdx === null && (
+                  <button onClick={() => setExpenseStopIdx(0)}
+                    className="flex items-center gap-1 text-xs font-bold bg-primary text-on-surface px-3 py-1.5 rounded-full hover:brightness-95 transition-all">
+                    <Plus className="w-3.5 h-3.5" /> {t('tripDetail.addExpense')}
+                  </button>
+                )}
+              </div>
+              {stops.length === 0 ? (
+                <p className="text-xs text-on-surface-variant mt-1.5">{t('tripDetail.addStopFirst')}</p>
+              ) : expenseStopIdx !== null && (
+                <div className="mt-3 space-y-2">
+                  <select value={expenseStopIdx} onChange={(e) => setExpenseStopIdx(Number(e.target.value))}
+                    className="w-full h-10 rounded-lg text-sm border border-outline-variant bg-surface-container px-3 transition-colors focus:outline-none focus:border-primary focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20">
+                    {stops.map((s, i) => <option key={i} value={i}>{s.city}{s.state ? `, ${s.state}` : ''}</option>)}
+                  </select>
+                  <AddActivityForm onAdd={(a) => addActivity(expenseStopIdx, a)} onCancel={() => setExpenseStopIdx(null)} pending={savingStops} />
+                </div>
+              )}
+            </div>
+
             {budgetData.length === 0 ? (
               <p className="text-center text-on-surface-variant py-8">{t('tripDetail.noActivitiesYet')}</p>
             ) : (
@@ -547,6 +641,140 @@ export default function TripDetailPage() {
             </Button>
           </div>
         )}
+      </div>
+
+      <AddStopDialog open={addStopOpen} onOpenChange={setAddStopOpen} onAdd={addStop} pending={savingStops} />
+    </div>
+  )
+}
+
+// ── Add Stop dialog ──────────────────────────────────────────────────────
+// Real Nominatim search (DestinationSearchField) so a post-creation stop
+// carries lat/lng, same as the create-trip wizard's custom-stop field —
+// without it the map tab silently drops the stop. TSI-relevant fields
+// (connectivity/difficulty/etc.) default the same way CreateTripPage's
+// manual stops already do, since neither source can know them.
+function AddStopDialog({ open, onOpenChange, onAdd, pending }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onAdd: (stop: Stop) => void
+  pending: boolean
+}) {
+  const { t } = useTranslation()
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
+  const [lat, setLat] = useState<number | null>(null)
+  const [lng, setLng] = useState<number | null>(null)
+  const [days, setDays] = useState('2')
+  const [notes, setNotes] = useState('')
+
+  const reset = () => { setCity(''); setState(''); setLat(null); setLng(null); setDays('2'); setNotes('') }
+
+  const submit = () => {
+    if (!city.trim() || !state.trim()) return
+    onAdd({
+      city: city.trim(), state: state.trim(), destinationId: null, lat, lng,
+      days: Math.max(1, Number(days) || 1), arrivalDate: null, departureDate: null,
+      activities: [], notes: notes.trim() || null,
+      connectivity: 'MODERATE', difficulty: 'EASY', altitude_m: 0, zone_type: 'SAFE',
+      hospital_km: 0, eta_minutes: null,
+    })
+    reset()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset() }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+              <MapPin className="w-4 h-4 text-primary-dark" />
+            </span>
+            {t('tripDetail.addStop')}
+          </DialogTitle>
+          <DialogDescription>{t('tripDetail.addStopDesc')}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          {city.length >= 3 && (
+            <div className="relative h-20 rounded-xl overflow-hidden">
+              <img src={getDestinationImage(city, { w: 400, q: 70 })} alt=""
+                className="absolute inset-0 w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+              <p className="absolute bottom-1.5 left-2.5 text-xs font-bold text-white">{city}{state ? `, ${state}` : ''}</p>
+            </div>
+          )}
+          <DestinationSearchField
+            city={city}
+            onCityChange={setCity}
+            onSelect={(r) => { setCity(r.city); setState(r.state); setLat(r.lat); setLng(r.lng) }}
+            cityPlaceholder={t('createTrip.cityPlaceholder')}
+          />
+          <Input placeholder={t('createTrip.statePlaceholder')} value={state} onChange={(e) => setState(e.target.value)} className="h-10 rounded-lg text-sm" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-on-surface-variant whitespace-nowrap">{t('createTrip.daysLabel')}</span>
+            <Input type="number" min={1} value={days} onChange={(e) => setDays(e.target.value)} className="h-10 rounded-lg text-sm w-20" />
+          </div>
+          <Input placeholder={t('tripDetail.notesOptional')} value={notes} onChange={(e) => setNotes(e.target.value)} className="h-10 rounded-lg text-sm" />
+        </div>
+        <DialogFooter>
+          <Button disabled={!city.trim() || !state.trim() || pending} onClick={submit}
+            className="rounded-full font-bold bg-primary hover:brightness-95 text-on-surface flex items-center gap-2">
+            {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /> {t('tripDetail.addStop')}</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Add Activity inline form ─────────────────────────────────────────────
+// Reused by both the itinerary tab's per-stop "+ Add Activity" and the
+// budget tab's "+ Add Expense" shortcut — same shape, same write path.
+function AddActivityForm({ onAdd, onCancel, pending }: {
+  onAdd: (activity: Activity) => void
+  onCancel: () => void
+  pending: boolean
+}) {
+  const { t } = useTranslation()
+  const [name, setName] = useState('')
+  const [type, setType] = useState<string>(ACTIVITY_TYPES.ACTIVITY)
+  const [cost, setCost] = useState('')
+  const [duration, setDuration] = useState('')
+
+  const submit = () => {
+    if (!name.trim()) return
+    onAdd({ name: name.trim(), type, cost: Math.max(0, Number(cost) || 0), duration: duration.trim() || undefined })
+    setName(''); setCost(''); setDuration('')
+  }
+
+  return (
+    <div className="mt-2.5 p-3 bg-primary/5 border border-primary/15 rounded-xl space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <Input placeholder={t('tripDetail.activityNamePlaceholder')} value={name} onChange={(e) => setName(e.target.value)}
+          className="h-9 rounded-lg text-xs bg-surface-container-lowest" />
+        <div className="relative">
+          <span className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full pointer-events-none"
+            style={{ backgroundColor: ACTIVITY_TYPE_COLORS[type] }} />
+          <select value={type} onChange={(e) => setType(e.target.value)}
+            className="w-full h-9 rounded-lg text-xs border border-outline-variant bg-surface-container-lowest pl-6 pr-2 transition-colors focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+            {Object.values(ACTIVITY_TYPES).map((v) => <option key={v} value={v}>{tEnum(t, 'activityType', v)}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Input type="number" min={0} placeholder={t('tripDetail.costPlaceholder')} value={cost} onChange={(e) => setCost(e.target.value)}
+          className="h-9 rounded-lg text-xs" />
+        <Input placeholder={t('tripDetail.durationOptional')} value={duration} onChange={(e) => setDuration(e.target.value)}
+          className="h-9 rounded-lg text-xs" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button size="sm" disabled={!name.trim() || pending} onClick={submit}
+          className="flex-1 h-9 rounded-full text-xs bg-primary hover:brightness-95 text-on-surface font-bold flex items-center justify-center gap-1.5">
+          {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Plus className="w-3.5 h-3.5" /> {t('common.add')}</>}
+        </Button>
+        <Button size="sm" variant="outline" onClick={onCancel} className="h-9 rounded-full text-xs px-4">
+          {t('common.cancel')}
+        </Button>
       </div>
     </div>
   )

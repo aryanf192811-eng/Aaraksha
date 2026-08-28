@@ -8,6 +8,7 @@
 export default {
   common: {
     save: 'সংৰক্ষণ কৰক',
+    add: 'যোগ কৰক',
     cancel: 'বাতিল কৰক',
     loading: 'লোড হৈ আছে...',
     edit: 'সম্পাদনা কৰক',
@@ -369,6 +370,19 @@ export default {
     toastPreparingPassport: "আপোনাৰ ভ্ৰমণ পাছপ'ৰ্ট সাজু কৰা হৈ আছে...",
     toastEnablePublicSharing: 'এই ভ্ৰমণ শ্বেয়াৰ কৰিবলৈ ছেটিংছত ৰাজহুৱা শ্বেয়াৰিং সক্ষম কৰক',
     toastTripLinkCopied: "ভ্ৰমণ লিংক কপি হ'ল!",
+    removeStop: 'ষ্টপ আঁতৰাওক',
+    removeActivity: 'কাৰ্যকলাপ আঁতৰাওক',
+    addActivity: 'কাৰ্যকলাপ যোগ কৰক',
+    addStop: 'এটা ষ্টপ যোগ কৰক',
+    addStopDesc: 'এখন প্ৰকৃত ঠাই সন্ধান কৰক যাতে ই ভ্ৰমণৰ মানচিত্ৰত দেখা যায়।',
+    notesOptional: 'টোকা (বৈকল্পিক)',
+    logExpense: 'খৰচ লগ কৰক',
+    addExpense: 'খৰচ যোগ কৰক',
+    addStopFirst: 'প্ৰথমে ইটিনাৰেৰী টেবত এটা ষ্টপ যোগ কৰক, তাৰ পিছত তাৰ বিপৰীতে খৰচ লগ কৰক।',
+    activityNamePlaceholder: 'আপুনি কিহৰ ওপৰত খৰচ কৰিলে?',
+    costPlaceholder: 'খৰচ (₹)',
+    durationOptional: 'সময়সীমা (বৈকল্পিক)',
+    toastStopsUpdateFailed: 'ইটিনাৰেৰী আপডেট কৰিব নোৱাৰি — পুনৰ চেষ্টা কৰক',
   },
   createTrip: {
     planNewTrip: 'নতুন ভ্ৰমণ পৰিকল্পনা কৰক',
@@ -395,6 +409,10 @@ export default {
     stopSummary: '{{city}}, {{state}} ({{days}} দিন)',
     createTripButton: 'ভ্ৰমণ সৃষ্টি কৰক',
     toastCreated: "ভ্ৰমণ সফলতাৰে সৃষ্টি কৰা হ'ল!",
+    datesSectionLabel: 'ভ্ৰমণৰ তাৰিখ',
+    tripLength_one: '{{count}} দিন',
+    tripLength_other: '{{count}} দিন',
+    stopsAndDaysSummary: '{{stops}} ষ্টপ · {{days}} দিন',
   },
   checkin: {
     title: 'চেক ইন',

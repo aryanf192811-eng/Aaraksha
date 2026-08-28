@@ -17,3 +17,4 @@ export { SafetyTimeline, computeEscalationLevel, useEscalationLevel } from './Sa
 export { SafetyAdvisory } from './SafetyAdvisory'
 export { NewsFeed } from './NewsFeed'
 export { ExploreDestinations } from './ExploreDestinations'
+export { DestinationSearchField } from './DestinationSearchField'

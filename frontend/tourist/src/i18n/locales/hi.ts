@@ -2,6 +2,7 @@
 export default {
   common: {
     save: 'सहेजें',
+    add: 'जोड़ें',
     cancel: 'रद्द करें',
     loading: 'लोड हो रहा है...',
     edit: 'संपादित करें',
@@ -363,6 +364,19 @@ export default {
     toastPreparingPassport: 'आपका यात्रा पासपोर्ट तैयार किया जा रहा है...',
     toastEnablePublicSharing: 'इस यात्रा को साझा करने के लिए सेटिंग्स में सार्वजनिक साझाकरण सक्षम करें',
     toastTripLinkCopied: 'यात्रा लिंक कॉपी हो गया!',
+    removeStop: 'पड़ाव हटाएं',
+    removeActivity: 'गतिविधि हटाएं',
+    addActivity: 'गतिविधि जोड़ें',
+    addStop: 'पड़ाव जोड़ें',
+    addStopDesc: 'असली जगह खोजें ताकि यह ट्रिप के मानचित्र पर दिखे।',
+    notesOptional: 'नोट्स (वैकल्पिक)',
+    logExpense: 'खर्च दर्ज करें',
+    addExpense: 'खर्च जोड़ें',
+    addStopFirst: 'पहले इटिनरेरी टैब में एक पड़ाव जोड़ें, फिर उस पर खर्च दर्ज करें।',
+    activityNamePlaceholder: 'आपने किस पर खर्च किया?',
+    costPlaceholder: 'लागत (₹)',
+    durationOptional: 'अवधि (वैकल्पिक)',
+    toastStopsUpdateFailed: 'इटिनरेरी अपडेट नहीं हो सकी — फिर कोशिश करें',
   },
   createTrip: {
     planNewTrip: 'नई यात्रा की योजना बनाएं',
@@ -389,6 +403,10 @@ export default {
     stopSummary: '{{city}}, {{state}} ({{days}} दिन)',
     createTripButton: 'यात्रा बनाएं',
     toastCreated: 'यात्रा सफलतापूर्वक बन गई!',
+    datesSectionLabel: 'यात्रा की तारीखें',
+    tripLength_one: '{{count}} दिन',
+    tripLength_other: '{{count}} दिन',
+    stopsAndDaysSummary: '{{stops}} पड़ाव · {{days}} दिन',
   },
   checkin: {
     title: 'चेक इन',

@@ -4,6 +4,7 @@
 export default {
   common: {
     save: 'Save',
+    add: 'Add',
     cancel: 'Cancel',
     loading: 'Loading...',
     edit: 'Edit',
@@ -365,6 +366,19 @@ export default {
     toastPreparingPassport: 'Preparing your Journey Passport...',
     toastEnablePublicSharing: 'Enable public sharing in settings to share this trip',
     toastTripLinkCopied: 'Trip link copied!',
+    removeStop: 'Remove stop',
+    removeActivity: 'Remove activity',
+    addActivity: 'Add activity',
+    addStop: 'Add a stop',
+    addStopDesc: "Search a real place so it shows up on the trip's map.",
+    notesOptional: 'Notes (optional)',
+    logExpense: 'Log an expense',
+    addExpense: 'Add expense',
+    addStopFirst: 'Add a stop in the Itinerary tab first, then log expenses against it.',
+    activityNamePlaceholder: 'What did you spend on?',
+    costPlaceholder: 'Cost (₹)',
+    durationOptional: 'Duration (optional)',
+    toastStopsUpdateFailed: "Couldn't update the itinerary — try again",
   },
   createTrip: {
     planNewTrip: 'Plan New Trip',
@@ -391,6 +405,10 @@ export default {
     stopSummary: '{{city}}, {{state}} ({{days}} days)',
     createTripButton: 'Create Trip',
     toastCreated: 'Trip created successfully!',
+    datesSectionLabel: 'Trip dates',
+    tripLength_one: '{{count}} day',
+    tripLength_other: '{{count}} days',
+    stopsAndDaysSummary: '{{stops}} stops · {{days}} days',
   },
   checkin: {
     title: 'Check In',

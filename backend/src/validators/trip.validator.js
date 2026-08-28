@@ -24,7 +24,7 @@ const StopSchema = z.object({
   arrivalDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   departureDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   activities:    z.array(ActivitySchema).optional().default([]),
-  notes:         z.string().max(1000).optional(),
+  notes:         z.string().max(1000).optional().nullable(),
   // Risk-related fields (populated from destinations table or provided manually)
   connectivity:  z.enum(Object.values(CONNECTIVITY)).optional().default('MODERATE'),
   difficulty:    z.enum(Object.values(DIFFICULTY)).optional().default('EASY'),

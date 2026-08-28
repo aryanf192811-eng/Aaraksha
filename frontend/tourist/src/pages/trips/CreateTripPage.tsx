@@ -11,12 +11,13 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import {
-  ArrowLeft, Plus, Trash2, Loader2, ChevronRight, ChevronLeft, MapPin,
-  User, Users, Mountain, Landmark, Briefcase, Rocket, Check, Calendar, Wallet,
+  ArrowLeft, Plus, Trash2, Loader2, ChevronRight, ChevronLeft,
+  User, Users, Mountain, Landmark, Briefcase, Rocket, Check, Calendar, Wallet, Sparkles, Route,
 } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
+import { DestinationSearchField } from '../../components/shared'
 import tripApi, { type CreateTripPayload } from '../../api/trip.api'
 import destinationApi from '../../api/destination.api'
 import { queryClient } from '../../lib/queryClient'
@@ -45,6 +46,16 @@ const CreateTripSchema = z.object({
     city:          z.string().min(1, 'City required'),
     state:         z.string().min(1, 'State required'),
     destinationId: z.string().optional().nullable(),
+    // Populated by DestinationSearchField's real Nominatim lookup — without
+    // these, TripDetailPage's map tab silently drops the stop, since it
+    // filters to stops.filter(s => s.lat != null && s.lng != null).
+    // z.coerce (not plain z.number()) to match every other numeric field
+    // here — pg returns NUMERIC columns as strings (see addQuickStop's
+    // comment), and a plain z.number() rejects those silently with no
+    // visible form error. Zod short-circuits null/undefined before the
+    // coerce step, so real "no coordinates yet" stays null, not 0.
+    lat:           z.coerce.number().optional().nullable(),
+    lng:           z.coerce.number().optional().nullable(),
     days:          z.coerce.number().int().min(1).max(30),
     connectivity:  z.string().optional().default('MODERATE'),
     difficulty:    z.string().optional().default('EASY'),
@@ -73,6 +84,18 @@ const TRAVEL_TYPE_CONFIG = [
   { value: 'BUSINESS',   Icon: Briefcase, color: 'bg-surface-container-high text-on-surface-variant' },
 ] as const
 
+// Cycled per stop-card index so a multi-stop itinerary reads as a colorful
+// sequence rather than identical gray boxes — same semantic tokens used
+// elsewhere in the app (trust, primary, tsi-*), not new colors invented
+// just for this screen.
+const STOP_ACCENTS = [
+  { border: 'border-l-primary', badge: 'bg-primary/15 text-primary-dark' },
+  { border: 'border-l-trust', badge: 'bg-trust/15 text-trust-dark' },
+  { border: 'border-l-tsi-low', badge: 'bg-tsi-low/15 text-tsi-low' },
+  { border: 'border-l-purple-400', badge: 'bg-purple-100 text-purple-700' },
+  { border: 'border-l-tsi-high', badge: 'bg-tsi-high/15 text-tsi-high' },
+] as const
+
 export default function CreateTripPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
@@ -94,6 +117,15 @@ export default function CreateTripPage() {
   })
   const { fields: stops, append, remove } = useFieldArray({ control, name: 'stops' })
   const watchedData = watch()
+
+  // Live, derived — no submit required to see it. Trip length recomputes
+  // on every date keystroke; the stops summary recomputes on every
+  // add/remove/day-count edit, so Step 2 always shows real running totals
+  // instead of only surfacing them after creation.
+  const tripDays = watchedData.startDate && watchedData.endDate && watchedData.startDate < watchedData.endDate
+    ? Math.round((new Date(watchedData.endDate).getTime() - new Date(watchedData.startDate).getTime()) / 86_400_000)
+    : null
+  const totalStopDays = (watchedData.stops || []).reduce((sum, s) => sum + (Number(s?.days) || 0), 0)
 
   const { mutate: createTrip, isPending } = useMutation({
     mutationFn: (data: CreateTripPayload) => tripApi.createTrip(data),
@@ -117,8 +149,18 @@ export default function CreateTripPage() {
   }
 
   const addQuickStop = (dest: Destination) => {
+    // pg returns NUMERIC/DECIMAL columns as strings, not numbers (same
+    // gotcha documented in the volunteer app's ActiveJobPage.tsx) — the
+    // Destination type claims `number | null` but the real /destinations
+    // response hands back a numeric string, which z.number() rejects
+    // silently (no visible error, Create Trip just never fires). Coerce
+    // explicitly rather than loosening the schema, since every other
+    // lat/lng source (DestinationSearchField) already provides real numbers.
+    const lat = dest.latitude != null ? Number(dest.latitude) : null
+    const lng = dest.longitude != null ? Number(dest.longitude) : null
     append({
-      city: dest.name, state: dest.state, destinationId: dest.id, days: 2,
+      city: dest.name, state: dest.state, destinationId: dest.id,
+      lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, days: 2,
       connectivity: dest.connectivity, difficulty: dest.difficulty,
       altitude_m: dest.altitude_m, zone_type: dest.zone_type,
       hospital_km: dest.nearest_hospital_km ?? 0,
@@ -195,24 +237,44 @@ export default function CreateTripPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="font-semibold">{t('createTrip.startDateLabel')}</Label>
-                <Input type="date" className="h-12 rounded-xl" {...register('startDate')}
-                  min={new Date().toISOString().split('T')[0]} />
-                {errors.startDate && <p className="text-xs text-sos-dark">{errors.startDate.message}</p>}
+            <div className="bg-trust/5 border border-trust/15 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-2 text-sm font-bold text-trust-dark">
+                  <span className="w-7 h-7 rounded-full bg-trust/15 flex items-center justify-center flex-shrink-0">
+                    <Calendar className="w-3.5 h-3.5 text-trust-dark" />
+                  </span>
+                  {t('createTrip.datesSectionLabel')}
+                </span>
+                {tripDays != null && (
+                  <span className="text-[11px] font-bold bg-trust/15 text-trust-dark px-2.5 py-1 rounded-full animate-slide-up">
+                    {t('createTrip.tripLength', { count: tripDays })}
+                  </span>
+                )}
               </div>
-              <div className="space-y-1.5">
-                <Label className="font-semibold">{t('createTrip.endDateLabel')}</Label>
-                <Input type="date" className="h-12 rounded-xl" {...register('endDate')}
-                  min={watchedData.startDate || new Date().toISOString().split('T')[0]} />
-                {errors.endDate && <p className="text-xs text-sos-dark">{errors.endDate.message}</p>}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="font-semibold">{t('createTrip.startDateLabel')}</Label>
+                  <Input type="date" className="h-12 rounded-xl bg-surface-container-lowest" {...register('startDate')}
+                    min={new Date().toISOString().split('T')[0]} />
+                  {errors.startDate && <p className="text-xs text-sos-dark">{errors.startDate.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-semibold">{t('createTrip.endDateLabel')}</Label>
+                  <Input type="date" className="h-12 rounded-xl bg-surface-container-lowest" {...register('endDate')}
+                    min={watchedData.startDate || new Date().toISOString().split('T')[0]} />
+                  {errors.endDate && <p className="text-xs text-sos-dark">{errors.endDate.message}</p>}
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="font-semibold">{t('createTrip.budgetLabel')}</Label>
-              <Input type="number" placeholder={t('createTrip.budgetPlaceholder')} className="h-12 rounded-xl" {...register('budgetInr')} />
+            <div className="bg-primary/5 border border-primary/15 rounded-2xl p-4 space-y-1.5">
+              <span className="flex items-center gap-2 text-sm font-bold text-primary-dark mb-1">
+                <span className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                  <Wallet className="w-3.5 h-3.5 text-primary-dark" />
+                </span>
+                {t('createTrip.budgetLabel')}
+              </span>
+              <Input type="number" placeholder={t('createTrip.budgetPlaceholder')} className="h-12 rounded-xl bg-surface-container-lowest" {...register('budgetInr')} />
             </div>
 
             <Button type="button" onClick={() => setStep(2)}
@@ -225,47 +287,87 @@ export default function CreateTripPage() {
         {/* ── Step 2: Stops ───────────────────────────────────── */}
         {step === 2 && (
           <div className="space-y-4 animate-slide-up">
-            <div>
-              <h2 className="font-black text-on-surface text-lg">{t('createTrip.addDestinations')}</h2>
-              <p className="text-sm text-on-surface-variant">{t('createTrip.addDestinationsSubtitle')}</p>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-black text-on-surface text-lg">{t('createTrip.addDestinations')}</h2>
+                <p className="text-sm text-on-surface-variant">{t('createTrip.addDestinationsSubtitle')}</p>
+              </div>
+              {/* Live running total — updates on every add/remove/day edit,
+                  no need to reach Step 3 to see it. */}
+              {stops.length > 0 && (
+                <span className="flex-shrink-0 flex items-center gap-1.5 bg-primary/10 text-primary-dark text-xs font-bold px-3 py-1.5 rounded-full">
+                  <Route className="w-3.5 h-3.5" />
+                  {t('createTrip.stopsAndDaysSummary', { stops: stops.length, days: totalStopDays })}
+                </span>
+              )}
             </div>
 
-            {/* Quick add popular destinations */}
-            <div className="flex flex-wrap gap-2">
-              {destinations.map(dest => (
-                <button key={dest.id} type="button"
-                  onClick={() => addQuickStop(dest)}
-                  className="flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant rounded-full px-3 py-1.5 text-sm font-medium text-on-surface hover:border-primary/50 hover:bg-primary/10 transition-colors">
-                  <MapPin className="w-3 h-3 text-primary" /> {dest.name}
-                </button>
-              ))}
-            </div>
-
-            {/* Added stops */}
-            {stops.map((field, idx) => (
-              <div key={field.id} className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-2 text-sm font-bold text-on-surface">
-                    <span className="w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] font-black flex items-center justify-center flex-shrink-0">{idx + 1}</span>
-                    {t('createTrip.stopLabel', { n: idx + 1 })}
-                  </span>
-                  <button type="button" onClick={() => remove(idx)}>
-                    <Trash2 className="w-4 h-4 text-sos/60 hover:text-sos-dark transition-colors" />
+            {/* Quick add popular destinations — photo chips, not plain pills */}
+            {destinations.length > 0 && (
+              <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-5 px-5">
+                {destinations.map(dest => (
+                  <button key={dest.id} type="button"
+                    onClick={() => addQuickStop(dest)}
+                    className="relative flex-shrink-0 w-24 h-20 rounded-2xl overflow-hidden shadow-sm border border-outline-variant hover:border-primary/60 hover:shadow-md transition-all group">
+                    <img src={getDestinationImage(dest.name, { w: 200, q: 70 })} alt=""
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                    <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-white/25 backdrop-blur-sm flex items-center justify-center">
+                      <Plus className="w-3 h-3 text-white" strokeWidth={3} />
+                    </span>
+                    <span className="absolute bottom-1.5 left-1.5 right-1.5 text-[11px] font-bold text-white leading-tight truncate text-left">
+                      {dest.name}
+                    </span>
                   </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input placeholder={t('createTrip.cityPlaceholder')} className="h-10 rounded-lg text-sm" {...register(`stops.${idx}.city`)} />
-                  <Input placeholder={t('createTrip.statePlaceholder')} className="h-10 rounded-lg text-sm" {...register(`stops.${idx}.state`)} />
-                  <div className="flex items-center gap-2 col-span-2">
-                    <span className="text-xs text-on-surface-variant whitespace-nowrap">{t('createTrip.daysLabel')}</span>
-                    <Input type="number" min={1} className="h-10 rounded-lg text-sm w-20" {...register(`stops.${idx}.days`)} />
+                ))}
+              </div>
+            )}
+
+            {/* Added stops — colored accent + live city thumbnail */}
+            {stops.map((field, idx) => {
+              const accent = STOP_ACCENTS[idx % STOP_ACCENTS.length]
+              const cityNow = watchedData.stops?.[idx]?.city || ''
+              return (
+                <div key={field.id} className={cn('bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden flex border-l-4', accent.border)}>
+                  {cityNow.length >= 3 && (
+                    <img src={getDestinationImage(cityNow, { w: 200, q: 70 })} alt=""
+                      className="w-16 sm:w-20 flex-shrink-0 object-cover" />
+                  )}
+                  <div className="p-4 flex-1 min-w-0 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-2 text-sm font-bold text-on-surface">
+                        <span className={cn('w-5 h-5 rounded-full text-[11px] font-black flex items-center justify-center flex-shrink-0', accent.badge)}>{idx + 1}</span>
+                        {t('createTrip.stopLabel', { n: idx + 1 })}
+                      </span>
+                      <button type="button" onClick={() => remove(idx)}>
+                        <Trash2 className="w-4 h-4 text-sos/60 hover:text-sos-dark transition-colors" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <DestinationSearchField
+                        city={cityNow}
+                        onCityChange={(city) => setValue(`stops.${idx}.city`, city)}
+                        onSelect={(result) => {
+                          setValue(`stops.${idx}.city`, result.city)
+                          setValue(`stops.${idx}.state`, result.state)
+                          setValue(`stops.${idx}.lat`, result.lat)
+                          setValue(`stops.${idx}.lng`, result.lng)
+                        }}
+                        cityPlaceholder={t('createTrip.cityPlaceholder')}
+                      />
+                      <Input placeholder={t('createTrip.statePlaceholder')} className="h-10 rounded-lg text-sm" {...register(`stops.${idx}.state`)} />
+                      <div className="flex items-center gap-2 col-span-2">
+                        <span className="text-xs text-on-surface-variant whitespace-nowrap">{t('createTrip.daysLabel')}</span>
+                        <Input type="number" min={1} className="h-10 rounded-lg text-sm w-20" {...register(`stops.${idx}.days`)} />
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
 
             <Button type="button" variant="outline"
-              onClick={() => append({ city: '', state: '', destinationId: null, days: 2, connectivity: 'MODERATE', difficulty: 'EASY', altitude_m: 0, zone_type: 'SAFE', hospital_km: 0 })}
+              onClick={() => append({ city: '', state: '', destinationId: null, lat: null, lng: null, days: 2, connectivity: 'MODERATE', difficulty: 'EASY', altitude_m: 0, zone_type: 'SAFE', hospital_km: 0 })}
               className="w-full rounded-xl border-dashed h-11">
               <Plus className="w-4 h-4 mr-2" /> {t('createTrip.addCustomDestination')}
             </Button>
@@ -296,9 +398,16 @@ export default function CreateTripPage() {
                 <img src={getDestinationImage(stops[0]?.city, { w: 800, q: 80 })} alt=""
                   className="absolute inset-0 w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-                <span className="absolute top-3 right-3 text-xs bg-white/15 backdrop-blur-md text-white px-2.5 py-1 rounded-full font-semibold border border-white/20">
-                  {tEnum(t, 'travelType', watchedData.travelType)}
-                </span>
+                <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                  {tripDays != null && (
+                    <span className="flex items-center gap-1 text-xs bg-primary/80 backdrop-blur-md text-on-surface px-2.5 py-1 rounded-full font-bold">
+                      <Sparkles className="w-3 h-3" /> {t('createTrip.tripLength', { count: tripDays })}
+                    </span>
+                  )}
+                  <span className="text-xs bg-white/15 backdrop-blur-md text-white px-2.5 py-1 rounded-full font-semibold border border-white/20">
+                    {tEnum(t, 'travelType', watchedData.travelType)}
+                  </span>
+                </div>
                 <p className="absolute bottom-3 left-4 right-4 font-display font-black text-lg text-white leading-tight truncate">{watchedData.title}</p>
               </div>
 
@@ -324,7 +433,8 @@ export default function CreateTripPage() {
                     <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wide">{t('createTrip.stopsLabel')}</p>
                     {stops.map((s, i) => (
                       <div key={i} className="flex items-center gap-3">
-                        <span className="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant text-xs font-black flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                        <img src={getDestinationImage(s.city, { w: 100, q: 60 })} alt=""
+                          className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-2 ring-surface-container-lowest" />
                         <p className="text-sm text-on-surface font-medium">{t('createTrip.stopSummary', { city: s.city, state: s.state, days: String(s.days) })}</p>
                       </div>
                     ))}
