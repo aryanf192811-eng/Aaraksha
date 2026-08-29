@@ -30,14 +30,20 @@ function defaultPriority(category) {
 // from any non-terminal state as a deliberate administrative dismissal (a
 // duplicate or invalid report shouldn't need a fake investigation first);
 // RESOLVED specifically means an investigation concluded, so it's only
-// reachable from UNDER_INVESTIGATION. Re-submitting the current status is
-// always allowed as a no-op, since the govt UI resends it on every
-// priority/notes-only update.
+// reachable from UNDER_INVESTIGATION -- but RESOLVED isn't itself terminal:
+// a case can be formally CLOSED (archived) after being resolved, a real,
+// separate step from the resolution itself. Re-submitting the current
+// status is always allowed as a no-op, since the govt UI resends it on
+// every priority/notes-only update. Kept in exact sync with the govt
+// frontend's own NEXT_STATUSES map (IncidentQueuePage.tsx) -- that map
+// predates this enforcement and had two of its own illegal skips
+// (FILED -> UNDER_INVESTIGATION, ASSIGNED -> RESOLVED), found by testing
+// the UI against this validation, not assumed.
 const VALID_STATUS_TRANSITIONS = Object.freeze({
   [INCIDENT_STATUSES.FILED]:               [INCIDENT_STATUSES.ASSIGNED, INCIDENT_STATUSES.CLOSED],
   [INCIDENT_STATUSES.ASSIGNED]:            [INCIDENT_STATUSES.UNDER_INVESTIGATION, INCIDENT_STATUSES.CLOSED],
   [INCIDENT_STATUSES.UNDER_INVESTIGATION]: [INCIDENT_STATUSES.RESOLVED, INCIDENT_STATUSES.CLOSED],
-  [INCIDENT_STATUSES.RESOLVED]:            [],
+  [INCIDENT_STATUSES.RESOLVED]:            [INCIDENT_STATUSES.CLOSED],
   [INCIDENT_STATUSES.CLOSED]:              [],
 })
 

@@ -14,7 +14,7 @@ screenshots live in `docs/screenshots/`. Don't mix the three.
 | 1 | System audit | [`01-system-audit.md`](./01-system-audit.md) | PASS WITH ISSUES |
 | 2 | Backend/API/DB | [`02-backend-api-db.md`](./02-backend-api-db.md) | PASS WITH ISSUES |
 | 3 | Tourist PWA | [`03-tourist-pwa.md`](./03-tourist-pwa.md) | PASS WITH ISSUES |
-| 4 | Government Command Center | `04-government-portal.md` | not started |
+| 4 | Government Command Center | [`04-government-portal.md`](./04-government-portal.md) | PASS WITH ISSUES |
 | 5 | Guardian Portal | `05-guardian-portal.md` | not started |
 | 6 | Rescuer App | `06-rescuer-app.md` | not started |
 | 7 | Cross-portal E2E | `07-cross-portal-e2e.md` | not started |

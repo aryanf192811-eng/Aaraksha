@@ -16,6 +16,7 @@ import { Input } from '../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/dialog'
 import govtApi, { type CreateVolunteerPayload } from '../api/govt.api'
+import { getErrorMessage } from '../api/client'
 import { queryClient } from '../lib/queryClient'
 import { formatTimeAgo, cn } from '../lib/utils'
 import type { Volunteer } from '../types/api.types'
@@ -65,6 +66,7 @@ export default function VolunteersPage() {
       queryClient.invalidateQueries({ queryKey: ['govt', 'volunteers'] })
       setReviewing(null)
     },
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 
   const { mutate: reject, isPending: rejecting } = useMutation({
@@ -74,6 +76,7 @@ export default function VolunteersPage() {
       queryClient.invalidateQueries({ queryKey: ['govt', 'volunteers'] })
       setReviewing(null)
     },
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 
   const { mutate: createVolunteer, isPending: submittingCreate } = useMutation({
@@ -84,6 +87,11 @@ export default function VolunteersPage() {
       setForm(EMPTY_FORM)
       setCredentials(res.data.data)
     },
+    // Provisions a real account with a govt-ID hash and a one-time
+    // password -- previously failed silently (e.g. a duplicate govt ID,
+    // a real validated case) with no indication the account was never
+    // created.
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 
   const copyCredentials = () => {

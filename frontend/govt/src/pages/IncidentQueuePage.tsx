@@ -61,9 +61,14 @@ const STATUS_TABS: Array<{ value: IncidentStatus | 'ALL'; label: string }> = [
 ]
 // Forward-only next step per current status — keeps the officer from
 // jumping the ladder backwards by accident (e.g. RESOLVED -> FILED).
+// Kept in exact sync with the backend's own VALID_STATUS_TRANSITIONS
+// (incident.service.js) -- this map used to offer two skips the backend
+// now correctly rejects (FILED -> UNDER_INVESTIGATION straight past
+// ASSIGNED, and ASSIGNED -> RESOLVED straight past UNDER_INVESTIGATION),
+// found by clicking them and watching the request fail with a 400.
 const NEXT_STATUSES: Record<string, IncidentStatus[]> = {
-  FILED:                ['ASSIGNED', 'UNDER_INVESTIGATION'],
-  ASSIGNED:              ['UNDER_INVESTIGATION', 'RESOLVED', 'CLOSED'],
+  FILED:                ['ASSIGNED', 'CLOSED'],
+  ASSIGNED:              ['UNDER_INVESTIGATION', 'CLOSED'],
   UNDER_INVESTIGATION:   ['RESOLVED', 'CLOSED'],
   RESOLVED:              ['CLOSED'],
   CLOSED:                [],

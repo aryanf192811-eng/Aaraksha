@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { Textarea } from '../components/ui/textarea'
 import govtApi, { type NearbyRescuer } from '../api/govt.api'
+import { getErrorMessage } from '../api/client'
 import { queryClient } from '../lib/queryClient'
 import { formatTimeAgo, cn } from '../lib/utils'
 import type { SOSWithDetails } from '../types/api.types'
@@ -83,6 +84,12 @@ export default function SOSManagementPage() {
       setAssignTeamId('')
       setAssignVolunteerId('')
     },
+    // Previously missing entirely -- the single highest-stakes action in
+    // this whole app (dispatching a rescuer to an active emergency) failed
+    // completely silently on any error: no toast, modal stays open with no
+    // indication anything went wrong. An operator could believe help was
+    // sent when it wasn't.
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 
   const { mutate: resolveSOS, isPending: resolving } = useMutation({
@@ -97,6 +104,7 @@ export default function SOSManagementPage() {
       setSelectedSOS(null)
       setResolutionNotes('')
     },
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 
   const sosList = sosData?.data || []
