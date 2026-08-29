@@ -51,6 +51,14 @@ export default function SOSPage() {
   const { dms, disableDMS, disabling } = useDMS()
   const panicGestureEnabled = useSafetyStore((s) => s.panicGestureEnabled)
   const setPanicGestureEnabled = useSafetyStore((s) => s.setPanicGestureEnabled)
+  // Unlike the nav bar's SOS button (NavSOSButton.tsx), this one never
+  // passed isActive -- so even with an SOS already live (the banner above
+  // this button already says so), holding it again showed the same "SEND
+  // SOS / Hold 2s to alert" idle state and, since isActive was false,
+  // never even fired the "already active" warning toast SOSButton.tsx has
+  // built in for exactly this case. Nothing stopped a second, overlapping
+  // ACTIVE SOS row from being created silently.
+  const activeSOSId = useSafetyStore((s) => s.activeSOSId)
   const [requestingPermission, setRequestingPermission] = useState(false)
   const { subscribe: subscribePush, unsubscribe: unsubscribePush, subscribing: subscribingPush } = usePushNotifications()
   const [pushEnabled, setPushEnabled] = useState(false)
@@ -162,7 +170,7 @@ export default function SOSPage() {
 
         {/* Big SOS Section */}
         <div className="flex flex-col items-center gap-5 py-4">
-          <SOSButton onTrigger={handleSOS} loading={sending} size="default" />
+          <SOSButton onTrigger={handleSOS} loading={sending} size="default" isActive={!!activeSOSId} />
           <p className="text-center text-xs text-on-surface-variant max-w-[260px]">
             {t('sos.disclaimer')}
           </p>
