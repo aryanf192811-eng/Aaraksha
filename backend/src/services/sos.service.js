@@ -24,10 +24,25 @@ const VOLUNTEER_ALERT_RADIUS_KM = 15
 
 async function createSOS(touristId, data) {
   // 1. Run DB writes in a transaction
-  const { sosEvent, tourist } = await withTransaction(async (client) => {
+  const { sosEvent, tourist, isDuplicate } = await withTransaction(async (client) => {
     const sosRepo      = new SOSRepository(client)
     const locationRepo = new LocationRepository(client)
     const touristRepo  = new TouristRepository(client)
+
+    // Idempotency guard: a tourist already mid-incident (double-tap, flaky
+    // network retry, second browser tab, panic-mashing the button) must not
+    // spawn a second ACTIVE row — the frontend disables re-triggering too
+    // (SOSButton's isActive prop), but that's UI, not a guarantee. Returning
+    // the existing incident instead of erroring keeps this endpoint safe to
+    // call repeatedly. This is a same-tourist dedup, not full incident
+    // merging/escalation (parent_sos_id, location trail) — that's real
+    // future work, out of scope for this pass.
+    const existingActive = await sosRepo.findLatestActiveByTouristId(touristId)
+    if (existingActive) {
+      const sosEvent = await sosRepo.findById(existingActive.id)
+      const tourist = await touristRepo.findById(touristId)
+      return { sosEvent, tourist, isDuplicate: true }
+    }
 
     const sosEvent = await sosRepo.create({
       touristId,
@@ -51,8 +66,13 @@ async function createSOS(touristId, data) {
     })
 
     const tourist = await touristRepo.findById(touristId)
-    return { sosEvent, tourist }
+    return { sosEvent, tourist, isDuplicate: false }
   })
+
+  if (isDuplicate) {
+    logger.info({ sosId: sosEvent.id, touristId }, 'Duplicate SOS trigger suppressed — incident already active')
+    return sosEvent
+  }
 
   // 2. Side effects AFTER transaction — failures here do not rollback SOS
   emitSOSReceived(sosEvent, tourist)

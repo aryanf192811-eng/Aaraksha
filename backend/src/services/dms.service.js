@@ -96,17 +96,26 @@ async function processDMSTriggers() {
         const lng = dmsRow.longitude || 0
         const isStale = !dmsRow.latitude
 
-        const sosEvent = await sosRepo_t.create({
-          touristId:       dmsRow.tourist_id,
-          tripId:          dmsRow.trip_id,
-          latitude:        lat,
-          longitude:       lng,
-          isStaleLocation: isStale,
-          category:        SOS_CATEGORIES.MISSING,
-          triggerType:     SOS_TRIGGER_TYPES.DEAD_MANS_SWITCH,
-          batteryPct:      dmsRow.battery_pct || null,
-          message:         "Automatic SOS — Dead Man's Switch timeout",
-        })
+        // A manual SOS may already be active for this tourist (they pressed
+        // the button, THEN stopped moving/checking in long enough for the
+        // DMS timeout to also fire). The DMS timing out is still real
+        // evidence worth recording, but it must not spawn a second ACTIVE
+        // incident — link this DMS row to the existing one instead. Mirrors
+        // the same dedup in sos.service.js#createSOS.
+        const existingActive = await sosRepo_t.findLatestActiveByTouristId(dmsRow.tourist_id)
+        const sosEvent = existingActive
+          ? await sosRepo_t.findById(existingActive.id)
+          : await sosRepo_t.create({
+              touristId:       dmsRow.tourist_id,
+              tripId:          dmsRow.trip_id,
+              latitude:        lat,
+              longitude:       lng,
+              isStaleLocation: isStale,
+              category:        SOS_CATEGORIES.MISSING,
+              triggerType:     SOS_TRIGGER_TYPES.DEAD_MANS_SWITCH,
+              batteryPct:      dmsRow.battery_pct || null,
+              message:         "Automatic SOS — Dead Man's Switch timeout",
+            })
 
         await dmsRepo_t.markTriggered(dmsRow.id, sosEvent.id)
         return { sosEvent }
