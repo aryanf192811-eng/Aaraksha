@@ -23,6 +23,24 @@ function defaultPriority(category) {
   return 'MEDIUM'
 }
 
+// The investigation ladder, enforced — updateStatus() previously validated
+// only enum membership, so a direct FILED -> RESOLVED call skipped
+// ASSIGNED/UNDER_INVESTIGATION entirely and produced a "resolved" case with
+// no officer of record (assigned_officer_id still null). CLOSED is reachable
+// from any non-terminal state as a deliberate administrative dismissal (a
+// duplicate or invalid report shouldn't need a fake investigation first);
+// RESOLVED specifically means an investigation concluded, so it's only
+// reachable from UNDER_INVESTIGATION. Re-submitting the current status is
+// always allowed as a no-op, since the govt UI resends it on every
+// priority/notes-only update.
+const VALID_STATUS_TRANSITIONS = Object.freeze({
+  [INCIDENT_STATUSES.FILED]:               [INCIDENT_STATUSES.ASSIGNED, INCIDENT_STATUSES.CLOSED],
+  [INCIDENT_STATUSES.ASSIGNED]:            [INCIDENT_STATUSES.UNDER_INVESTIGATION, INCIDENT_STATUSES.CLOSED],
+  [INCIDENT_STATUSES.UNDER_INVESTIGATION]: [INCIDENT_STATUSES.RESOLVED, INCIDENT_STATUSES.CLOSED],
+  [INCIDENT_STATUSES.RESOLVED]:            [],
+  [INCIDENT_STATUSES.CLOSED]:              [],
+})
+
 // Never trust a client-supplied JSON string at face value — parsed and
 // reshaped into exactly the fields expected (class name + confidence),
 // dropping anything else, before it ever reaches a SQL parameter. Bad
@@ -106,6 +124,19 @@ async function updateStatus(id, status, resolutionNotes, priority) {
   if (!existing) throw Object.assign(new Error(ERRORS.INCIDENT_NOT_FOUND), { statusCode: 404 })
   if (!Object.values(INCIDENT_STATUSES).includes(status)) {
     throw Object.assign(new Error(ERRORS.VALIDATION_FAILED), { statusCode: 400 })
+  }
+
+  if (status !== existing.status) {
+    const isTerminal = VALID_STATUS_TRANSITIONS[existing.status]?.length === 0
+    if (isTerminal) {
+      throw Object.assign(new Error(ERRORS.INCIDENT_ALREADY_CLOSED), { statusCode: 400 })
+    }
+    if (!VALID_STATUS_TRANSITIONS[existing.status]?.includes(status)) {
+      throw Object.assign(
+        new Error(`Cannot move a case from ${existing.status} to ${status} directly — the investigation ladder requires ${VALID_STATUS_TRANSITIONS[existing.status].join(' or ')} next`),
+        { statusCode: 400 }
+      )
+    }
   }
 
   await repo.updateStatus(id, status, resolutionNotes, priority)

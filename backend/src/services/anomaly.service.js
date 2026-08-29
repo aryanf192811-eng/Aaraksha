@@ -80,6 +80,21 @@ async function flagIfNotAlreadyOpen(repo, row, type, fields) {
   const existing = await repo.findOpenByTouristAndType(row.tourist_id, type)
   if (existing) return false
 
+  // A govt operator resolving an anomaly is itself a real check performed
+  // on the tourist — re-flagging every single minute afterward purely
+  // because the same stale location timestamp still hasn't moved is pure
+  // noise, not a new signal, and reads as broken on a demo ("I resolved
+  // that, why is it back"). Only reopen once genuinely new information
+  // exists — a location update newer than the one already resolved
+  // against. A tourist who never pings again stays quiet at the operator's
+  // discretion; DMS/SOS remain the actual escalation path for that case.
+  const mostRecent = await repo.findMostRecentByTouristAndType(row.tourist_id, type)
+  if (mostRecent && mostRecent.status !== 'OPEN') {
+    const sameReading = mostRecent.last_location_at && fields.lastLocationAt
+      && new Date(mostRecent.last_location_at).getTime() === new Date(fields.lastLocationAt).getTime()
+    if (sameReading) return false
+  }
+
   const anomaly = await repo.create({
     touristId: row.tourist_id, tripId: row.trip_id, type, ...fields,
   })

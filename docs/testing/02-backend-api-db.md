@@ -178,10 +178,12 @@ and team+false-alarm confirmed.
 |---|---|---|---|
 | B1 | Postman collection's Aadhaar test fixtures (all 8 "should succeed" cases) fail the real Verhoeff checksum, causing 183/269 assertion failures across nearly the whole collection | **P1** | `backend/postman/aaraksha-collection.json` |
 | B2 | DPDP deletion-refusal message has redundant wording ("open E-FIR case still open") | P3 | `backend/src/services/dataRights.service.js` |
-| B3 | E-FIR status endpoint enforces no transition ordering — any `FILED→RESOLVED` (or any other) jump is accepted | P2 | `backend/src/services/incident.service.js` |
+| B3 | E-FIR status endpoint enforced no transition ordering — any `FILED→RESOLVED` (or any other) jump was accepted | P2 | `backend/src/services/incident.service.js` — **fixed, see below** |
 
-**Not a bug, flagged for a decision:** resolving an INACTIVITY anomaly while the underlying stale
-condition persists causes immediate reopening on the next detection pass. See above.
+**Decided and fixed:** resolving an INACTIVITY anomaly while the underlying stale condition
+persists used to cause immediate reopening on the next detection pass. Judged a real demo-day risk
+(operator resolves, judge watches it reappear with no visible cause) — fixed to suppress
+re-alerting on an unchanged reading while still catching genuinely new staleness. See below.
 
 ## Root Causes
 
@@ -198,7 +200,9 @@ condition persists causes immediate reopening on the next detection pass. See ab
   `postman/aaraksha-collection.json`, using genuinely Verhoeff-valid values (verified
   programmatically against the real validator, not guessed).
 - B2: one-line wording fix in `dataRights.service.js`.
-- B3: **not fixed** — flagged as a product decision, per above.
+- B3: transition-ordering enforcement added to `incident.service.js` — see the dedicated section
+  below for the full fix and its verification.
+- Anomaly reopen-on-resolve: fixed in `anomaly.service.js` + `anomaly.repository.js` — see below.
 
 ## Regression Tests
 
@@ -210,17 +214,64 @@ condition persists causes immediate reopening on the next detection pass. See ab
   in this phase ever targeted `DATABASE_URL`/`aaraksha` — every mutating command's target database
   was confirmed by name first.
 
+## Remaining Issues — B3 and the anomaly-reopen behavior: decided and fixed
+
+Both were called and fixed in this phase rather than left open.
+
+**B3 — E-FIR transition enforcement, fixed.** Added an explicit `VALID_STATUS_TRANSITIONS` map to
+`incident.service.js`: `FILED → {ASSIGNED, CLOSED}`, `ASSIGNED → {UNDER_INVESTIGATION, CLOSED}`,
+`UNDER_INVESTIGATION → {RESOLVED, CLOSED}`, `RESOLVED`/`CLOSED` terminal. `CLOSED` stays reachable
+from any non-terminal state (a real officer need — dismissing a duplicate or invalid report
+shouldn't require a fake investigation first); `RESOLVED` specifically means an investigation
+concluded, so it's now only reachable from `UNDER_INVESTIGATION`, which is what prevents the
+original inconsistency (a resolved case with no officer of record). Re-submitting the current
+status is always allowed as a no-op, since the endpoint requires `status` on every call including
+priority/notes-only updates. Reused the existing, previously-dead `ERRORS.INCIDENT_ALREADY_CLOSED`
+constant for terminal-state violations rather than inventing new error text.
+
+Verified end-to-end against the real API, not just unit-level: `FILED→RESOLVED` now `400`;
+`FILED→FILED` (no-op) `200`; `FILED→ASSIGNED` `200`; `ASSIGNED→RESOLVED` now `400` with a specific
+message naming the actually-required next states; `ASSIGNED→UNDER_INVESTIGATION` `200`;
+`UNDER_INVESTIGATION→RESOLVED` `200`; `RESOLVED→FILED` (terminal reversal) `400`.
+
+**Honest residual note, not fixed:** the status ladder is now enforced, but `assigned_officer_id`
+is set by a *separate* `PATCH /govt/incidents/:id/assign` call, decoupled from the status field.
+Driving `status` directly to `ASSIGNED` via the API (as this verification did, deliberately, to
+isolate the transition logic from the assignment action) still reaches `RESOLVED` with
+`assigned_officer_id: null` if the assign endpoint is never separately called. In practice the govt
+UI almost certainly calls assign before advancing status, so this is a smaller, API-level-only gap
+than the one-hop skip that was actually reported and fixed — left as a documented residual rather
+than expanded into a larger redesign of the assign/status relationship without first checking how
+the real frontend sequences the two calls (out of scope for this phase).
+
+**Anomaly reopen-on-resolve, fixed.** Added `AnomalyRepository.findMostRecentByTouristAndType`
+(any status, latest first) and changed `flagIfNotAlreadyOpen` in `anomaly.service.js` to check it:
+if the most recent anomaly of this type for this tourist is resolved/closed *and* its
+`last_location_at` exactly matches the current candidate's location timestamp — meaning nothing
+new has happened since an operator already handled this exact reading — skip re-creating. A
+genuinely newer stale reading (a fresh ping that has since gone stale again) still creates a new
+anomaly normally; the fix suppresses re-alerting on unchanged information, not the safety net
+itself.
+
+Verified end-to-end: staged a tourist at exactly the 6h threshold, let it flag (`created:1`),
+resolved it, ran detection again with the identical stale timestamp — `created:0` (previously
+`created:1`, i.e. it used to reopen immediately). Then updated the same tourist's location
+timestamp to a *different* stale value (simulating a fresh ping that later went stale again) and
+ran detection once more — `created:1`, confirming the fix doesn't over-suppress genuinely new
+signals.
+
+**Regression after both fixes:** backend vitest 28/28, Postman/Newman 269/269, both re-run clean
+against a freshly reset `aaraksha_test`. Demo database re-spot-checked, untouched.
+
 ## Remaining Issues
 
-- **B3 (E-FIR transition enforcement)** — needs a product decision (strict ladder vs. flexible
-  officer override) before it's fixed one way or the other.
-- **Anomaly reopen-on-resolve behavior** — needs the same kind of decision; not a defect as coded,
-  but worth a deliberate call given demo-day visibility.
 - Backend integration test coverage is still limited to auth (per Phase 1's finding) — this phase
   added real *manual/scripted* verification for SOS/rescue release, DMS-adjacent anomaly detection,
-  hash chain, risk model, and data rights, but none of that is yet captured as a repeatable
-  automated test. Recommend Phase 11 (Automated/E2E regression) turn the scripted checks in this
-  report into permanent vitest/Newman coverage rather than one-off verification.
+  hash chain, risk model, data rights, and now the E-FIR ladder and anomaly reopen behavior, but
+  none of that is yet captured as a repeatable automated test. Recommend Phase 11 (Automated/E2E
+  regression) turn the scripted checks in this report into permanent vitest/Newman coverage.
+- The E-FIR assign/status decoupling noted above (assign is a separate, unenforced call) — worth a
+  look once the govt frontend's actual call sequence is confirmed, not urgent.
 
 ## Evidence
 
@@ -249,31 +300,35 @@ detection's boundary and dedup behavior, and the volunteer+false-alarm release p
 under direct, adversarial-style verification (a real DB tamper, a real boundary-exact fixture, a
 real illegal state transition attempt) rather than being taken on faith from the documentation.
 
-Two real findings (B3, the anomaly-reopen behavior) are documented but deliberately not fixed —
-both are product-flexibility questions, not implementation bugs, and changing either without
-direction risks breaking an intentional design choice.
+B3 and the anomaly-reopen behavior were both real, evidenced findings requiring a judgment call
+about intended behavior, not just an implementation error — both were decided (favoring what a
+judge probing the system live would expect: a documented ladder that's actually enforced, and a
+resolved anomaly that stays resolved unless something genuinely new happens) and fixed, with the
+fix itself verified end-to-end against the real API and re-confirmed against both regression
+suites.
 
 ---
 
-**TESTS EXECUTED:** 14 (see Tests Executed above) — full backend vitest run ×2, full Postman/Newman
-run ×4, hash-chain determinism + tamper-evidence, risk-model skew check, 2 DPDP refusal paths,
-anomaly boundary + dedup + reopen behavior, E-FIR illegal transition, rescue release (volunteer ×
-false-alarm).
+**TESTS EXECUTED:** 14 initial (see Tests Executed above) + 2 fix-verification passes (7 E-FIR
+transition cases against the real API; 3-step anomaly reopen-suppression sequence) + 2 full
+regression re-runs (vitest, Newman) after the fixes.
 
-**BUGS FOUND:** 3 (B1 P1, B2 P3, B3 P2) + 1 flagged behavior (not classified as a bug).
+**BUGS FOUND:** 3 (B1 P1, B2 P3, B3 P2) + 1 additional behavior (anomaly reopen) judged real enough
+to fix.
 
-**BUGS FIXED:** B1, B2. B3 and the anomaly-reopen behavior intentionally left for a product
-decision.
+**BUGS FIXED:** All of them — B1, B2, B3, and the anomaly reopen-on-resolve behavior. One honest
+residual noted (E-FIR assign/status decoupling) but not expanded into scope beyond what was found.
 
-**REGRESSION RESULTS:** Backend vitest 28/28 after fixes. Postman/Newman 269/269 after fixes, on a
-freshly reset test DB. Demo database (`aaraksha`) confirmed untouched throughout.
+**REGRESSION RESULTS:** Backend vitest 28/28 and Postman/Newman 269/269, both re-run clean after
+every fix, final pass against a freshly reset test DB. Demo database (`aaraksha`) spot-checked
+untouched throughout the entire phase.
 
 **DOCUMENTATION:** This file.
 
-**COMMIT:** See repository log for the commit accompanying this phase.
+**COMMIT:** See repository log for the commits accompanying this phase.
 
-**REMAINING ISSUES:** B3 and the anomaly-reopen behavior await a product decision. Backend test
-coverage beyond auth is still thin in *automated* form (Phase 11's job to convert this phase's
-manual verification into permanent tests).
+**REMAINING ISSUES:** E-FIR assign/status decoupling (minor, noted, not urgent). Backend test
+coverage beyond auth is still thin in *automated* form — Phase 11's job to convert this phase's
+manual/scripted verification into permanent tests.
 
-**NEXT PHASE:** Phase 3 — Tourist PWA. Awaiting explicit go-ahead per phase discipline.
+**NEXT PHASE:** Phase 3 — Tourist PWA.

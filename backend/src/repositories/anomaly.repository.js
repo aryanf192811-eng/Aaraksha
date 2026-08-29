@@ -31,6 +31,17 @@ class AnomalyRepository extends BaseRepository {
     )
   }
 
+  // Most recent anomaly of this type regardless of status — used to check
+  // "did we already flag and resolve this exact reading" so a resolved
+  // anomaly doesn't reopen on the very next cron tick just because the
+  // underlying stale timestamp hasn't changed (see anomaly.service.js).
+  async findMostRecentByTouristAndType(touristId, type) {
+    return this.queryOne(
+      `SELECT * FROM safety_anomalies WHERE tourist_id=$1 AND type=$2 ORDER BY detected_at DESC LIMIT 1`,
+      [touristId, type]
+    )
+  }
+
   async create(data) {
     return this.queryOne(`
       INSERT INTO safety_anomalies (
