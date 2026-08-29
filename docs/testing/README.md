@@ -1,0 +1,45 @@
+# Aaraksha — Testing Documentation
+
+Index for the final system-wide QA, integration, security, and UX validation pass ahead of the
+SIH screening round. Full plan: [`QA-MASTER-PLAN.md`](./QA-MASTER-PLAN.md).
+
+**Rule this index exists to enforce:** everything actively being tested lives here, in
+`docs/testing/`. General research and strategy docs live in `docs/Research/`. Current portal
+screenshots live in `docs/screenshots/`. Don't mix the three.
+
+## Phase reports
+
+| # | Phase | Report | Status |
+|---|---|---|---|
+| 1 | System audit | [`01-system-audit.md`](./01-system-audit.md) | PASS WITH ISSUES |
+| 2 | Backend/API/DB | `02-backend-api-db.md` | not started |
+| 3 | Tourist PWA | `03-tourist-pwa.md` | not started |
+| 4 | Government Command Center | `04-government-portal.md` | not started |
+| 5 | Guardian Portal | `05-guardian-portal.md` | not started |
+| 6 | Rescuer App | `06-rescuer-app.md` | not started |
+| 7 | Cross-portal E2E | `07-cross-portal-e2e.md` | not started |
+| 8 | Offline/resilience | `08-offline-resilience.md` | not started |
+| 9 | Security audit | `09-security-audit.md` | not started |
+| 10 | Real-time consistency | `10-realtime-validation.md` | not started |
+| 11 | UI/UX QA | `11-ui-ux-qa.md` | not started |
+| 12 | Regression report | `12-regression-report.md` | not started |
+| — | Final QA report | `FINAL_QA_REPORT.md` | not started |
+
+## Other testing artifacts in this repo
+
+- [`aaraksha-field-manual.html`](./aaraksha-field-manual.html) — tester-facing playbook: how to run
+  a QA pass on each portal, shared-environment ground rules, and what's expected to run in fallback
+  mode (not a bug list).
+- `backend/tests/` — Vitest unit + integration suite.
+- `backend/postman/` — Postman/Newman API contract collection.
+- `.github/workflows/test.yml` — CI: backend suite against an ephemeral Postgres, frontend suite
+  matrixed across all four portals.
+
+## Databases
+
+| DB | Env var | Purpose |
+|---|---|---|
+| `aaraksha` | `DATABASE_URL` | SIH demo/presentation database — **never reset, never bulk-mutate** |
+| `aaraksha_test` | `DATABASE_TEST_URL` | Disposable — reset/migrate/seed freely for testing |
+
+Full rule set in [`QA-MASTER-PLAN.md`](./QA-MASTER-PLAN.md) §0.
