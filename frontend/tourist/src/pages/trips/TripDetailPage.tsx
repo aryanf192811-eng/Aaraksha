@@ -3,7 +3,7 @@
 // photo-thumbnail itinerary stops — the "listing detail" language used
 // across the redesigned tourist PWA.
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
@@ -43,6 +43,7 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 type TabType = 'itinerary' | 'budget' | 'packing' | 'map' | 'group' | 'news'
+const VALID_TABS: TabType[] = ['itinerary', 'budget', 'packing', 'map', 'group', 'news']
 
 // Recenter control — resets a panned/zoomed map back to fit every stop,
 // the way a navigation app's "recenter" button returns to your route.
@@ -65,7 +66,14 @@ export default function TripDetailPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const tourist = useAuthStore((s) => s.tourist)
-  const [tab, setTab] = useState<TabType>('itinerary')
+  // Deep-linkable via ?tab= — Dashboard's "Latest Alerts" View All used to
+  // always land on the default Itinerary tab regardless of intent (the tab
+  // was plain useState with no URL awareness), so clicking it from the
+  // alerts card looked like a broken link straight into trip planning.
+  const [searchParams] = useSearchParams()
+  const initialTab = VALID_TABS.includes(searchParams.get('tab') as TabType)
+    ? (searchParams.get('tab') as TabType) : 'itinerary'
+  const [tab, setTab] = useState<TabType>(initialTab)
   const [showTSIDetails, setShowTSIDetails] = useState(false)
 
   const { data: trip, isLoading } = useQuery({
