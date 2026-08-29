@@ -19,7 +19,6 @@ import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { DestinationSearchField } from '../../components/shared'
 import tripApi, { type CreateTripPayload } from '../../api/trip.api'
-import { getErrorMessage } from '../../api/client'
 import destinationApi from '../../api/destination.api'
 import { queryClient } from '../../lib/queryClient'
 import { tEnum } from '../../lib/i18nEnums'
@@ -135,7 +134,9 @@ export default function CreateTripPage() {
       toast.success(t('createTrip.toastCreated'))
       navigate(`/trips/${res.data.data.id}`)
     },
-    onError: (err) => toast.error(getErrorMessage(err)),
+    // Error toast comes from the app-wide MutationCache.onError in
+    // lib/queryClient.ts -- every mutation gets one for free, so this
+    // doesn't need its own onError.
   })
 
   const onSubmit = (data: FormOutput) => {

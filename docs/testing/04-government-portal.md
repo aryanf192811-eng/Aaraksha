@@ -193,6 +193,23 @@ reversible, incident against the demo database — caught immediately by direct 
 than assumed clean, disclosed in full, confirmed with the user, and corrected before it could reach
 the screening round. No P0 or P1 issues remain open.
 
+## Correction (added during Phase 6)
+
+B1 ("missing `onError` on 5 govt frontend mutations") was found the same way as Phase 3's
+equivalent finding — `grep`ing for `useMutation` calls without an `onError` key — without first
+checking `frontend/govt/src/lib/queryClient.ts`, which already configures
+`defaultOptions.mutations.onError` as an app-wide default. Confirmed by reading the installed
+`@tanstack/query-core@5.101.4` source (`queryClient.cjs#defaultMutationOptions`:
+`{...defaultOptions.mutations, ...options}`, a shallow merge) and by a live test (`VolunteersPage`'s
+duplicate-phone case reproduced with exactly one toast, not two): a mutation that omits `onError`
+already inherits the global default, so B1's mutations were **not** silently failing before this
+phase's fix. Unlike Phase 3's equivalent mistake, this one caused no regression — govt's merge
+semantics mean a per-mutation `onError` *overwrites* the default rather than running alongside it,
+so before and after this phase's fix, exactly one identical toast fires either way. The added
+handlers are harmless and left in place (removing them is optional cleanup, not a bug fix); B1 is
+retracted as a real defect. B2 (the E-FIR ladder reconciliation) is unrelated to this mechanism and
+remains a valid, real finding.
+
 ---
 
 **TESTS EXECUTED:** 14 (see Tests Executed above), covering all 8 govt frontend screens, 2 full

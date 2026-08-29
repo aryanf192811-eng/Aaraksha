@@ -294,6 +294,29 @@ not accidentally over-broad. Full regression after the change: backend vitest 28
   live demo backend — two allowed routes, two now-blocked routes (one general, one the adjacent
   passport-hash endpoint), two header-auth controls.
 
+## Correction (added during Phase 6)
+
+The "silent login/register failure" fix described above (`LoginForm.tsx`/`RegisterForm.tsx`, and
+`CreateTripPage.tsx`'s mutation `onError`) was based on an incomplete check. `frontend/tourist/src/
+lib/queryClient.ts` already configures an app-wide `MutationCache.onError` that fires a
+`toast.error(getErrorMessage(...))` for **every** mutation in this app, unconditionally — confirmed
+by reading the installed `@tanstack/query-core@5.101.4` source (`mutation.cjs`: the cache's
+`onError` and a mutation's own `onError` are both awaited on every failure, not either/or) and by a
+live test. That means this app never actually had the silent-failure bug as described: the toast
+was already firing before this phase's "fix." Adding a second, per-mutation `onError` that also
+calls `toast.error()` didn't fix anything — it caused a real regression instead, a duplicate toast
+on every login/register/trip-creation failure, caught in Phase 6 and reverted (the per-mutation
+`onError` removed from all three mutations; `getErrorMessage` imports removed where they became
+unused). The `onInvalid` fix for Bug 5 (react-hook-form's second `handleSubmit` callback, unrelated
+to TanStack Query mutations) is untouched and remains valid.
+
+Root cause of the misdiagnosis: this phase searched for the bug pattern via `grep`ing for
+`useMutation` calls missing an `onError` key, without first checking whether a global default
+existed that would make that pattern safe. The govt frontend (Phase 4) uses a different mechanism —
+`defaultOptions.mutations.onError`, which a per-mutation `onError` *overwrites* in the merge rather
+than running alongside — so the equivalent Phase 4 fix was a harmless no-op, not a regression, but
+was also not a real fix; see the correction note in `04-government-portal.md`.
+
 ## Conclusion
 
 **PHASE STATUS: PASS WITH ISSUES**
