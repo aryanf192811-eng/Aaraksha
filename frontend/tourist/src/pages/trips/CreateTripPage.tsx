@@ -19,6 +19,7 @@ import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { DestinationSearchField } from '../../components/shared'
 import tripApi, { type CreateTripPayload } from '../../api/trip.api'
+import { getErrorMessage } from '../../api/client'
 import destinationApi from '../../api/destination.api'
 import { queryClient } from '../../lib/queryClient'
 import { tEnum } from '../../lib/i18nEnums'
@@ -134,6 +135,7 @@ export default function CreateTripPage() {
       toast.success(t('createTrip.toastCreated'))
       navigate(`/trips/${res.data.data.id}`)
     },
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 
   const onSubmit = (data: FormOutput) => {
@@ -146,6 +148,26 @@ export default function CreateTripPage() {
       isPublic:   data.isPublic,
       stops:      data.stops || [],
     })
+  }
+
+  // Every Step 1 field already renders its own inline error (see
+  // `errors.title`/`errors.startDate`/`errors.endDate` below) -- but only
+  // if the tourist is actually looking at Step 1. Reaching Review (Step 3)
+  // never validated anything on the way there (Next/Review are plain
+  // setStep() calls, not per-step handleSubmit), so clicking "Create Trip"
+  // with an empty name or date used to fail validation completely
+  // silently: no toast, no navigation, no visible reason the button did
+  // nothing. This surfaces the real error and jumps back to whichever step
+  // actually holds the invalid field, so the inline error the tourist
+  // never got to see becomes visible immediately.
+  const onInvalid = (formErrors: typeof errors) => {
+    const firstMessage = formErrors.title?.message || formErrors.travelType?.message
+      || formErrors.startDate?.message || formErrors.endDate?.message
+      || (Array.isArray(formErrors.stops) ? formErrors.stops.find(Boolean) : formErrors.stops)?.city?.message
+      || 'Please check the highlighted fields before creating your trip'
+    toast.error(firstMessage)
+    if (formErrors.title || formErrors.travelType || formErrors.startDate || formErrors.endDate) setStep(1)
+    else if (formErrors.stops) setStep(2)
   }
 
   const addQuickStop = (dest: Destination) => {
@@ -204,7 +226,7 @@ export default function CreateTripPage() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="px-5 mt-5 space-y-5">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="px-5 mt-5 space-y-5">
         {/* ── Step 1: Basics ──────────────────────────────────── */}
         {step === 1 && (
           <div className="space-y-5 animate-slide-up">

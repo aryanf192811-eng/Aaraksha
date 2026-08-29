@@ -10,15 +10,31 @@ const { sendError } = require('../utils/response')
 const { ERRORS }    = require('../constants/errors')
 const logger        = require('../utils/logger')
 
+// Query-param token fallback, scoped to exactly the routes that need it — a
+// plain `<a href>`/window.location download can't attach an Authorization
+// header, so these specific file-download endpoints accept ?token= instead.
+// Deliberately an explicit allow-list rather than "?token= works on any
+// authenticated route" (which is what this used to be): a URL-embedded
+// token ends up in server/proxy access logs and browser history in ways a
+// header never does, so a leaked download URL should only be able to
+// replay that one download, not act as a bearer credential for the entire
+// API. Keep this list in sync with every frontend `?token=` usage —
+// `grep -rn "token=\${" frontend/*/src`.
+const QUERY_TOKEN_ALLOWED_PATHS = [
+  /^\/api\/tourists\/me\/data-export$/,
+  /^\/api\/journey-passport\/[^/]+$/,
+  /^\/api\/govt\/incidents\/[^/]+\/report$/,
+  /^\/api\/govt\/analytics\/export$/,
+  /^\/api\/govt\/sos\/[^/]+\/report$/,
+]
+
 function extractToken(req) {
   const auth = req.headers.authorization
   if (auth && auth.startsWith('Bearer ')) return auth.slice(7).trim()
-  // Fallback for direct browser-navigation downloads (PDF exports): a plain
-  // `<a href>`/window.location navigation can't attach an Authorization
-  // header, so those specific routes accept ?token= instead. This is the
-  // only way those endpoints are ever called without a header — normal API
-  // calls always go through axios with the header set.
-  if (typeof req.query.token === 'string' && req.query.token) return req.query.token
+  if (typeof req.query.token === 'string' && req.query.token) {
+    const path = req.originalUrl.split('?')[0]
+    if (QUERY_TOKEN_ALLOWED_PATHS.some((re) => re.test(path))) return req.query.token
+  }
   return null
 }
 

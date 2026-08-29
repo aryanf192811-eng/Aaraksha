@@ -176,17 +176,105 @@ feed no longer contain any trace of them; no other rows were touched.
 - Demo database mutations were narrowly scoped (exact-`id` deletes, one legitimate DMS activation
   through the real product flow) — nothing else in `aaraksha` was touched.
 
+## Addendum — closing out the Remaining Issues from the first pass
+
+The four items above were tracked down and either verified or fixed. Two more real bugs turned up
+along the way, both fixed and verified.
+
+### RegisterForm — now live-verified
+
+Attempted a real registration with Sneha Das's existing phone number (a genuine duplicate,
+otherwise-valid Aadhaar/dates/emergency contact). Backend correctly returned `409`; confirmed via
+`browser_wait_for` that the same `getErrorMessage()` toast fires as it does for `LoginForm`, and
+the form's Step 3 data stayed intact (no data loss on a failed submit) rather than resetting.
+
+### Previously out-of-scope screens — now covered
+
+Checked: Digital Tourist ID (real rotating QR, live "Expires in 4:54" countdown, no console
+errors), Privacy & Data Rights (all four DPDP rights present, "Export My Data" and "Delete My
+Account" both real, honest placeholder-labeling on the grievance contact), Trip Creation (see
+Bug 5 below), E-FIR filing (see below), and the Budget/Packing/Group/News trip-detail tabs.
+
+The AI-backed features were specifically exercised, not just visually checked: **Get AI Safety
+Briefing** (Gemini, references the trip's actual TSI score and real stop data, not generic
+boilerplate) and **Generate AI Packing List** (a genuinely context-aware 20-item list — flagged
+Inner Line Permit copies for the ILP-zone destination, child-specific items for a Family-type trip
+— not a static template). Both real calls, not the offline fallback, no console errors.
+
+E-FIR filing: filled and submitted a real report (Harassment, with description), got a real
+case number (`EFIR-2026-000007`) and "Filed" status back, form cleared correctly after success. No
+silent-failure bug here — unlike Bug 5, this mutation already had working feedback. Verified the
+README's "photo never leaves the device until filing" claim is stated identically in-product
+("Analyzed on your device — the photo isn't sent anywhere until you file the report."); did not
+independently re-verify via network-tab inspection in this pass (a real photo-attach flow wasn't
+exercised) — noted as still open below. Test E-FIR deleted from the demo database by exact ID
+afterward.
+
+### Bug 5 — Trip creation silently accepted a wizard reaching Review with no name or dates (P1, fixed)
+
+The 3-step "Plan New Trip" wizard's Next/Review buttons (`setStep(n+1)`) never validate anything on
+the way through — only the final "Create Trip" button calls `handleSubmit`. Reproduced directly:
+advanced through Steps 1→2→3 with the Trip Name and both dates left completely empty, reached
+Review Trip showing a title-less card and a bare "→" where the date range should be, with "Create
+Trip" fully enabled. Clicking it correctly failed Zod validation (`title`/`startDate`/`endDate` are
+all required) and **no `POST /api/trips` request was ever sent** — confirmed via
+`browser_network_requests` — but nothing told the tourist why: no toast, no navigation back to the
+step with the problem. `handleSubmit(onSubmit)` had no invalid-case handler, so react-hook-form's
+already-working inline errors on Step 1 (`errors.title`, `errors.startDate`, `errors.endDate` all
+already render correctly there) were never reached.
+
+**Fix:** added `handleSubmit(onSubmit, onInvalid)`. `onInvalid` shows a toast with the first real
+validation message and jumps back to Step 1 (title/travelType/date errors) or Step 2 (stop errors)
+— whichever step actually holds the problem — so the tourist lands exactly where the already-built
+inline error UI shows what to fix. Also added the same missing `onError` the mutation itself
+lacked (same class of gap as Bug 2), for the case where the backend rejects an otherwise-valid
+payload.
+
+**Verified live, both directions:** reproduced the exact broken sequence (blank name/dates through
+to Review) — confirmed it now jumps back to Step 1 with "Trip name required" and two "Select a
+valid date" inline errors visible, first field auto-focused. Then completed a full valid submission
+(title, dates, one real stop) — trip created successfully, navigated to its detail page, confirming
+the fix didn't regress the happy path. Test trip deleted from the demo database by exact ID
+afterward.
+
+### Bug 6 — the `?token=` auth fallback worked on every authenticated route, not just downloads (P2, fixed)
+
+Noticed while reviewing the "Export My Data" link, which (necessarily, since a plain `<a href>`
+download can't set an `Authorization` header) passes the tourist's JWT as `?token=` in the URL.
+Checked `middleware/auth.js`'s `extractToken()`: this fallback was accepted on **every**
+authenticated route across both `authenticateTourist` and `authenticateGovt`, not scoped to the
+handful of routes that actually need it. A URL-embedded token is exposed to server/proxy access
+logs and browser history in ways a header token isn't, so a leaked download link could be replayed
+as a general bearer credential against the entire API — not just to re-download the same file.
+
+Found the real scope by grepping every frontend `?token=` usage (5 legitimate cases: tourist data
+export, journey passport PDF, and three govt PDF downloads — incident report, analytics export, SOS
+report).
+
+**Fix:** replaced the blanket fallback with an explicit path allow-list, matched against
+`req.originalUrl` (safe across router nesting). Everything else now requires a real `Authorization`
+header.
+
+**Verified live against the running demo backend:** the legitimate data-export link still returns
+`200` via `?token=`; an arbitrary non-listed route (`GET /tourists/me?token=...`) now correctly
+returns `401` with the same token that used to work everywhere; the same route via a proper
+`Authorization` header is unaffected. Repeated the check for the journey-passport PDF vs. its
+adjacent (deliberately not-listed) `/hash` endpoint to confirm the allow-list regexes are precise,
+not accidentally over-broad. Full regression after the change: backend vitest 28/28, Postman/Newman
+269/269 (this middleware sits in front of nearly every endpoint the collection exercises).
+
 ## Remaining Issues
 
-- `RegisterForm`'s fix is code-verified, not live-verified with a real failed registration attempt
-  — worth a quick pass in a future phase.
-- Screens/flows explicitly out of scope for this pass (see Scope above) remain untested: trip
-  creation, Budget/Packing/Group/News tabs, E-FIR filing UI, Checkpoint Pass, Privacy & Data
-  Rights, accessibility, responsive breakpoints.
-- No automated (Playwright/vitest) test was written to lock in either fix — this phase's
-  verification was manual/live, same caveat as Phase 2's, and the same recommendation applies:
-  Phase 11 should convert the highest-value manual checks here (Rescue Readiness parity, the
-  login-error toast) into permanent regression tests.
+- E-FIR photo-upload flow (attach a real photo, inspect the network tab for the "never leaves the
+  device until filing" claim) wasn't independently exercised — the in-product copy matches the
+  README's claim, but the claim itself wasn't re-proven this pass the way it was in an earlier
+  session for Community Report submissions.
+- Checkpoint Pass, Privacy page, and Trip Creation are now covered functionally, but none of the
+  three had an accessibility or responsive/mobile-breakpoint pass — that's still fully open.
+- No automated (Playwright/vitest) test was written to lock in any of this phase's fixes —
+  verification throughout was manual/live. Recommend Phase 11 convert the highest-value checks here
+  (Rescue Readiness parity, both auth-form error toasts, the trip-creation invalid-submit path, the
+  `?token=` allow-list) into permanent regression tests.
 
 ## Evidence
 
@@ -200,43 +288,55 @@ feed no longer contain any trace of them; no other rows were touched.
 - DMS: real `dead_mans_switches` row confirmed `ACTIVE`, `interval_minutes=60`, correct
   `next_trigger_at`, via direct query against the demo database immediately after activating it
   through the UI.
+- Trip creation: `browser_network_requests` confirmed zero `POST /api/trips` calls on the broken
+  attempt (validation correctly blocked it client-side) and one successful call on the fixed retry.
+- `?token=` scope: six real HTTP status codes quoted above from direct `curl` calls against the
+  live demo backend — two allowed routes, two now-blocked routes (one general, one the adjacent
+  passport-hash endpoint), two header-auth controls.
 
 ## Conclusion
 
 **PHASE STATUS: PASS WITH ISSUES**
 
-Two real, user-facing defects were found through actual browser interaction rather than code
-reading alone, and both are fixed and verified: a visible data-consistency bug between two screens
-showing the same metric, and a much higher-severity silent-failure bug on the two most-used forms
-in the app (login and registration), where a wrong password or a rejected registration produced no
-feedback whatsoever. The second one is the kind of thing that could genuinely derail a live demo —
-a presenter mistyping a password with no explanation why nothing happened — so despite not being
-architecturally complex, it's treated here as the phase's most important finding.
+Six real, user-facing or security-relevant defects were found through actual interaction — browser
+and API — rather than code reading alone, and all six are fixed and verified. The two most
+consequential: a silent-failure bug on login, registration, *and* trip creation (three different
+forms sharing the same missing-`onError`/missing-`onInvalid` root pattern) where a wrong password,
+a rejected registration, or an empty required field produced zero feedback — the exact kind of
+thing that could derail a live demo with no visible explanation; and an authentication scope
+finding, where a JWT meant only for five specific download links was actually valid as a bearer
+credential against the entire authenticated API surface once exposed via a URL.
 
-Two further real issues were found and resolved in the demo database itself, not the code: a
-decayed demo scenario restored to match what the README promises, and three pieces of leftover QA
-debris removed from what a judge would actually see browsing Community.
+Two further real issues were resolved directly in the demo database: a decayed DMS scenario
+restored to match what the README promises, and QA-testing debris (from earlier in this session,
+before the disposable test database existed) removed from what a judge would actually see browsing
+Community.
 
 ---
 
-**TESTS EXECUTED:** 10 (see Tests Executed above) covering Dashboard, Profile, Safety Center/DMS,
-Check-in, Trip Detail (incl. live AI Safety Briefing), Community, Advisory, and the full auth
-logout/guard/login-error/login-success cycle.
+**TESTS EXECUTED:** 10 initial (Dashboard, Profile, Safety Center/DMS, Check-in, Trip Detail, AI
+Safety Briefing, Community, Advisory, auth logout/guard/login cycle) + a closing pass covering
+RegisterForm's error path live, Digital Tourist ID, Privacy & Data Rights, Trip Creation (broken
+and happy path), E-FIR filing, Budget/Packing/Group/News tabs, the AI Packing List, and the
+`?token=` fix verified against 6 distinct routes plus the full regression suite.
 
-**BUGS FOUND:** 2 code bugs (Rescue Readiness inconsistency — P2; silent auth-form failure — P1)
-+ 2 non-code findings (decayed DMS demo scenario; QA artifacts in live Community data).
+**BUGS FOUND:** 4 code bugs (Rescue Readiness inconsistency — P2; silent login/register failure —
+P1; silent trip-creation invalid-submit — P1; overbroad `?token=` auth fallback — P2) + 2 non-code
+findings (decayed DMS demo scenario; QA artifacts in live Community data).
 
-**BUGS FIXED:** All 4.
+**BUGS FIXED:** All 6.
 
-**REGRESSION RESULTS:** `tsc -b` clean. Every fix re-verified live post-fix. Demo database
-confirmed correctly restored/cleaned, nothing else disturbed.
+**REGRESSION RESULTS:** `tsc -b` clean throughout. Backend vitest 28/28 and Postman/Newman 269/269
+re-run clean after the auth middleware change. Every fix re-verified live post-fix, both directions
+where applicable. Demo database confirmed correctly restored/cleaned across all test data created
+this phase, nothing else disturbed.
 
 **DOCUMENTATION:** This file.
 
-**COMMIT:** See repository log for the commit accompanying this phase.
+**COMMIT:** See repository log for the commits accompanying this phase.
 
-**REMAINING ISSUES:** `RegisterForm` fix not independently live-verified. Several tourist screens
-and flows remain out of scope for this pass (listed above). No automated regression coverage added
-yet for either fix.
+**REMAINING ISSUES:** E-FIR photo-privacy claim not independently re-verified via network
+inspection. Accessibility and responsive/mobile-breakpoint testing remain fully open across the
+whole Tourist PWA. No automated regression coverage added yet for any of this phase's 6 fixes.
 
 **NEXT PHASE:** Phase 4 — Government Command Center.
