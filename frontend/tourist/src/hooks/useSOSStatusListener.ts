@@ -12,6 +12,7 @@ import { useSafetyStore } from '../store/safety.store'
 import { queryClient } from '../lib/queryClient'
 import { SOCKET_EVENTS } from '../constants/enums'
 import sosApi from '../api/sos.api'
+import { wasSelfAction } from '../lib/selfActionSuppress'
 
 interface SOSStatusPayload {
   sosId: string
@@ -44,12 +45,21 @@ export function useSOSStatusListener() {
     const socket = connectSocket('tourist', token)
 
     const onStatusUpdate = (data: SOSStatusPayload) => {
-      if (data.status === 'ASSIGNED') {
-        toast.success(`Rescue team dispatched${data.teamName ? `: ${data.teamName}` : ''}`, { duration: 10000 })
-      } else {
-        toast.success('Your SOS has been marked resolved', { duration: 8000 })
-        setActiveSOSId(null)
+      // A status change this same tourist just caused locally (e.g. their
+      // own "mark as false alarm") already got its own accurate toast from
+      // that mutation's onSuccess — this broadcast still needs to update
+      // state/cache for every listener, but showing a second, more generic
+      // toast to the person who just did it themselves is a duplicate, not
+      // new information.
+      const selfCaused = wasSelfAction(data.sosId)
+      if (!selfCaused) {
+        if (data.status === 'ASSIGNED') {
+          toast.success(`Rescue team dispatched${data.teamName ? `: ${data.teamName}` : ''}`, { duration: 10000 })
+        } else {
+          toast.success('Your SOS has been marked resolved', { duration: 8000 })
+        }
       }
+      if (data.status !== 'ASSIGNED') setActiveSOSId(null)
       queryClient.invalidateQueries({ queryKey: ['sos', 'mine'] })
     }
 

@@ -59,6 +59,27 @@ function notify() {
   for (const fn of subscribers) fn()
 }
 
+// A govt operator resolving an SOS from this same tab gets an immediate
+// toast from that mutation's own onSuccess -- the server's SOS_RESOLVED
+// broadcast (which every OTHER operator's tab needs, to learn about a
+// resolution someone else just made) echoes back to the acting operator's
+// own tab too. Marked in onMutate (before the request goes out), not
+// onSuccess, since the socket broadcast can beat the HTTP round-trip.
+const recentSelfResolves = new Map<string, number>()
+const SELF_RESOLVE_SUPPRESS_MS = 5000
+
+export function markSelfResolved(sosId: string) {
+  recentSelfResolves.set(sosId, Date.now())
+}
+
+function wasSelfResolved(sosId: string): boolean {
+  const at = recentSelfResolves.get(sosId)
+  if (at == null) return false
+  const fresh = Date.now() - at < SELF_RESOLVE_SUPPRESS_MS
+  if (!fresh) recentSelfResolves.delete(sosId)
+  return fresh
+}
+
 function registerListeners(socket: ReturnType<typeof connectSocket>) {
   const onSOSReceived = (data: SOSReceivedPayload) => {
     latestSOS = data
@@ -72,10 +93,10 @@ function registerListeners(socket: ReturnType<typeof connectSocket>) {
     queryClient.invalidateQueries({ queryKey: ['govt', 'dashboard'] })
   }
 
-  const onSOSResolved = () => {
+  const onSOSResolved = (data: { sosId: string }) => {
     activeSosCount = Math.max(0, activeSosCount - 1)
     notify()
-    toast.success('SOS resolved')
+    if (!wasSelfResolved(data.sosId)) toast.success('SOS resolved')
     queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
     queryClient.invalidateQueries({ queryKey: ['govt', 'dashboard'] })
     // A resolved SOS's assignment drops out of the Live Map's rescuer list.

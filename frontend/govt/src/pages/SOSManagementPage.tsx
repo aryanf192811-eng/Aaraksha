@@ -11,7 +11,7 @@ import { getErrorMessage } from '../api/client'
 import { queryClient } from '../lib/queryClient'
 import { formatTimeAgo, cn } from '../lib/utils'
 import type { SOSWithDetails } from '../types/api.types'
-import { useSOSSocket } from '../hooks/useSOSSocket'
+import { useSOSSocket, markSelfResolved } from '../hooks/useSOSSocket'
 
 const STATUS_STYLE: Record<string, string> = {
   ACTIVE:      'border-l-4 border-l-red-500 bg-surface-container-lowest',
@@ -97,6 +97,10 @@ export default function SOSManagementPage() {
     // an empty string isn't "absent", so it must be dropped entirely rather
     // than sent as '', which would fail the min-length check.
     mutationFn: (sosId: string) => govtApi.resolveSOS(sosId, resolutionNotes.trim() ? { resolutionNotes: resolutionNotes.trim() } : {}),
+    // Marked before the request goes out, not in onSuccess -- the socket
+    // broadcast this same resolve triggers can beat the HTTP response back
+    // to this tab, so suppressing only after onSuccess was too late.
+    onMutate: (sosId) => { markSelfResolved(sosId) },
     onSuccess: () => {
       toast.success('SOS resolved')
       queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })

@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { Siren, Truck, X, Loader2 } from 'lucide-react'
 import sosApi from '../../api/sos.api'
 import { useSafetyStore } from '../../store/safety.store'
+import { markSelfAction } from '../../lib/selfActionSuppress'
 import { formatTimeAgo } from '../../lib/utils'
 import { cn } from '../../lib/utils'
 
@@ -33,6 +34,12 @@ export function ActiveSOSBanner() {
 
   const { mutate: cancelSOS, isPending: cancelling } = useMutation({
     mutationFn: (sosId: string) => sosApi.markFalseAlarm(sosId),
+    // Marked in onMutate, not onSuccess -- the server's socket broadcast
+    // for this same status change can (and often does) reach the client
+    // before the HTTP response this onSuccess waits on, so setting the
+    // suppression flag only after the round-trip completes was too late
+    // to actually catch it.
+    onMutate: (sosId) => { markSelfAction(sosId) },
     onSuccess: () => {
       toast.success('SOS cancelled — marked as a false alarm')
       setActiveSOSId(null)
