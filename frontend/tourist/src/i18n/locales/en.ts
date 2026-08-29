@@ -141,6 +141,8 @@ export default {
     toastOtpWrong: 'Incorrect or expired code',
     privacyTitle: 'Privacy & Data Rights',
     privacyDescription: 'What we collect, your rights under the DPDP Act, export or delete your data',
+    helpTitle: 'Help & FAQ',
+    helpDescription: 'How to get around the app, and answers to common questions',
   },
   privacy: {
     title: 'Privacy & Data Rights',
@@ -476,6 +478,55 @@ export default {
     refreshCode: 'Refresh Code',
     whyRefreshTitle: 'Why this refreshes every 5 minutes',
     whyRefreshDesc: "A static ID code could be screenshotted and reused by anyone. This one expires and rotates instead, so scanning it always confirms you're the one actually present. It shares your name, blood group, medical info, government ID suffix, emergency contacts, and active trip safety score with the checkpoint officer — nothing more.",
+  },
+  help: {
+    title: 'Help & FAQ',
+    subtitle: 'Getting around the app, and answers to common questions',
+    navGuideTitle: 'Getting around the app',
+    faqTitle: 'Frequently asked questions',
+    footer: 'Still unsure about something? The Safety Center and your Profile have more detail on every feature above.',
+    nav: {
+      home:     { title: 'Home', desc: 'Your dashboard — active trip status, safety score, quick actions, and the latest alerts for your route.' },
+      trips:    { title: 'Trips', desc: 'Plan itineraries, budgets, and packing lists, and see your Travel Safety Index for each trip.' },
+      sos:      { title: 'SOS (center button)', desc: "Hold for a couple of seconds to send an emergency alert with your live location — reachable from anywhere in the app." },
+      checkIn:  { title: 'Check In', desc: "Let your emergency contacts and guardian know you're safe — in-app, or by SMS with no data connection." },
+      community:{ title: 'Community', desc: 'Read safety reports and real traveler experiences shared by others nearby.' },
+      profile:  { title: 'Profile (tap your avatar)', desc: 'Emergency contacts, your Guardian tracking link, Digital Tourist ID, and privacy settings.' },
+    },
+    faq: {
+      sendSos: {
+        q: 'How do I send an SOS?',
+        a: 'Hold the red SOS button — in the bottom nav or the Safety Center — for about 2 seconds. Release early for a quick default alert, or keep holding to pick a specific category like Medical or Trapped. Your live location goes out immediately to your emergency contacts, your guardian, and the nearest rescue network.',
+      },
+      afterSos: {
+        q: 'What happens after I send an SOS?',
+        a: "Your guardian and registered emergency contacts are alerted immediately, and a nearby volunteer or official rescue team is dispatched. You can track them live from the Safety Center. Once they physically reach you, you'll share a one-time Rescue Verification Code with them in person — this confirms you're actually safe before the case can be closed.",
+      },
+      dms: {
+        q: "What is the Dead Man's Switch?",
+        a: "An automatic safety net you can turn on for risky stretches — if you don't check in within a set interval, an SOS is triggered automatically on your behalf. Useful anywhere you might lose signal or be unable to reach your phone.",
+      },
+      noSignal: {
+        q: 'How do I send an SOS with no signal?',
+        a: 'With no mobile data, holding SOS opens your phone\'s SMS app pre-filled with your location — just hit send to the preset emergency number. Checking in works the same way: text "SAFE" to the same number from any phone.',
+      },
+      whoSeesLocation: {
+        q: 'Who can see my location?',
+        a: 'Only your guardian, through a private tracking link you control, and — once you trigger an SOS — the assigned rescue team. Your location is never shared continuously or without your action. See Privacy & Data Rights in your Profile for full control.',
+      },
+      guardianLink: {
+        q: 'What is the Guardian Tracking Link?',
+        a: 'A private link you share with a family member or friend so they can see your live location and trip status — no app or account needed on their end. Copy or share it directly from your Profile.',
+      },
+      tsi: {
+        q: 'What is my Travel Safety Index?',
+        a: "A live 0–100 score for your route, calculated from connectivity, altitude, weather, and nearby risk factors — higher is safer. It updates automatically as conditions change, not something you set yourself.",
+      },
+      offline: {
+        q: 'Can I use the app fully offline?',
+        a: 'Your last-known location and trip details stay cached for offline viewing, and SOS still works over SMS with no data connection. Live tracking and real-time updates need connectivity to come back.',
+      },
+    },
   },
   profileEdit: {
     title: 'Edit Profile',

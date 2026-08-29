@@ -23,7 +23,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Plus, Map, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper, Compass, CheckCircle2, ShieldCheck, Siren } from 'lucide-react'
+import { Plus, Map, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper, Compass, CheckCircle2, ShieldCheck, Siren, HelpCircle } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { TSIBadge, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed, ExploreDestinations } from '../components/shared'
 import { RescueReadinessChecklist } from '../components/shared/RescueReadinessChecklist'
@@ -91,11 +91,17 @@ export default function DashboardPage() {
       {/* ── Header ───────────────────────────────────────────────── */}
       <div className="px-5 pt-12 pb-1 flex items-center justify-between">
         <p className="text-xs font-extrabold text-primary-dark uppercase tracking-widest">Aaraksha</p>
-        <button className="flex-shrink-0" onClick={() => navigate('/profile')} aria-label={t('profile.title')}>
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-display font-bold">
-            {tourist?.full_name?.[0]?.toUpperCase() || 'T'}
-          </div>
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button onClick={() => navigate('/help')} aria-label={t('help.title')}
+            className="w-9 h-9 rounded-full bg-surface-container-lowest border border-outline-variant flex items-center justify-center text-on-surface-variant hover:text-primary hover:border-primary/40 transition-colors">
+            <HelpCircle className="w-4.5 h-4.5" />
+          </button>
+          <button onClick={() => navigate('/profile')} aria-label={t('profile.title')}>
+            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-display font-bold">
+              {tourist?.full_name?.[0]?.toUpperCase() || 'T'}
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* ── Dashboard content — always this, regardless of SOS state.
@@ -151,7 +157,7 @@ export default function DashboardPage() {
                     <h2 className="font-display text-xl font-extrabold text-on-surface flex items-center gap-1.5">
                       <Newspaper className="w-5 h-5" /> {t('dashboard.latestAlerts')}
                     </h2>
-                    <Button variant="ghost" size="sm" onClick={() => navigate(`/trips/${activeTrip.id}`)} className="text-primary-dark font-semibold">
+                    <Button variant="ghost" size="sm" onClick={() => navigate(`/trips/${activeTrip.id}?tab=news`)} className="text-primary-dark font-semibold">
                       {t('common.viewAll')}
                     </Button>
                   </div>
