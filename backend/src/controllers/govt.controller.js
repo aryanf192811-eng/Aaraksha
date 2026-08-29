@@ -7,6 +7,7 @@ const newsService = require('../services/news.service')
 const anomalyService = require('../services/anomaly.service')
 const incidentService = require('../services/incident.service')
 const efirReportService = require('../services/efirReport.service')
+const handoffService = require('../services/handoff.service')
 const { sendSuccess, sendPaginated } = require('../utils/response')
 const { parsePaginationParams } = require('../utils/pagination')
 const logger = require('../utils/logger')
@@ -71,8 +72,16 @@ const getActiveRescuers = async (req, res, next) => {
 
 const resolveSOS = async (req, res, next) => {
   try {
-    const sos = await govtService.resolveSOS(req.params.id, req.validatedBody.resolutionNotes)
+    const { resolutionNotes, overrideReason } = req.validatedBody
+    const sos = await govtService.resolveSOS(req.params.id, resolutionNotes, req.govtUser.id, overrideReason)
     sendSuccess(res, sos, 'SOS resolved')
+  } catch (err) { next(err) }
+}
+
+const verifyHandoffRelay = async (req, res, next) => {
+  try {
+    const sos = await handoffService.verifyHandoffAsTeamRelay(req.params.id, req.validatedBody.code)
+    sendSuccess(res, sos, 'Handoff verified')
   } catch (err) { next(err) }
 }
 
@@ -191,7 +200,7 @@ const rejectVolunteer = async (req, res, next) => {
 
 module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRiskModelInfo, getRescueTeams,
   getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, getNearbyRescuers, getActiveRescuers,
-  resolveSOS, updateTeamStatus, downloadIncidentReport,
+  resolveSOS, verifyHandoffRelay, updateTeamStatus, downloadIncidentReport,
   scanCheckpoint, getRecentCheckpointScans, postDestinationNews,
   getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer, rejectVolunteer,
   getAnomalies, resolveAnomaly,

@@ -91,9 +91,12 @@ const UpdateLocationSchema = z.object({
 const UpdateAssignmentStatusSchema = z.object({
   status: z.enum(['EN_ROUTE', 'ARRIVED']),
 })
+const VerifyHandoffSchema = z.object({
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+})
 
 module.exports = {
   RegisterVolunteerSchema, LoginVolunteerSchema, CreateVolunteerByGovtSchema,
   UpdateVolunteerStatusSchema, UpdateDispatchStatusSchema, UpdateLocationSchema,
-  UpdateAssignmentStatusSchema,
+  UpdateAssignmentStatusSchema, VerifyHandoffSchema,
 }

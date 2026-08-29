@@ -155,10 +155,25 @@ async function getActiveRescuers() {
   return new RescueRepository().findActiveAssignmentsWithPositions()
 }
 
-async function resolveSOS(sosId, resolutionNotes) {
+async function resolveSOS(sosId, resolutionNotes, govtUserId, overrideReason) {
+  // Gated on a verified rescue handoff (see handoff.service.js) unless an
+  // operator explicitly provides an override reason -- checked before the
+  // transaction even opens, so an unverified attempt with no reason never
+  // touches the DB at all.
+  const preCheck = await new SOSRepository().findById(sosId)
+  if (!preCheck) throw Object.assign(new Error(ERRORS.SOS_NOT_FOUND), { statusCode: 404 })
+  if (!preCheck.handoff_verified_at && !overrideReason) {
+    throw Object.assign(new Error(ERRORS.HANDOFF_NOT_VERIFIED), { statusCode: 400 })
+  }
+
   const { resolved } = await withTransaction(async (client) => {
     const sosRepo_t    = new SOSRepository(client)
     const rescueRepo_t = new RescueRepository(client)
+
+    if (overrideReason) {
+      await sosRepo_t.recordHandoffOverride(sosId, govtUserId, overrideReason)
+      logger.warn({ sosId, govtUserId, overrideReason }, 'SOS resolved without handoff verification (override)')
+    }
 
     const resolved = await sosRepo_t.updateStatus(sosId, SOS_STATUSES.RESOLVED, { resolutionNotes })
     if (!resolved) {

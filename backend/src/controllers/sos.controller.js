@@ -2,6 +2,7 @@
 'use strict'
 
 const sosService = require('../services/sos.service')
+const handoffService = require('../services/handoff.service')
 const { sendSuccess, sendPaginated } = require('../utils/response')
 const { parsePaginationParams } = require('../utils/pagination')
 
@@ -34,4 +35,18 @@ const getActiveRescueInfo = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
-module.exports = { createSOS, getMySOSHistory, markFalseAlarm, getActiveRescueInfo }
+const getHandoffCode = async (req, res, next) => {
+  try {
+    const result = await handoffService.getOrCreateHandoffCode(req.tourist.id, req.params.id)
+    sendSuccess(res, result)
+  } catch (err) { next(err) }
+}
+
+const regenerateHandoffCode = async (req, res, next) => {
+  try {
+    const result = await handoffService.regenerateHandoffCode(req.tourist.id, req.params.id)
+    sendSuccess(res, result)
+  } catch (err) { next(err) }
+}
+
+module.exports = { createSOS, getMySOSHistory, markFalseAlarm, getActiveRescueInfo, getHandoffCode, regenerateHandoffCode }

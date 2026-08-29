@@ -3401,7 +3401,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"resolutionNotes\": \"Test resolution — tourist found safe. All clear.\"\n}",
+                  "raw": "{\n  \"resolutionNotes\": \"Test resolution — tourist found safe. All clear.\",\n  \"overrideReason\": \"QA collection: this test covers resolution itself, not handoff verification (see Test 121-125)\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5456,7 +5456,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"resolutionNotes\": \"Postman test — resolved after volunteer arrived\"\n}",
+                  "raw": "{\n  \"resolutionNotes\": \"Postman test — resolved after volunteer arrived\",\n  \"overrideReason\": \"QA collection: this test covers the unified-rescuer release path, not handoff verification (see Test 121-125)\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"

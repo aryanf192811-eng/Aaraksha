@@ -21,6 +21,10 @@ const SOCKET_EVENTS = Object.freeze({
   // The rescuer self-reported progress (EN_ROUTE/ARRIVED) — same 3-room
   // fan-out shape as RESCUER_LOCATION_UPDATE.
   RESCUER_STATUS_UPDATE: 'RESCUER_STATUS_UPDATE',
+  // The rescuer got the handoff code from the tourist in person and it
+  // checked out — same 3-room fan-out (tourist/guardian/govt) as the two
+  // above, plus the rescuer's own room so their app updates too.
+  HANDOFF_VERIFIED: 'HANDOFF_VERIFIED',
   // Rule-based anomaly cron flagged a tourist as needing a check — not an
   // SOS, a softer "look into this" signal (see migration 011).
   TOURIST_ANOMALY_DETECTED: 'TOURIST_ANOMALY_DETECTED',

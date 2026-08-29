@@ -13,5 +13,7 @@ router.post('/',                  validate(CreateSOSSchema), ctrl.createSOS)
 router.get('/mine',               ctrl.getMySOSHistory)
 router.get('/active-rescue',      ctrl.getActiveRescueInfo)
 router.patch('/:id/false-alarm',  ctrl.markFalseAlarm)
+router.get('/:id/handoff-code',              ctrl.getHandoffCode)
+router.post('/:id/handoff-code/regenerate',  ctrl.regenerateHandoffCode)
 
 module.exports = router

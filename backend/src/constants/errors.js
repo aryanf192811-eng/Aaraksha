@@ -32,6 +32,14 @@ const ERRORS = Object.freeze({
   SOS_NOT_FOUND:    'SOS event not found or access denied',
   SOS_ALREADY_CLOSED: 'This SOS is already closed',
 
+  // Rescue handoff verification
+  HANDOFF_ALREADY_ISSUED: 'A verification code has already been issued for this SOS',
+  HANDOFF_NOT_ELIGIBLE:   'A verification code can only be issued once help has been requested',
+  HANDOFF_CODE_INVALID:   'Code not found, already used, or expired. Ask the tourist to generate a new one.',
+  HANDOFF_TOO_FAR:        'Too far from the tourist\'s last known location to confirm handoff',
+  HANDOFF_NOT_VERIFIED:   'This rescue hasn\'t been verified yet — the rescuer must confirm the handoff code with the tourist, or a supervisor must provide an override reason to force-close it',
+  HANDOFF_NO_ASSIGNMENT:  'No active assignment to verify a handoff for',
+
   // DMS
   DMS_ALREADY_ACTIVE: 'You already have an active Dead Man\'s Switch. Pause or resolve it first.',
   DMS_NOT_FOUND:      'Active Dead Man\'s Switch not found',

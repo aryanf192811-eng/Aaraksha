@@ -25,6 +25,15 @@ const AssignRescueSchema = z.object({
 })
 const ResolveSOSSchema = z.object({
   resolutionNotes: z.string().min(3).max(1000).optional(),
+  // Force-close without a verified handoff code -- the audited escape
+  // hatch for a genuine edge case (tourist unconscious, phone destroyed).
+  // A reason is required specifically when this is present, not
+  // unconditionally, so the normal (verified) resolve path stays a plain
+  // one-field form.
+  overrideReason: z.string().min(10).max(1000).optional(),
+})
+const VerifyHandoffSchema = z.object({
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
 })
 const UpdateTeamStatusSchema = z.object({
   status: z.enum(Object.values(TEAM_STATUSES)),
@@ -56,6 +65,7 @@ router.get('/sos/:id/nearby-rescuers', requireGovtRole(...COMMAND_CENTER_ROLES),
 router.get('/active-rescuers',     requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getActiveRescuers)
 router.patch('/sos/:id/assign',    requireGovtRole(...COMMAND_CENTER_ROLES), validate(AssignRescueSchema),     ctrl.assignRescue)
 router.patch('/sos/:id/resolve',   requireGovtRole(...COMMAND_CENTER_ROLES), validate(ResolveSOSSchema),       ctrl.resolveSOS)
+router.post('/sos/:id/verify-handoff', requireGovtRole(...COMMAND_CENTER_ROLES), validate(VerifyHandoffSchema), ctrl.verifyHandoffRelay)
 router.get('/sos/:id/report',      requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.downloadIncidentReport)
 router.get('/anomalies',           requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getAnomalies)
 router.patch('/anomalies/:id/resolve', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.resolveAnomaly)

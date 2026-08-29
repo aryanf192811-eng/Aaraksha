@@ -2,6 +2,7 @@
 'use strict'
 
 const volunteerService = require('../services/volunteer.service')
+const handoffService = require('../services/handoff.service')
 const { sendSuccess } = require('../utils/response')
 
 // POST /api/volunteers/register
@@ -77,7 +78,15 @@ const updateAssignmentStatus = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+// POST /api/volunteers/me/assignment/verify-handoff
+const verifyHandoff = async (req, res, next) => {
+  try {
+    const updated = await handoffService.verifyHandoffAsVolunteer(req.volunteer.id, req.validatedBody.code)
+    sendSuccess(res, updated, 'Handoff verified')
+  } catch (err) { next(err) }
+}
+
 module.exports = {
   register, login, getProfile, updateStatus, getMyDispatches, updateDispatchStatus,
-  getActiveAssignment, updateLocation, updateAssignmentStatus,
+  getActiveAssignment, updateLocation, updateAssignmentStatus, verifyHandoff,
 }

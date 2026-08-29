@@ -254,6 +254,26 @@ class SOSRepository extends BaseRepository {
       [startDate]
     )
   }
+
+  // Rescue handoff verification (see handoff.service.js). Deliberately not
+  // folded into the generic updateStatus() above — this never changes
+  // sos_events.status itself, just records that a real, in-person, code-
+  // confirmed handoff happened, which resolveSOS then checks for.
+  async recordHandoffVerified(id, verifiedByKind) {
+    return this.queryOne(
+      `UPDATE sos_events SET handoff_verified_at = NOW(), handoff_verified_by_kind = $2
+       WHERE id = $1 AND handoff_verified_at IS NULL RETURNING *`,
+      [id, verifiedByKind]
+    )
+  }
+
+  async recordHandoffOverride(id, govtUserId, reason) {
+    return this.queryOne(
+      `UPDATE sos_events SET handoff_override_at = NOW(), handoff_override_by = $2, handoff_override_reason = $3
+       WHERE id = $1 RETURNING *`,
+      [id, govtUserId, reason]
+    )
+  }
 }
 
 module.exports = { SOSRepository }

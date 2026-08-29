@@ -311,6 +311,24 @@ function emitRescuerStatusUpdate(sosEvent, guardianToken, status) {
   safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.RESCUER_STATUS_UPDATE, payload)
 }
 
+// The rescuer got the handoff code from the tourist in person and it
+// checked out — real proof of a successful rescue, not just a self-report.
+// Same 3-room fan-out as emitRescuerStatusUpdate, plus the rescuer's own
+// room so their app can swap its "verify handoff" form for a confirmation.
+function emitHandoffVerified(sosEvent, guardianToken, volunteerId) {
+  const payload = { sosId: sosEvent.id, verifiedAt: sosEvent.handoff_verified_at, verifiedByKind: sosEvent.handoff_verified_by_kind }
+  if (sosEvent.tourist_id) {
+    safeEmit(SOCKET_ROOMS.tourist(sosEvent.tourist_id), SOCKET_EVENTS.HANDOFF_VERIFIED, payload)
+  }
+  if (guardianToken) {
+    safeEmit(SOCKET_ROOMS.guardian(guardianToken), SOCKET_EVENTS.HANDOFF_VERIFIED, payload)
+  }
+  if (volunteerId) {
+    safeEmit(SOCKET_ROOMS.volunteer(volunteerId), SOCKET_EVENTS.HANDOFF_VERIFIED, payload)
+  }
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.HANDOFF_VERIFIED, payload)
+}
+
 // Govt dashboard: the anomaly cron flagged a tourist. For INACTIVITY only,
 // also nudge the tourist directly — a route deviation is something they
 // already know about (they're the one who moved), but "we haven't heard
@@ -376,6 +394,7 @@ module.exports = {
   emitWeatherRiskIncreased, emitGroupSOSAlert, emitDestinationNewsCritical,
   emitVolunteerSOSAlert, emitVolunteerAssignmentUpdated,
   emitVolunteerAssigned, emitRescuerLocationUpdate, emitRescuerStatusUpdate,
+  emitHandoffVerified,
   emitAnomalyDetected, emitAnomalyResolved,
   emitIncidentFiled, emitIncidentStatusUpdated,
 }
