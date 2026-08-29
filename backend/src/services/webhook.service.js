@@ -15,7 +15,7 @@ const { LocationRepository }= require('../repositories/location.repository')
 const { CheckinRepository } = require('../repositories/checkin.repository')
 const { DMSRepository }     = require('../repositories/dms.repository')
 const { withTransaction }   = require('../database/transaction')
-const { emitSOSReceived, emitCheckinUpdate } = require('../socket/emitters')
+const { emitSOSReceived, emitGuardianSOSAlert, emitCheckinUpdate } = require('../socket/emitters')
 const { notifyOnSOS }       = require('./notification/notification.service')
 const { normalizePhone }    = require('../utils/crypto')
 const { SOS_CATEGORIES, SOS_TRIGGER_TYPES, CHECKIN_TYPES, DMS_STATUSES } = require('../constants/enums')
@@ -84,9 +84,22 @@ async function processInboundSMS(fromPhone, body) {
   }
 
   // Create SOS event in transaction
-  const { sosEvent } = await withTransaction(async (client) => {
+  const { sosEvent, isDuplicate } = await withTransaction(async (client) => {
     const sosRepo_t      = new SOSRepository(client)
     const locationRepo_t = new LocationRepository(client)
+
+    // Same dedup guard as sos.service.js#createSOS and dms.service.js's
+    // cron trigger: a tourist mid-incident (already fired from the app or
+    // DMS) whose SMS then arrives — network retries, a resend after not
+    // seeing a reply, or the app's own POST eventually going through too —
+    // must not spawn a second ACTIVE row. This path was the one gap: it
+    // called sosRepo_t.create() directly instead of going through
+    // sos.service.js#createSOS, so it never got this check at all.
+    const existingActive = await sosRepo_t.findLatestActiveByTouristId(tourist.id)
+    if (existingActive) {
+      const sosEvent = await sosRepo_t.findById(existingActive.id)
+      return { sosEvent, isDuplicate: true }
+    }
 
     const sosEvent = await sosRepo_t.create({
       touristId:       tourist.id,
@@ -103,14 +116,25 @@ async function processInboundSMS(fromPhone, body) {
     // Update location from the SMS (may be stale but it's what we have)
     await locationRepo_t.upsert(tourist.id, { latitude: lat, longitude: lng, batteryPct: battery })
 
-    return { sosEvent }
+    return { sosEvent, isDuplicate: false }
   })
 
-  // Update inbound record
+  // Update inbound record — even a suppressed duplicate is linked to the
+  // (existing) SOS it maps to, so the audit trail shows this SMS arrived.
   await inboundRepo.markParsed(record.id, tourist.id, sosEvent.id)
 
-  // Side effects outside transaction
+  if (isDuplicate) {
+    logger.info({ sosId: sosEvent.id, touristId: tourist.id, from: fromPhone }, 'Duplicate SMS SOS suppressed — incident already active')
+    return
+  }
+
+  // Side effects outside transaction. emitGuardianSOSAlert was missing
+  // entirely on this path — the one trigger path where the guardian NOT
+  // being notified matters most, since the tourist has no signal to call
+  // them directly either. Matches what sos.service.js#createSOS and
+  // dms.service.js#processDMSTriggers already do for their own triggers.
   emitSOSReceived(sosEvent, tourist)
+  emitGuardianSOSAlert(tourist.guardian_token, sosEvent, tourist)
   notifyOnSOS(tourist, sosEvent).catch(err =>
     logger.error({ err: err.message, sosId: sosEvent.id }, 'Inbound SOS notification failed')
   )

@@ -18,7 +18,7 @@ screenshots live in `docs/screenshots/`. Don't mix the three.
 | 5 | Guardian Portal | [`05-guardian-portal.md`](./05-guardian-portal.md) | PASS WITH ISSUES |
 | 6 | Rescuer App | [`06-rescuer-app.md`](./06-rescuer-app.md) | PASS WITH ISSUES |
 | 7 | Cross-portal E2E | [`07-cross-portal-e2e.md`](./07-cross-portal-e2e.md) | PASS WITH ISSUES |
-| 8 | Offline/resilience | `08-offline-resilience.md` | not started |
+| 8 | Offline/resilience | [`08-offline-resilience.md`](./08-offline-resilience.md) | PASS WITH ISSUES |
 | 9 | Security audit | `09-security-audit.md` | not started |
 | 10 | Real-time consistency | `10-realtime-validation.md` | not started |
 | 11 | UI/UX QA | `11-ui-ux-qa.md` | not started |

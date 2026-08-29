@@ -16,6 +16,7 @@ import { SOSButton } from '../../components/shared/SOSButton'
 import { RescueTrackingCard } from '../../components/shared/RescueTrackingCard'
 import { ActiveSOSBanner } from '../../components/shared/ActiveSOSBanner'
 import { SafetyTimeline } from '../../components/shared/SafetyTimeline'
+import { OfflineBanner } from '../../components/shared/OfflineBanner'
 import { useSOS } from '../../hooks/useSOS'
 import { useBattery } from '../../hooks/useBattery'
 import { useDMS } from '../../hooks/useDMS'
@@ -59,6 +60,7 @@ export default function SOSPage() {
   // built in for exactly this case. Nothing stopped a second, overlapping
   // ACTIVE SOS row from being created silently.
   const activeSOSId = useSafetyStore((s) => s.activeSOSId)
+  const isOnline = useSafetyStore((s) => s.isOnline)
   const [requestingPermission, setRequestingPermission] = useState(false)
   const { subscribe: subscribePush, unsubscribe: unsubscribePush, subscribing: subscribingPush } = usePushNotifications()
   const [pushEnabled, setPushEnabled] = useState(false)
@@ -126,6 +128,12 @@ export default function SOSPage() {
   // fixed bottom nav and becoming unclickable.
   return (
     <div className="min-h-screen bg-surface pb-40 font-sans">
+      {/* A tourist deciding whether to trust the SOS button needs to know
+          their real connectivity state right here, not just on the
+          Dashboard -- previously only DashboardPage rendered this, so
+          landing directly on the Safety Center (e.g. from the nav bar)
+          gave no indication the SMS fallback is what's about to fire. */}
+      <OfflineBanner />
       {/* TopAppBar */}
       <header className="sticky top-0 z-30 bg-surface/85 backdrop-blur-md px-5 pt-12 pb-3 flex items-center justify-between border-b border-outline-variant/50">
         <div className="flex items-center gap-3">
@@ -137,7 +145,12 @@ export default function SOSPage() {
             <p className="text-xs text-on-surface-variant">{t('sos.subtitle')}</p>
           </div>
         </div>
-        {navigator.onLine ? <Wifi className="w-5 h-5 text-tsi-low" /> : <WifiOff className="w-5 h-5 text-sos" />}
+        {/* isOnline (from useSafetyStore, kept live by useOfflineSync's
+            'online'/'offline' listeners) instead of a one-time
+            navigator.onLine read -- the old version froze at whatever
+            connectivity existed the instant this component first
+            rendered and never updated again for the rest of the visit. */}
+        {isOnline ? <Wifi className="w-5 h-5 text-tsi-low" /> : <WifiOff className="w-5 h-5 text-sos" />}
       </header>
 
       <div className="px-5 mt-5 space-y-5">
