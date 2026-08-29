@@ -234,7 +234,7 @@ export default function HomePage() {
                 { icon: Radio, text: `Stay "Available" and you'll get an alert the instant an SOS fires nearby` },
                 { icon: Siren, text: 'Respond, and a live road route to them opens automatically' },
                 volunteer.rescuer_type === 'OFFICIAL'
-                  ? { icon: ShieldCheck, text: 'Verify the handoff code with the tourist once you reach them' }
+                  ? { icon: ShieldCheck, text: 'Confirm the Rescue Verification Code with the tourist once you reach them' }
                   : { icon: Award, text: 'Complete the response to earn reputation points' },
               ].map(({ icon: Icon, text }) => (
                 <div key={text} className="flex items-center gap-3 bg-surface-container-lowest rounded-2xl px-4 py-3.5">

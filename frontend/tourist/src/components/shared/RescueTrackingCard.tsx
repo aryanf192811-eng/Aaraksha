@@ -114,7 +114,7 @@ function HandoffCodeCard({ sosId, verifiedAt, rescuerName }: {
       <div className="mx-4 mb-3 bg-tsi-low/10 border border-tsi-low/30 rounded-xl p-3 flex items-center gap-2.5">
         <ShieldCheck className="w-5 h-5 text-tsi-low flex-shrink-0" />
         <p className="text-xs font-semibold text-on-surface">
-          Verified — {rescuerName ?? 'your rescuer'} confirmed with you in person.
+          Rescue Verification Code confirmed — {rescuerName ?? 'your rescuer'} reached you in person.
         </p>
       </div>
     )
@@ -124,7 +124,7 @@ function HandoffCodeCard({ sosId, verifiedAt, rescuerName }: {
     <div className="mx-4 mb-3 bg-surface-container rounded-xl p-3.5 border border-outline-variant">
       <div className="flex items-center gap-2 mb-1.5">
         <KeyRound className="w-4 h-4 text-primary flex-shrink-0" />
-        <p className="text-xs font-bold text-on-surface">Your verification code</p>
+        <p className="text-xs font-bold text-on-surface">Your Rescue Verification Code</p>
       </div>
       {code ? (
         <>
@@ -154,7 +154,7 @@ function HandoffCodeCard({ sosId, verifiedAt, rescuerName }: {
         <button onClick={() => reveal(false)} disabled={loading}
           className="w-full h-9 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-60">
           {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
-          Show my verification code
+          Show my Rescue Verification Code
         </button>
       )}
     </div>

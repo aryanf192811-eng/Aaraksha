@@ -132,7 +132,7 @@ export default function SOSManagementPage() {
   const { mutate: verifyHandoffRelay, isPending: verifyingRelay } = useMutation({
     mutationFn: (sosId: string) => govtApi.verifyHandoffRelay(sosId, handoffCode),
     onSuccess: () => {
-      toast.success('Handoff verified')
+      toast.success('Rescue Verification Code confirmed')
       setHandoffCode('')
       queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
     },
@@ -422,7 +422,7 @@ export default function SOSManagementPage() {
                   {selectedSOS.handoff_verified_at ? (
                     <p className="flex items-center gap-1.5 text-xs font-bold text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
                       <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
-                      Handoff verified by {selectedSOS.handoff_verified_by_kind === 'TEAM' ? 'the rescue team' : 'the volunteer'} — safe to close.
+                      Rescue Verification Code confirmed by {selectedSOS.handoff_verified_by_kind === 'TEAM' ? 'the rescue team' : 'the volunteer'} — safe to close.
                     </p>
                   ) : selectedSOS.assignment_id && (
                     // Relay entry — a govt operator entering a code an
@@ -430,11 +430,11 @@ export default function SOSManagementPage() {
                     // their own), or a manual fallback for a volunteer.
                     <div className="bg-surface-container rounded-lg p-2.5">
                       <p className="flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant mb-1.5">
-                        <KeyRound className="w-3 h-3" /> Relay a handoff code (from a radio call, etc.)
+                        <KeyRound className="w-3 h-3" /> Relay a Rescue Verification Code (from a radio call, etc.)
                       </p>
                       <div className="flex items-center gap-1.5">
                         <input
-                          inputMode="numeric" maxLength={6} placeholder="6-digit code" aria-label="Handoff code"
+                          inputMode="numeric" maxLength={6} placeholder="6-digit code" aria-label="Rescue Verification Code"
                           value={handoffCode}
                           onChange={(e) => setHandoffCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                           className="flex-1 h-9 rounded-lg border border-outline-variant px-2.5 text-center text-sm font-black tracking-[0.25em] tabular-nums focus:outline-none focus:border-primary"
@@ -454,7 +454,7 @@ export default function SOSManagementPage() {
 
                   <Button variant="outline" disabled={resolving || !selectedSOS.handoff_verified_at}
                     onClick={() => resolveSOS(selectedSOS.id)}
-                    title={!selectedSOS.handoff_verified_at ? "Blocked until the handoff code is verified — or use Force resolve below" : undefined}
+                    title={!selectedSOS.handoff_verified_at ? "Blocked until the Rescue Verification Code is confirmed — or use Force resolve below" : undefined}
                     className="w-full h-11 rounded-full border-2 border-green-500 text-green-700 font-bold hover:bg-green-50 disabled:opacity-40 flex items-center justify-center gap-2">
                     {resolving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /> Mark as Resolved</>}
                   </Button>

@@ -238,7 +238,7 @@ export default function ActiveJobPage() {
   const { mutate: verifyHandoff, isPending: verifying } = useMutation({
     mutationFn: (code: string) => volunteerApi.verifyHandoff(code),
     onSuccess: () => {
-      toast.success('Handoff verified — thank you, awaiting govt close-out')
+      toast.success('Rescue Verification Code confirmed — thank you, awaiting govt close-out')
       setHandoffCode('')
       refetch()
     },
@@ -371,12 +371,12 @@ export default function ActiveJobPage() {
 
         {assignment.handoff_verified_at ? (
           <div className="w-full rounded-2xl bg-safe/10 text-safe font-bold px-4 py-3 flex items-center gap-2">
-            <CheckCircle2 className="w-4.5 h-4.5 flex-shrink-0" /> Handoff verified — awaiting govt close-out
+            <CheckCircle2 className="w-4.5 h-4.5 flex-shrink-0" /> Rescue Verification Code confirmed — awaiting govt close-out
           </div>
         ) : assignment.status === 'ARRIVED' ? (
           <div className="bg-white rounded-2xl p-3.5 shadow-lg">
             <p className="flex items-center gap-1.5 text-xs font-bold text-on-surface mb-2">
-              <KeyRound className="w-3.5 h-3.5 text-primary" /> Ask {assignment.tourist_name ?? 'them'} for their verification code
+              <KeyRound className="w-3.5 h-3.5 text-primary" /> Ask {assignment.tourist_name ?? 'them'} for their Rescue Verification Code
             </p>
             <div className="flex items-center gap-2">
               <input
