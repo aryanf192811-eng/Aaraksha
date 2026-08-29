@@ -15,11 +15,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Map as MapLibreMap, Marker as MapLibreMarker, NavigationControl, type GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { Feature, LineString } from 'geojson'
-import { ShieldCheck, Phone, Navigation, LocateFixed, UserCheck, Navigation2, Flag, Check } from 'lucide-react'
+import { ShieldCheck, Phone, Navigation, LocateFixed, UserCheck, Navigation2, Flag, Check, KeyRound, ShieldAlert, RotateCw, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import sosApi from '../../api/sos.api'
 import { getSocket } from '../../lib/socket'
 import { SOCKET_EVENTS } from '../../constants/enums'
 import { getRoute, type Route } from '../../lib/osrm'
+import { getErrorMessage } from '../../api/client'
 import { cn } from '../../lib/utils'
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
@@ -72,6 +74,93 @@ function formatEta(minutes: number | null): string {
   return remHours > 0 ? `~${days}d ${remHours}h` : `~${days}d`
 }
 
+const handoffCodeStorageKey = (sosId: string) => `sos:${sosId}:handoffCode`
+
+// The anti-fraud handoff step: a rescuer can't just claim they reached the
+// tourist over the phone — they have to actually be there, in person, to
+// get this code. The server only ever stores a one-way hash of it (see
+// handoff.service.js), so the plaintext this component gets back on first
+// fetch is the only chance to show it — cached in sessionStorage (scoped to
+// this one SOS, cleared once verified/resolved) so a reload doesn't lose it.
+function HandoffCodeCard({ sosId, verifiedAt, rescuerName }: {
+  sosId: string; verifiedAt: string | null; rescuerName?: string
+}) {
+  const [code, setCode] = useState<string | null>(() => sessionStorage.getItem(handoffCodeStorageKey(sosId)))
+  const [alreadyIssuedNoCode, setAlreadyIssuedNoCode] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const reveal = async (regenerate: boolean) => {
+    setLoading(true)
+    try {
+      const res = regenerate ? await sosApi.regenerateHandoffCode(sosId) : await sosApi.getHandoffCode(sosId)
+      const data = res.data.data
+      if (data.code) {
+        sessionStorage.setItem(handoffCodeStorageKey(sosId), data.code)
+        setCode(data.code)
+        setAlreadyIssuedNoCode(false)
+      } else {
+        setAlreadyIssuedNoCode(true)
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (verifiedAt) {
+    sessionStorage.removeItem(handoffCodeStorageKey(sosId))
+    return (
+      <div className="mx-4 mb-3 bg-tsi-low/10 border border-tsi-low/30 rounded-xl p-3 flex items-center gap-2.5">
+        <ShieldCheck className="w-5 h-5 text-tsi-low flex-shrink-0" />
+        <p className="text-xs font-semibold text-on-surface">
+          Verified — {rescuerName ?? 'your rescuer'} confirmed with you in person.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mx-4 mb-3 bg-surface-container rounded-xl p-3.5 border border-outline-variant">
+      <div className="flex items-center gap-2 mb-1.5">
+        <KeyRound className="w-4 h-4 text-primary flex-shrink-0" />
+        <p className="text-xs font-bold text-on-surface">Your verification code</p>
+      </div>
+      {code ? (
+        <>
+          <p className="text-2xl font-black tabular-nums tracking-[0.2em] text-on-surface text-center py-1.5">{code}</p>
+          <p className="text-[11px] text-on-surface-variant leading-snug">
+            Only say this out loud once your rescuer has physically reached you — it's how we confirm you're actually safe.
+          </p>
+          <button onClick={() => reveal(true)} disabled={loading}
+            className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-on-surface-variant hover:text-primary disabled:opacity-60">
+            {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCw className="w-3 h-3" />}
+            Lost it? Generate a new one
+          </button>
+        </>
+      ) : alreadyIssuedNoCode ? (
+        <>
+          <p className="text-xs text-on-surface-variant flex items-start gap-1.5">
+            <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+            A code was already generated on another device or an earlier visit — if you don't remember it, generate a new one.
+          </p>
+          <button onClick={() => reveal(true)} disabled={loading}
+            className="mt-2 flex items-center gap-1.5 text-xs font-bold text-primary disabled:opacity-60">
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCw className="w-3.5 h-3.5" />}
+            Generate a new code
+          </button>
+        </>
+      ) : (
+        <button onClick={() => reveal(false)} disabled={loading}
+          className="w-full h-9 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-60">
+          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+          Show my verification code
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function RescueTrackingCard() {
   const queryClient = useQueryClient()
   const [livePos, setLivePos] = useState<[number, number] | null>(null)
@@ -102,10 +191,12 @@ export function RescueTrackingCard() {
     socket.on(SOCKET_EVENTS.SOS_STATUS_UPDATED, onUpdate)
     socket.on(SOCKET_EVENTS.RESCUER_STATUS_UPDATE, onUpdate)
     socket.on(SOCKET_EVENTS.RESCUER_LOCATION_UPDATE, onLocation)
+    socket.on(SOCKET_EVENTS.HANDOFF_VERIFIED, onUpdate)
     return () => {
       socket.off(SOCKET_EVENTS.SOS_STATUS_UPDATED, onUpdate)
       socket.off(SOCKET_EVENTS.RESCUER_STATUS_UPDATE, onUpdate)
       socket.off(SOCKET_EVENTS.RESCUER_LOCATION_UPDATE, onLocation)
+      socket.off(SOCKET_EVENTS.HANDOFF_VERIFIED, onUpdate)
     }
   }, [queryClient])
 
@@ -295,6 +386,8 @@ export function RescueTrackingCard() {
           </div>
         </div>
       </div>
+
+      <HandoffCodeCard sosId={data.sosId} verifiedAt={data.handoffVerifiedAt} rescuerName={rescuer.name} />
 
       {hasValidCoords && rescuerPos && (
         <div className="h-64 relative">

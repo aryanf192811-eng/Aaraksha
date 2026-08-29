@@ -1,7 +1,7 @@
 // src/pages/SOSManagementPage.tsx — real-time SOS feed with assignment modal
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Battery, CheckCircle2, Send, ShieldCheck, HeartHandshake, Navigation, Radio, Gauge, FileText } from 'lucide-react'
+import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Battery, CheckCircle2, Send, ShieldCheck, HeartHandshake, Navigation, Radio, Gauge, FileText, KeyRound, ShieldAlert, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
@@ -38,6 +38,9 @@ export default function SOSManagementPage() {
   const [assignTeamId, setAssignTeamId] = useState('')
   const [assignVolunteerId, setAssignVolunteerId] = useState('')
   const [resolutionNotes, setResolutionNotes] = useState('')
+  const [handoffCode, setHandoffCode] = useState('')
+  const [showOverride, setShowOverride] = useState(false)
+  const [overrideReason, setOverrideReason] = useState('')
   const modalRef = useRef<HTMLDivElement>(null)
   useSOSSocket() // subscribes to real-time events; invalidates the queries below
 
@@ -53,6 +56,9 @@ export default function SOSManagementPage() {
         setSelectedSOS(null)
         setAssignTeamId('')
         setAssignVolunteerId('')
+        setHandoffCode('')
+        setShowOverride(false)
+        setOverrideReason('')
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -95,8 +101,13 @@ export default function SOSManagementPage() {
   const { mutate: resolveSOS, isPending: resolving } = useMutation({
     // resolutionNotes is optional server-side (min 3 chars *if present*) —
     // an empty string isn't "absent", so it must be dropped entirely rather
-    // than sent as '', which would fail the min-length check.
-    mutationFn: (sosId: string) => govtApi.resolveSOS(sosId, resolutionNotes.trim() ? { resolutionNotes: resolutionNotes.trim() } : {}),
+    // than sent as '', which would fail the min-length check. overrideReason
+    // is only ever sent from the separate "Force resolve" action below, not
+    // this same mutation's normal (verified) path.
+    mutationFn: (sosId: string) => govtApi.resolveSOS(sosId, {
+      ...(resolutionNotes.trim() ? { resolutionNotes: resolutionNotes.trim() } : {}),
+      ...(showOverride && overrideReason.trim() ? { overrideReason: overrideReason.trim() } : {}),
+    }),
     // Marked before the request goes out, not in onSuccess -- the socket
     // broadcast this same resolve triggers can beat the HTTP response back
     // to this tab, so suppressing only after onSuccess was too late.
@@ -107,6 +118,23 @@ export default function SOSManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['govt', 'dashboard'] })
       setSelectedSOS(null)
       setResolutionNotes('')
+      setShowOverride(false)
+      setOverrideReason('')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+
+  // Relay entry — a govt operator typing in a code an official team radioed
+  // in, since teams have no individual member login of their own to enter
+  // it directly (see handoffService#verifyHandoffAsTeamRelay). Works for a
+  // volunteer assignment too, as a manual fallback if the volunteer's own
+  // in-app entry (ActiveJobPage) isn't reachable for some reason.
+  const { mutate: verifyHandoffRelay, isPending: verifyingRelay } = useMutation({
+    mutationFn: (sosId: string) => govtApi.verifyHandoffRelay(sosId, handoffCode),
+    onSuccess: () => {
+      toast.success('Handoff verified')
+      setHandoffCode('')
+      queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   })
@@ -391,13 +419,71 @@ export default function SOSManagementPage() {
 
               {selectedSOS.status !== 'RESOLVED' && selectedSOS.status !== 'FALSE_ALARM' && (
                 <div className="space-y-2 pt-3 border-t border-outline-variant">
+                  {selectedSOS.handoff_verified_at ? (
+                    <p className="flex items-center gap-1.5 text-xs font-bold text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                      Handoff verified by {selectedSOS.handoff_verified_by_kind === 'TEAM' ? 'the rescue team' : 'the volunteer'} — safe to close.
+                    </p>
+                  ) : selectedSOS.assignment_id && (
+                    // Relay entry — a govt operator entering a code an
+                    // assigned team radioed in (they have no in-app entry of
+                    // their own), or a manual fallback for a volunteer.
+                    <div className="bg-surface-container rounded-lg p-2.5">
+                      <p className="flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant mb-1.5">
+                        <KeyRound className="w-3 h-3" /> Relay a handoff code (from a radio call, etc.)
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          inputMode="numeric" maxLength={6} placeholder="6-digit code" aria-label="Handoff code"
+                          value={handoffCode}
+                          onChange={(e) => setHandoffCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          className="flex-1 h-9 rounded-lg border border-outline-variant px-2.5 text-center text-sm font-black tracking-[0.25em] tabular-nums focus:outline-none focus:border-primary"
+                        />
+                        <Button size="sm" disabled={verifyingRelay || handoffCode.length !== 6}
+                          onClick={() => verifyHandoffRelay(selectedSOS.id)}
+                          className="h-9 rounded-lg bg-primary-dark hover:bg-primary-dark text-white font-bold px-3">
+                          {verifyingRelay ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Verify'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   <Textarea placeholder="Resolution notes..." aria-label="Resolution notes" value={resolutionNotes}
                     onChange={e => setResolutionNotes(e.target.value)} rows={2}
                     className="rounded-xl resize-none" />
-                  <Button variant="outline" disabled={resolving} onClick={() => resolveSOS(selectedSOS.id)}
-                    className="w-full h-11 rounded-full border-2 border-green-500 text-green-700 font-bold hover:bg-green-50 flex items-center justify-center gap-2">
+
+                  <Button variant="outline" disabled={resolving || !selectedSOS.handoff_verified_at}
+                    onClick={() => resolveSOS(selectedSOS.id)}
+                    title={!selectedSOS.handoff_verified_at ? "Blocked until the handoff code is verified — or use Force resolve below" : undefined}
+                    className="w-full h-11 rounded-full border-2 border-green-500 text-green-700 font-bold hover:bg-green-50 disabled:opacity-40 flex items-center justify-center gap-2">
                     {resolving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /> Mark as Resolved</>}
                   </Button>
+
+                  {!selectedSOS.handoff_verified_at && (
+                    <div>
+                      <button onClick={() => setShowOverride(v => !v)}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-on-surface-variant hover:text-red-600 mx-auto mt-1">
+                        <ChevronDown className={cn('w-3 h-3 transition-transform', showOverride && 'rotate-180')} />
+                        Force resolve without verification
+                      </button>
+                      {showOverride && (
+                        <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-2.5 space-y-2">
+                          <p className="flex items-start gap-1.5 text-[11px] text-red-700">
+                            <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                            Only for genuine edge cases (tourist unconscious, phone destroyed). Logged and stored on the case record.
+                          </p>
+                          <Textarea placeholder="Reason (required, min 10 characters)..." aria-label="Override reason"
+                            value={overrideReason} onChange={e => setOverrideReason(e.target.value)} rows={2}
+                            className="rounded-lg resize-none bg-white text-xs" />
+                          <Button variant="outline" disabled={resolving || overrideReason.trim().length < 10}
+                            onClick={() => resolveSOS(selectedSOS.id)}
+                            className="w-full h-9 rounded-full border-2 border-red-400 text-red-700 font-bold hover:bg-red-100 disabled:opacity-40 text-xs">
+                            {resolving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Force resolve with this reason'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

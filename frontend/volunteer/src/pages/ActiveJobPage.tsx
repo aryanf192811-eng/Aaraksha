@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Siren, Navigation2, LocateFixed, User, Clock, CheckCircle2, MapPinned, UserCheck, Flag, Check } from 'lucide-react'
+import { Siren, Navigation2, LocateFixed, User, Clock, CheckCircle2, MapPinned, UserCheck, Flag, Check, KeyRound, Phone, Loader2 } from 'lucide-react'
 // MapLibre GL over free vector tiles (OpenFreeMap, no API key) instead of
 // Leaflet + raster OSM — same swap as the tourist app's RescueTrackingCard,
 // so both sides of the live rescue view now share one rendering engine and
@@ -234,6 +234,20 @@ export default function ActiveJobPage() {
     },
   })
 
+  const [handoffCode, setHandoffCode] = useState('')
+  const { mutate: verifyHandoff, isPending: verifying } = useMutation({
+    mutationFn: (code: string) => volunteerApi.verifyHandoff(code),
+    onSuccess: () => {
+      toast.success('Handoff verified — thank you, awaiting govt close-out')
+      setHandoffCode('')
+      refetch()
+    },
+    // Error toast comes from the app-wide MutationCache.onError in
+    // lib/queryClient.ts (wrong code, too far, or locked-out all surface
+    // there with the exact message the backend gives) -- no local onError
+    // needed, same pattern as this file's other mutations.
+  })
+
   if (!assignment) return null
 
   const category = CATEGORY_LABELS[assignment.category] || assignment.category
@@ -355,9 +369,40 @@ export default function ActiveJobPage() {
           </a>
         )}
 
-        {assignment.status === 'ARRIVED' ? (
-          <div className="w-full h-12 rounded-2xl bg-safe/10 text-safe font-bold flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4.5 h-4.5" /> Arrived — awaiting govt close-out
+        {assignment.handoff_verified_at ? (
+          <div className="w-full rounded-2xl bg-safe/10 text-safe font-bold px-4 py-3 flex items-center gap-2">
+            <CheckCircle2 className="w-4.5 h-4.5 flex-shrink-0" /> Handoff verified — awaiting govt close-out
+          </div>
+        ) : assignment.status === 'ARRIVED' ? (
+          <div className="bg-white rounded-2xl p-3.5 shadow-lg">
+            <p className="flex items-center gap-1.5 text-xs font-bold text-on-surface mb-2">
+              <KeyRound className="w-3.5 h-3.5 text-primary" /> Ask {assignment.tourist_name ?? 'them'} for their verification code
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                inputMode="numeric" maxLength={6} placeholder="6-digit code"
+                value={handoffCode}
+                onChange={(e) => setHandoffCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="flex-1 h-11 rounded-xl border border-outline-variant px-3 text-center text-lg font-black tracking-[0.3em] tabular-nums focus:outline-none focus:border-primary"
+              />
+              {assignment.tourist_phone && (
+                <a href={`tel:${assignment.tourist_phone}`} title="Call them"
+                  className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center flex-shrink-0">
+                  <Phone className="w-4.5 h-4.5 text-on-surface-variant" />
+                </a>
+              )}
+            </div>
+            <p className="text-[11px] text-on-surface-variant mt-1.5 mb-2.5">
+              This confirms you actually reached them — govt can't close the case without it.
+            </p>
+            <button
+              onClick={() => verifyHandoff(handoffCode)}
+              disabled={verifying || handoffCode.length !== 6}
+              className="w-full h-11 rounded-xl bg-on-surface text-white font-bold flex items-center justify-center gap-2 disabled:opacity-40 active:scale-[0.98] transition-transform"
+            >
+              {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+              Verify handoff
+            </button>
           </div>
         ) : (
           <button

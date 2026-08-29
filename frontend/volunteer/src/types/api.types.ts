@@ -86,8 +86,10 @@ export interface ActiveAssignment {
   category: string
   sos_latitude: number
   sos_longitude: number
+  handoff_verified_at: string | null
   tourist_id: string
   tourist_name: string | null
+  tourist_phone: string | null
   guardian_token: string | null
 }
 

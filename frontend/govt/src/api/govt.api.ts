@@ -262,8 +262,11 @@ const govtApi = {
     return `${API_URL}/govt/incidents/${incidentId}/report?token=${encodeURIComponent(token || '')}`
   },
 
-  resolveSOS: (sosId: string, data: { resolutionNotes?: string }) =>
+  resolveSOS: (sosId: string, data: { resolutionNotes?: string; overrideReason?: string }) =>
     api.patch<APIResponse<SOSWithDetails>>(`/govt/sos/${sosId}/resolve`, data),
+
+  verifyHandoffRelay: (sosId: string, code: string) =>
+    api.post<APIResponse<SOSWithDetails>>(`/govt/sos/${sosId}/verify-handoff`, { code }),
 
   getLiveTourists: () =>
     api.get<APIResponse<LiveTourist[]>>('/govt/tourists/live'),

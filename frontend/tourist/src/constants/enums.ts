@@ -219,6 +219,7 @@ export const SOCKET_EVENTS = {
   // rooms (see backend/src/socket/emitters.js#emitRescuerLocationUpdate).
   RESCUER_LOCATION_UPDATE: 'RESCUER_LOCATION_UPDATE',
   RESCUER_STATUS_UPDATE:   'RESCUER_STATUS_UPDATE',
+  HANDOFF_VERIFIED:        'HANDOFF_VERIFIED',
 
   // Server -> Guardian room (guardian:{guardianToken})
   GUARDIAN_STATUS_CHANGE:   'GUARDIAN_STATUS_CHANGE',

@@ -48,6 +48,9 @@ const volunteerApi = {
 
   updateAssignmentStatus: (status: 'EN_ROUTE' | 'ARRIVED') =>
     api.patch<APIResponse<ActiveAssignment>>('/volunteers/me/assignment/status', { status }),
+
+  verifyHandoff: (code: string) =>
+    api.post<APIResponse<{ handoff_verified_at: string }>>('/volunteers/me/assignment/verify-handoff', { code }),
 }
 
 export default volunteerApi

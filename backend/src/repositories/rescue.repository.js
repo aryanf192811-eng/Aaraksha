@@ -73,7 +73,8 @@ class RescueRepository extends BaseRepository {
   async findActiveAssignmentByVolunteerId(volunteerId) {
     return this.queryOne(`
       SELECT ra.*, se.category, se.latitude AS sos_latitude, se.longitude AS sos_longitude,
-        se.tourist_id, t.full_name AS tourist_name, t.guardian_token
+        se.handoff_verified_at, se.tourist_id, t.full_name AS tourist_name,
+        t.phone AS tourist_phone, t.guardian_token
       FROM rescue_assignments ra
       JOIN sos_events se ON se.id = ra.sos_event_id
       LEFT JOIN tourists t ON t.id = se.tourist_id

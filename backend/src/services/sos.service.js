@@ -129,6 +129,8 @@ async function getActiveRescueInfo(touristId) {
     createdAt:  row.created_at,
     latitude:   row.latitude,
     longitude:  row.longitude,
+    handoffVerifiedAt:     row.handoff_verified_at,
+    handoffVerifiedByKind: row.handoff_verified_by_kind,
     rescuer: (hasTeam || hasVolunteer) ? {
       kind:        hasTeam ? 'TEAM' : 'VOLUNTEER',
       id:          hasTeam ? row.team_id : row.volunteer_id,

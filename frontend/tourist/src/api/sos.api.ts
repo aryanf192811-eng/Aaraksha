@@ -42,7 +42,15 @@ export interface ActiveRescueInfo {
   createdAt: string
   latitude: string
   longitude: string
+  handoffVerifiedAt: string | null
+  handoffVerifiedByKind: 'VOLUNTEER' | 'TEAM' | null
   rescuer: ActiveRescuer | null
+}
+
+export interface HandoffCodeResponse {
+  alreadyIssued: boolean
+  code?: string
+  expiresAt: string
 }
 
 const sosApi = {
@@ -58,6 +66,12 @@ const sosApi = {
 
   getActiveRescue: () =>
     api.get<APIResponse<ActiveRescueInfo | null>>('/sos/active-rescue'),
+
+  getHandoffCode: (sosId: string) =>
+    api.get<APIResponse<HandoffCodeResponse>>(`/sos/${sosId}/handoff-code`),
+
+  regenerateHandoffCode: (sosId: string) =>
+    api.post<APIResponse<HandoffCodeResponse>>(`/sos/${sosId}/handoff-code/regenerate`),
 }
 
 export default sosApi

@@ -69,6 +69,7 @@ class SOSRepository extends BaseRepository {
   async findActiveWithRescueInfo(touristId) {
     return this.queryOne(`
       SELECT se.id, se.category, se.status, se.latitude, se.longitude, se.created_at,
+        se.handoff_verified_at, se.handoff_verified_by_kind,
         ra.id as assignment_id, ra.status as assignment_status, ra.assigned_at,
         ra.rescuer_latitude, ra.rescuer_longitude, ra.rescuer_location_updated_at,
         rt.id as team_id, rt.name as team_name, rt.type as team_type,
