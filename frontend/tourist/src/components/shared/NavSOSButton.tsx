@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import { SOSButton } from './SOSButton'
+import { SOSHoldOverlay } from './SOSHoldOverlay'
 import { useSafetyStore } from '../../store/safety.store'
 import { useSOS } from '../../hooks/useSOS'
 import { SOS_CATEGORY_CONFIG, DEFAULT_SOS_CATEGORY } from '../../constants/sosCategories'
@@ -22,6 +23,11 @@ export function NavSOSButton() {
   const activeSOSId = useSafetyStore((s) => s.activeSOSId)
   const { sendSOS, sending } = useSOS()
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
+  // Drives the large overlay below — the nav button is only 64px, so the
+  // hold percentage rendered inside it is physically covered by the
+  // holding thumb. This is the same live 0–100 value SOSButton already
+  // computes every animation frame, just also surfaced up here.
+  const [holdProgress, setHoldProgress] = useState(0)
 
   const handleQuickSend = () => {
     sendSOS(DEFAULT_SOS_CATEGORY).then(() => navigate('/sos')).catch(() => {})
@@ -52,10 +58,13 @@ export function NavSOSButton() {
             twoStage
             onQuickSend={handleQuickSend}
             onHoldComplete={() => setShowCategoryPicker(true)}
+            onHoldProgress={setHoldProgress}
             className="relative shadow-[0_2px_6px_rgba(220,38,38,0.3),0_10px_20px_-4px_rgba(220,38,38,0.35)] rounded-full"
           />
         </div>
       </div>
+
+      <SOSHoldOverlay progress={holdProgress} armed={holdProgress >= 66} />
 
       {/* Inline category picker — reached by holding the nav SOS button all
           the way to 100% instead of releasing at the 66% quick-send point. */}
