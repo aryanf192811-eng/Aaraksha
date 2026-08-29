@@ -10,6 +10,7 @@ const { DestinationRepository } = require('../repositories/destination.repositor
 const { TripRepository } = require('../repositories/trip.repository')
 const { TouristRepository } = require('../repositories/tourist.repository')
 const { VolunteerRepository } = require('../repositories/volunteer.repository')
+const { VolunteerDispatchRepository } = require('../repositories/volunteerDispatch.repository')
 const { emitSOSResolved, emitRescueAssigned, emitGuardianRescueAssigned, emitVolunteerAssigned } = require('../socket/emitters')
 const { SOS_STATUSES, TEAM_STATUSES, VOLUNTEER_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
@@ -176,6 +177,7 @@ async function resolveSOS(sosId, resolutionNotes) {
       const volunteerRepo_t = new VolunteerRepository(client)
       await volunteerRepo_t.updateStatus(assignment.volunteer_id, VOLUNTEER_STATUSES.AVAILABLE)
     }
+    await new VolunteerDispatchRepository(client).declineAllPendingForSOS(sosId)
     return { resolved }
   })
 

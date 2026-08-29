@@ -180,6 +180,12 @@ async function markFalseAlarm(sosId, touristId) {
       const volunteerRepo_t = new VolunteerRepository(client)
       await volunteerRepo_t.updateStatus(assignment.volunteer_id, VOLUNTEER_STATUSES.AVAILABLE)
     }
+    // Same gap as the rescuer-release fix above, one layer out: every OTHER
+    // volunteer who was broadcast an ALERTED notification but never
+    // responded (not just the one who was actually assigned) needs that
+    // notification closed out too, or it sits in their "Active alerts"
+    // list forever pointing at an emergency that's already over.
+    await new VolunteerDispatchRepository(client).declineAllPendingForSOS(sosId)
     return updated
   })
   if (!updated) throw Object.assign(new Error(ERRORS.SOS_ALREADY_CLOSED), { statusCode: 400 })

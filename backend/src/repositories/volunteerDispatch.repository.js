@@ -58,6 +58,20 @@ class VolunteerDispatchRepository extends BaseRepository {
       [id, points]
     )
   }
+
+  // An SOS closing (resolved or false-alarm) previously only released the
+  // one assigned rescuer -- every OTHER volunteer who was broadcast an
+  // ALERTED notification but never responded kept it sitting in their
+  // "Active alerts" list indefinitely, since nothing ever closed it out.
+  // Called from both sos.service.js#markFalseAlarm and
+  // govt.service.js#resolveSOS alongside the existing rescuer-release step.
+  async declineAllPendingForSOS(sosEventId) {
+    return this.query(
+      `UPDATE volunteer_dispatches SET status = 'DECLINED', responded_at = NOW()
+       WHERE sos_event_id = $1 AND status = 'ALERTED' RETURNING id`,
+      [sosEventId]
+    )
+  }
 }
 
 module.exports = { VolunteerDispatchRepository }

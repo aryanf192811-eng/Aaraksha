@@ -5,6 +5,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ShieldCheck, LogOut, Award, MapPin, Clock, CheckCircle2, XCircle, Siren, ShieldAlert, Truck, Radio } from 'lucide-react'
 import volunteerApi from '../api/volunteer.api'
+import { getErrorMessage } from '../api/client'
 import { connectSocket, disconnectSocket } from '../lib/socket'
 import { queryClient } from '../lib/queryClient'
 import { useAuthStore } from '../store/auth.store'
@@ -91,19 +92,29 @@ export default function HomePage() {
     if (!volunteer) return
     setTogglingStatus(true)
     const nextStatus = volunteer.status === 'AVAILABLE' ? 'OFF_DUTY' : 'AVAILABLE'
-    navigator.geolocation?.getCurrentPosition(
-      async (pos) => {
-        const res = await volunteerApi.updateStatus(nextStatus, pos.coords.latitude, pos.coords.longitude)
+    // Both geolocation branches used to call the API with no try/catch —
+    // a rejected updateStatus() (network error, 4xx/5xx) was an unhandled
+    // promise rejection: no toast, and setTogglingStatus(false) never ran,
+    // so the button stayed permanently disabled until a full page reload.
+    const applyStatus = async (lat?: number, lng?: number) => {
+      try {
+        const res = await volunteerApi.updateStatus(nextStatus, lat, lng)
         updateVolunteer(res.data.data)
+      } catch (err) {
+        toast.error(getErrorMessage(err))
+      } finally {
         setTogglingStatus(false)
-      },
-      async () => {
-        const res = await volunteerApi.updateStatus(nextStatus)
-        updateVolunteer(res.data.data)
-        setTogglingStatus(false)
-      },
-      { timeout: 5000 }
-    )
+      }
+    }
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => applyStatus(pos.coords.latitude, pos.coords.longitude),
+        () => applyStatus(),
+        { timeout: 5000 }
+      )
+    } else {
+      applyStatus()
+    }
   }
 
   const handleLogout = () => {

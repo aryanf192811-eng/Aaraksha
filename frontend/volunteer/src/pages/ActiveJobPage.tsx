@@ -252,7 +252,11 @@ export default function ActiveJobPage() {
             if (!map) return
             if (bounds.length > 1) {
               const lngs = bounds.map((b) => b[1]), lats = bounds.map((b) => b[0])
-              map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 48, duration: 600 })
+              // maxZoom guards against fitBounds zooming in past the point where
+              // tiles render anything recognizable when the rescuer is
+              // essentially on top of the tourist (near-zero-distance bounding
+              // box) -- same fix as RescueTrackingCard.tsx on the tourist side.
+              map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 48, duration: 600, maxZoom: 16 })
             } else {
               map.flyTo({ center: [bounds[0][1], bounds[0][0]], zoom: 14 })
             }
