@@ -130,6 +130,48 @@ function fallbackAdvisory({ tsiScore, tsiLabel, worstStop, hasRecommendations })
   return bullets
 }
 
+// The prompt asks for plain-text "- " bullets with no markdown, but Gemini
+// doesn't reliably follow that instruction — real responses have shown up
+// with numbered lists ("1. "), stray **bold**, and an occasional preamble
+// line ("Here's your safety briefing:") before the actual bullets. The old
+// parser only stripped a single leading -/•/* and took every line verbatim,
+// so any of that leaked straight into the UI as a 5th "bullet" or literal
+// asterisks. This is defensive parsing, not a markdown renderer — the goal
+// is exactly 3-4 clean sentences, matching what was actually asked for.
+function parseAdvisoryBullets(text) {
+  const BULLET_PREFIX = /^(?:[-•*]|\d+[.)])\s+/
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+
+  const bullets = []
+  for (const line of lines) {
+    if (BULLET_PREFIX.test(line)) {
+      bullets.push(line.replace(BULLET_PREFIX, ''))
+    } else if (bullets.length > 0) {
+      // A wrapped continuation of the previous bullet (Gemini sometimes
+      // breaks one sentence across two lines) — merge rather than treat as
+      // its own bullet.
+      bullets[bullets.length - 1] += ` ${line}`
+    }
+    // A non-bullet line before any bullet has appeared is a preamble
+    // ("Here's your safety briefing:") — dropped, not a continuation.
+  }
+  // No bullet markers detected at all — Gemini ignored the format entirely
+  // and just wrote prose. Fall back to one bullet per line rather than
+  // showing nothing.
+  const rawBullets = bullets.length > 0 ? bullets : lines
+
+  return rawBullets.map(stripInlineMarkdown).filter(Boolean)
+}
+
+function stripInlineMarkdown(line) {
+  return line
+    .replace(/\*\*(.+?)\*\*/g, '$1')   // **bold**
+    .replace(/__(.+?)__/g, '$1')       // __bold__
+    .replace(/(?<!\*)\*(?!\*)(.+?)\*(?!\*)/g, '$1') // *italic*, not part of **
+    .replace(/^#{1,6}\s*/, '')         // stray markdown heading marker
+    .trim()
+}
+
 async function generateSafetyAdvisory({ tsiScore, tsiLabel, factors, travelType, recommendations, destination }) {
   const stopRisks = Array.isArray(factors?.stopRisks) ? factors.stopRisks : []
   const worstStop = stopRisks.reduce((w, s) => (s.penalty > (w?.penalty ?? -Infinity) ? s : w), null)
@@ -173,7 +215,7 @@ the tourist ("you"), be specific to the route above, not generic advice.`
     const result = await generateContentWithTimeout(model, prompt)
     const text = result.response.text().trim()
     if (!text) throw new Error('Gemini returned an empty advisory')
-    const advisory = text.split('\n').map(l => l.trim().replace(/^[-•*]\s*/, '')).filter(Boolean)
+    const advisory = parseAdvisoryBullets(text)
     logger.info({ tsiScore, tsiLabel }, 'Gemini safety advisory generated')
     return { advisory, source: 'GEMINI_AI' }
   } catch (err) {
