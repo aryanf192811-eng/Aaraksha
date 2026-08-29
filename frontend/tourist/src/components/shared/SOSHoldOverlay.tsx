@@ -42,10 +42,21 @@ export function SOSHoldOverlay({ progress, armed }: SOSHoldOverlayProps) {
     <div
       aria-hidden="true"
       className={cn(
+        // Purely decorative mirror of the hold in progress — the actual
+        // hold gesture is owned entirely by SOSButton underneath. Without
+        // pointer-events-none here, this full-screen backdrop becomes the
+        // topmost element under the still-held finger the instant it
+        // mounts (z-[100], fixed inset-0), and lacking select-none/
+        // touch-none/-webkit-touch-callout (unlike SOSButton itself)
+        // Android's native long-press text-selection + dictionary lookup
+        // fires on the overlay's own text mid-hold — confirmed live on a
+        // real device (Chrome Android selected "emergency" from "Keep
+        // holding for emergency category…" and popped its definition).
+        'pointer-events-none select-none touch-none [-webkit-touch-callout:none]',
         'fixed inset-0 z-[100] flex flex-col items-center justify-center gap-5',
         'bg-black/70 backdrop-blur-md',
         'transition-opacity duration-200 ease-out',
-        visible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        visible ? 'opacity-100' : 'opacity-0'
       )}
     >
       <div
