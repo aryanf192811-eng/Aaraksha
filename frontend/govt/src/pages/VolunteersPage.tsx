@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import {
   HeartHandshake, ShieldCheck, MapPin, Loader2, CheckCircle2, Clock, IdCard,
-  AlertTriangle, UserPlus, Copy, Check, Award, Radio, UserX,
+  AlertTriangle, UserPlus, Copy, Check, Award, Radio, UserX, Users2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
@@ -35,8 +35,13 @@ const STATUS_META: Record<string, { label: string; dot: string; text: string }> 
 }
 
 const EMPTY_FORM: CreateVolunteerPayload = {
-  fullName: '', phone: '', govtIdType: 'AADHAAR', govtIdNumber: '', district: '', state: '',
+  fullName: '', phone: '', govtIdType: 'AADHAAR', govtIdNumber: '', district: '', state: '', teamId: undefined,
 }
+
+// Sentinel for the Select's "no team" option -- Radix Select can't use an
+// empty string as an item value (reserved for "cleared"), so the UI uses
+// this string and translates back to undefined on the form.
+const NO_TEAM = '__none__'
 
 export default function VolunteersPage() {
   const [tab, setTab] = useState<'pending' | 'roster'>('pending')
@@ -57,6 +62,16 @@ export default function VolunteersPage() {
     queryFn: () => govtApi.getAllVolunteers().then(r => r.data.data),
     refetchInterval: 30_000,
     enabled: tab === 'roster',
+  })
+
+  // Only fetched while the Add Volunteer dialog is open -- lets an operator
+  // optionally link this account to an official rescue_teams unit (an
+  // on-duty responder for that team, not a citizen volunteer) instead of
+  // building a separate provisioning flow for teams.
+  const { data: rescueTeams } = useQuery({
+    queryKey: ['govt', 'rescue-teams'],
+    queryFn: () => govtApi.getRescueTeams().then(r => r.data.data),
+    enabled: creating,
   })
 
   const { mutate: verify, isPending: verifying } = useMutation({
@@ -196,11 +211,13 @@ export default function VolunteersPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {rosterList.map((v: Volunteer) => {
               const meta = STATUS_META[v.status] ?? STATUS_META.OFF_DUTY
+              const isOfficial = v.rescuer_type === 'OFFICIAL'
               return (
                 <div key={v.id} className="rounded-xl p-4 shadow-sm bg-surface-container-lowest border border-outline-variant/60">
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center flex-shrink-0">
-                      <HeartHandshake className="w-5 h-5" />
+                    <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0',
+                      isOfficial ? 'bg-indigo-100 text-indigo-700' : 'bg-teal-100 text-teal-700')}>
+                      {isOfficial ? <Users2 className="w-5 h-5" /> : <HeartHandshake className="w-5 h-5" />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
@@ -209,7 +226,9 @@ export default function VolunteersPage() {
                           ? <ShieldCheck className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                           : <span className="text-[9px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full flex-shrink-0">Unverified</span>}
                       </div>
-                      <p className="text-xs text-on-surface-variant truncate">{v.phone}</p>
+                      <p className="text-xs text-on-surface-variant truncate">
+                        {isOfficial && v.team_name ? v.team_name : v.phone}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 mb-2">
@@ -218,7 +237,11 @@ export default function VolunteersPage() {
                   </div>
                   <div className="flex items-center justify-between text-xs text-on-surface-variant">
                     <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{v.district}</span>
-                    <span className="flex items-center gap-1 font-semibold text-primary"><Award className="w-3 h-3" />{v.points} pts</span>
+                    {isOfficial ? (
+                      <span className="flex items-center gap-1 font-semibold text-indigo-600"><Users2 className="w-3 h-3" />Official team</span>
+                    ) : (
+                      <span className="flex items-center gap-1 font-semibold text-primary"><Award className="w-3 h-3" />{v.points} pts</span>
+                    )}
                   </div>
                 </div>
               )
@@ -330,6 +353,25 @@ export default function VolunteersPage() {
                 <Input id="volunteer-state" value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
                   placeholder="e.g. Assam" className="h-10 rounded-lg" />
               </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-on-surface-variant mb-1 block flex items-center gap-1.5">
+                <Users2 className="w-3.5 h-3.5" /> Official rescue team (optional)
+              </label>
+              <Select value={form.teamId ?? NO_TEAM}
+                onValueChange={(v) => setForm(f => ({ ...f, teamId: v === NO_TEAM ? undefined : v }))}>
+                <SelectTrigger aria-label="Official rescue team" className="h-10 rounded-lg"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_TEAM}>None — citizen volunteer</SelectItem>
+                  {(rescueTeams ?? []).map(t => (
+                    <SelectItem key={t.id} value={t.id}>{t.name} · {t.district}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-on-surface-variant mt-1">
+                Link this account to an on-duty rescue team member instead of a citizen volunteer — hides reputation
+                points and labels their app as an official team in the field.
+              </p>
             </div>
           </div>
 

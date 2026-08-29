@@ -356,6 +356,9 @@ export interface Volunteer {
   status: 'AVAILABLE' | 'DEPLOYED' | 'OFF_DUTY'
   is_active: boolean
   created_at: string
+  rescuer_type: 'VOLUNTEER' | 'OFFICIAL'
+  team_id: string | null
+  team_name: string | null
 }
 
 export interface RescueAssignment {

@@ -9,7 +9,8 @@ const { haversineKm } = require('../utils/geo')
 const SAFE_COLS = `
   id, full_name, phone, govt_id_type, govt_id_suffix,
   district, state, latitude, longitude,
-  is_verified, points, status, is_active, created_at`
+  is_verified, points, status, is_active, created_at,
+  rescuer_type, team_id`
 
 class VolunteerRepository extends BaseRepository {
   // isVerified defaults false — a self-registered volunteer (auth.service's
@@ -17,37 +18,70 @@ class VolunteerRepository extends BaseRepository {
   // an account directly (govt.service#createVolunteer) passes true: the
   // operator IS the verification, there's no separate identity to review.
   async create(data, isVerified = false) {
+    // CTE so the govt "account created" credentials dialog can show the
+    // linked team's name immediately, without a second round trip — same
+    // JOIN findById/findByPhone/findAll already do, just folded into the
+    // one INSERT statement here.
     return this.queryOne(`
-      INSERT INTO volunteers (
-        full_name, phone, password_hash, govt_id_type, govt_id_hash, govt_id_suffix,
-        district, state, latitude, longitude, is_verified
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-      RETURNING ${SAFE_COLS}`,
+      WITH inserted AS (
+        INSERT INTO volunteers (
+          full_name, phone, password_hash, govt_id_type, govt_id_hash, govt_id_suffix,
+          district, state, latitude, longitude, is_verified, rescuer_type, team_id
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        RETURNING ${SAFE_COLS}
+      )
+      SELECT ${SAFE_COLS.split(',').map(c => `inserted.${c.trim()}`).join(', ')}, rt.name AS team_name
+      FROM inserted LEFT JOIN rescue_teams rt ON rt.id = inserted.team_id`,
       [
         data.fullName, data.phone, data.passwordHash,
         data.govtIdType, data.govtIdHash, data.govtIdSuffix,
         data.district, data.state, data.latitude ?? null, data.longitude ?? null,
         isVerified,
+        // A govt-provisioned rescuer optionally linked to an official
+        // rescue_teams unit -- same login/app/assignment/tracking path as
+        // a citizen volunteer either way (see migration 010's own header),
+        // this just changes how the Rescuer app labels itself and whether
+        // reputation points are shown.
+        data.rescuerType ?? 'VOLUNTEER', data.teamId ?? null,
       ]
     )
   }
 
   // All volunteers (not just the pending-review queue) — powers the govt
   // "Volunteers" roster tab so operators can see who's already active,
-  // not just who's waiting on them.
+  // not just who's waiting on them. LEFT JOINs team_name, same as
+  // findById/findByPhone, so the roster can label official team members
+  // distinctly from citizen volunteers without a second round trip.
   async findAll() {
-    return this.query(`SELECT ${SAFE_COLS} FROM volunteers WHERE is_active = TRUE ORDER BY created_at DESC`)
+    return this.query(
+      `SELECT ${SAFE_COLS.split(',').map(c => `v.${c.trim()}`).join(', ')}, rt.name AS team_name
+       FROM volunteers v LEFT JOIN rescue_teams rt ON rt.id = v.team_id
+       WHERE v.is_active = TRUE ORDER BY v.created_at DESC`
+    )
   }
 
   async findByPhone(phone) {
     return this.queryOne(
-      `SELECT ${SAFE_COLS}, password_hash FROM volunteers WHERE phone = $1`,
+      `SELECT ${SAFE_COLS.split(',').map(c => `v.${c.trim()}`).join(', ')}, v.password_hash, rt.name AS team_name
+       FROM volunteers v LEFT JOIN rescue_teams rt ON rt.id = v.team_id
+       WHERE v.phone = $1`,
       [phone]
     )
   }
 
   async findById(id) {
-    return this.queryOne(`SELECT ${SAFE_COLS} FROM volunteers WHERE id = $1 AND is_active = TRUE`, [id])
+    // LEFT JOIN for team_name -- cheap (indexed PK join, one row) and this
+    // runs on every authenticated request via authenticateVolunteer, so
+    // req.volunteer.team_name is available everywhere without a second
+    // lookup wherever the Rescuer app needs to label itself "Official Team"
+    // rather than "Local Volunteer". Explicit column list (not v.*), same
+    // as SAFE_COLS everywhere else -- v.* would also select password_hash.
+    return this.queryOne(
+      `SELECT ${SAFE_COLS.split(',').map(c => `v.${c.trim()}`).join(', ')}, rt.name AS team_name
+       FROM volunteers v LEFT JOIN rescue_teams rt ON rt.id = v.team_id
+       WHERE v.id = $1 AND v.is_active = TRUE`,
+      [id]
+    )
   }
 
   async govtIdHashExists(hash) {

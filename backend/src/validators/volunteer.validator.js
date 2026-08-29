@@ -56,6 +56,10 @@ const CreateVolunteerByGovtSchema = z.object({
   state:        z.string().min(2).max(100),
   latitude:     LatitudeSchema.optional(),
   longitude:    LongitudeSchema.optional(),
+  // Optional link to an official rescue_teams unit -- present only when
+  // provisioning a team's on-duty responder rather than a citizen
+  // volunteer (see volunteer.repository.js#create).
+  teamId:       z.string().uuid().optional(),
 }).superRefine((data, ctx) => {
   govtIdNumberRefinement(data.govtIdType)(data.govtIdNumber, ctx)
 })

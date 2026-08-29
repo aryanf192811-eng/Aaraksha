@@ -140,16 +140,31 @@ export default function HomePage() {
             <LogOut className="w-4.5 h-4.5" />
           </button>
         </div>
-        <p className="text-sm opacity-80 mb-4">{volunteer.full_name.split(' ')[0]} · {volunteer.district}</p>
+        <p className="text-sm opacity-80 mb-4">
+          {volunteer.full_name.split(' ')[0]} · {volunteer.district}
+          {volunteer.rescuer_type === 'OFFICIAL' && volunteer.team_name && (
+            <span className="ml-1.5 opacity-90">· {volunteer.team_name}</span>
+          )}
+        </p>
 
         <div className="flex items-center justify-between bg-white/10 rounded-2xl px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Award className="w-5 h-5" />
-            <div>
-              <p className="text-xs opacity-80 leading-tight">Reputation points</p>
-              <p className="font-display font-black text-lg leading-tight tabular-nums">{volunteer.points}</p>
+          {volunteer.rescuer_type === 'OFFICIAL' ? (
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5" />
+              <div>
+                <p className="text-xs opacity-80 leading-tight">Official rescue team</p>
+                <p className="font-display font-black text-sm leading-tight">{volunteer.team_name ?? 'Verified responder'}</p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Award className="w-5 h-5" />
+              <div>
+                <p className="text-xs opacity-80 leading-tight">Reputation points</p>
+                <p className="font-display font-black text-lg leading-tight tabular-nums">{volunteer.points}</p>
+              </div>
+            </div>
+          )}
           <button
             onClick={toggleStatus}
             disabled={togglingStatus || !volunteer.is_verified}
@@ -204,7 +219,9 @@ export default function HomePage() {
                     <p className="text-sm font-medium text-on-surface truncate">{CATEGORY_LABELS[d.category] || d.category}</p>
                     <p className="text-xs text-on-surface-variant">{formatTimeAgo(d.assigned_at)}</p>
                   </div>
-                  {d.points_awarded > 0 && <span className="text-xs font-bold text-primary">+{d.points_awarded}</span>}
+                  {volunteer.rescuer_type !== 'OFFICIAL' && d.points_awarded > 0 && (
+                    <span className="text-xs font-bold text-primary">+{d.points_awarded}</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -216,7 +233,9 @@ export default function HomePage() {
               {[
                 { icon: Radio, text: `Stay "Available" and you'll get an alert the instant an SOS fires nearby` },
                 { icon: Siren, text: 'Respond, and a live road route to them opens automatically' },
-                { icon: Award, text: 'Complete the response to earn reputation points' },
+                volunteer.rescuer_type === 'OFFICIAL'
+                  ? { icon: ShieldCheck, text: 'Verify the handoff code with the tourist once you reach them' }
+                  : { icon: Award, text: 'Complete the response to earn reputation points' },
               ].map(({ icon: Icon, text }) => (
                 <div key={text} className="flex items-center gap-3 bg-surface-container-lowest rounded-2xl px-4 py-3.5">
                   <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">

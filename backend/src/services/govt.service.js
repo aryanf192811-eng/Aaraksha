@@ -339,6 +339,7 @@ async function createVolunteer(data) {
     govtIdType: data.govtIdType, govtIdHash, govtIdSuffix: extractSuffix(data.govtIdNumber),
     district: data.district, state: data.state,
     latitude: data.latitude ?? null, longitude: data.longitude ?? null,
+    rescuerType: data.teamId ? 'OFFICIAL' : 'VOLUNTEER', teamId: data.teamId ?? null,
   }, true)
 
   logger.info({ volunteerId: volunteer.id }, 'Volunteer provisioned by govt operator')

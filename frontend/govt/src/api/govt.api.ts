@@ -160,6 +160,10 @@ export interface CreateVolunteerPayload {
   state: string
   latitude?: number
   longitude?: number
+  // Present only when provisioning an official rescue team's on-duty
+  // responder rather than a citizen volunteer -- same account/app either
+  // way, see backend/src/repositories/volunteer.repository.js#create.
+  teamId?: string
 }
 
 export interface PostNewsPayload {
