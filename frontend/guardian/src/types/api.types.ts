@@ -272,6 +272,7 @@ export interface GuardianView {
     category: string
     status: string
     createdAt: string
+    handoffVerifiedAt: string | null
     rescueTeam: {
       name: string
       type: string

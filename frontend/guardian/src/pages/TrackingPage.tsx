@@ -157,7 +157,7 @@ export default function TrackingPage() {
       setLastRefresh(new Date())
     })
     socket.on('GUARDIAN_SOS_ALERT', (data) => {
-      setView(prev => prev ? { ...prev, activeSOS: { id: data.sosId, category: data.category, status: 'ACTIVE', createdAt: data.createdAt, rescueTeam: null, rescuer: null } } : prev)
+      setView(prev => prev ? { ...prev, activeSOS: { id: data.sosId, category: data.category, status: 'ACTIVE', createdAt: data.createdAt, handoffVerifiedAt: null, rescueTeam: null, rescuer: null } } : prev)
     })
     socket.on('GUARDIAN_ETA_UPDATE', (data) => {
       setView(prev => (prev && prev.activeSOS) ? {
@@ -174,6 +174,15 @@ export default function TrackingPage() {
     // marker live between the 30s polls instead of waiting on a refetch.
     socket.on('RESCUER_LOCATION_UPDATE', (data: { latitude: number; longitude: number }) => {
       setRescuerLivePos([data.latitude, data.longitude])
+    })
+    // The rescuer has confirmed reaching the tourist in person (code +
+    // proximity check passed) — surface it the instant it happens rather
+    // than waiting on the 30s poll, since this is the reassuring moment a
+    // family member watching this screen most wants to see immediately.
+    socket.on('HANDOFF_VERIFIED', (data: { sosId: string; verifiedAt: string }) => {
+      setView(prev => (prev && prev.activeSOS && prev.activeSOS.id === data.sosId)
+        ? { ...prev, activeSOS: { ...prev.activeSOS, handoffVerifiedAt: data.verifiedAt } }
+        : prev)
     })
     return () => { disconnectSocket() }
   }, [token])
@@ -204,6 +213,11 @@ export default function TrackingPage() {
   const isUrgent = status === 'SOS' || status === 'ASSIGNED'
   const isSOSActive = status === 'SOS'
   const isAssigned = status === 'ASSIGNED'
+  // Distinct from "help is on the way" — the rescuer has confirmed reaching
+  // the tourist in person (code + proximity check passed), not just been
+  // dispatched. Still the same ASSIGNED status bucket, not a new top-level
+  // state — only the banner's copy and accent shift to reflect it.
+  const isVerified = isAssigned && !!view?.activeSOS?.handoffVerifiedAt
 
   if (loading) {
     return (
@@ -238,19 +252,19 @@ export default function TrackingPage() {
       </div>
 
       {/* ── Status Banner ─────────────────────────────────────── */}
-      <div className={`${statusConfig.banner} ${isUrgent ? 'min-h-[180px]' : 'min-h-[100px]'} px-6 py-6 flex flex-col justify-center`}>
+      <div className={`${isVerified ? 'bg-emerald-600 text-white' : statusConfig.banner} ${isUrgent ? 'min-h-[180px]' : 'min-h-[100px]'} px-6 py-6 flex flex-col justify-center`}>
         <div className="flex items-center gap-2 mb-2">
-          <div className={`w-3 h-3 rounded-full ${statusConfig.dotColor}`} />
+          <div className={`w-3 h-3 rounded-full ${isVerified ? 'bg-white' : statusConfig.dotColor}`} />
           <span className={`text-xs font-bold uppercase tracking-widest ${isUrgent ? 'text-white/80' : 'text-on-surface-variant'}`}>
-            {status.replace('_', ' ')}
+            {isVerified ? 'Confirmed' : status.replace('_', ' ')}
           </span>
         </div>
         <h1 className={`flex items-center gap-2.5 text-3xl font-black leading-tight ${isUrgent ? 'text-white' : 'text-on-surface'}`}>
-          <StatusIcon className="w-7 h-7 flex-shrink-0" />
-          {statusConfig.headline(name)}
+          {isVerified ? <CheckCircle2 className="w-7 h-7 flex-shrink-0" /> : <StatusIcon className="w-7 h-7 flex-shrink-0" />}
+          {isVerified ? `Help has reached ${name}` : statusConfig.headline(name)}
         </h1>
         <p className={`text-sm mt-1 ${isUrgent ? 'text-white/80' : 'text-on-surface-variant'}`}>
-          {statusConfig.sub}
+          {isVerified ? 'Confirmed in person — the case is being closed' : statusConfig.sub}
         </p>
         {isSOSActive && view?.activeSOS && (
           <div className="mt-3 bg-red-600 rounded-xl px-4 py-2">
@@ -259,14 +273,18 @@ export default function TrackingPage() {
           </div>
         )}
         {isAssigned && view?.activeSOS && (
-          <div className="mt-3 bg-amber-600 rounded-xl px-4 py-2">
+          <div className={`mt-3 rounded-xl px-4 py-2 ${isVerified ? 'bg-emerald-700' : 'bg-amber-600'}`}>
             <p className="text-white text-sm font-bold flex items-center gap-1.5">
-              <Truck className="w-4 h-4 flex-shrink-0" />
-              {rescuer?.name ?? view.activeSOS.rescueTeam?.name ?? 'Rescue team'} dispatched
+              {isVerified ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <Truck className="w-4 h-4 flex-shrink-0" />}
+              {isVerified
+                ? `Verified by ${rescuer?.name ?? view.activeSOS.rescueTeam?.name ?? 'the rescue team'}`
+                : `${rescuer?.name ?? view.activeSOS.rescueTeam?.name ?? 'Rescue team'} dispatched`}
             </p>
-            <p className="text-amber-100 text-xs">
+            <p className={`text-xs ${isVerified ? 'text-emerald-100' : 'text-amber-100'}`}>
               {rescuer?.kind === 'VOLUNTEER' ? 'Local Volunteer · ' : view.activeSOS.rescueTeam?.type ? `${view.activeSOS.rescueTeam.type} · ` : ''}
-              {route ? `ETA ~${formatEta(Math.round(route.durationMin))}`
+              {isVerified
+                ? (view.activeSOS.handoffVerifiedAt ? `Confirmed at ${new Date(view.activeSOS.handoffVerifiedAt).toLocaleTimeString('en-IN')}` : 'Confirmed')
+                : route ? `ETA ~${formatEta(Math.round(route.durationMin))}`
                 : view.activeSOS.rescueTeam?.etaMinutes != null ? `ETA ~${formatEta(view.activeSOS.rescueTeam.etaMinutes)}` : 'On the way'}
             </p>
           </div>
@@ -291,7 +309,8 @@ export default function TrackingPage() {
               <Circle
                 center={[view.location.latitude, view.location.longitude]}
                 radius={500}
-                color={isAssigned ? '#f59e0b' : '#ef4444'} fillColor={isAssigned ? '#f59e0b' : '#ef4444'} fillOpacity={0.15}
+                color={isVerified ? '#059669' : isAssigned ? '#f59e0b' : '#ef4444'}
+                fillColor={isVerified ? '#059669' : isAssigned ? '#f59e0b' : '#ef4444'} fillOpacity={0.15}
               />
             )}
             <Marker position={[view.location.latitude, view.location.longitude]}>

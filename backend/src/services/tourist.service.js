@@ -134,6 +134,7 @@ async function getGuardianView(token) {
     } : null,
     activeSOS:    activeSOS ? {
       id: activeSOS.id, category: activeSOS.category, status: activeSOS.status, createdAt: activeSOS.created_at,
+      handoffVerifiedAt: activeSOS.handoff_verified_at,
       rescueTeam: activeSOS.team_id ? {
         name: activeSOS.team_name, type: activeSOS.team_type,
         etaMinutes: rescueEta?.etaMinutes ?? null,
