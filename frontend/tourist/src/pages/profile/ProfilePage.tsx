@@ -4,18 +4,22 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Copy, ExternalLink, Shield, LogOut, User, Phone, Droplet, Lock, Eye, Siren, CheckCircle2, Pencil, ShieldCheck, Loader2, QrCode, Languages, FileLock2 } from 'lucide-react'
+import { ArrowLeft, Copy, ExternalLink, LogOut, User, Phone, Droplet, Lock, Eye, Siren, CheckCircle2, Pencil, ShieldCheck, Loader2, QrCode, Languages, FileLock2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { PageSkeleton } from '../../components/shared'
+import { RescueReadinessChecklist } from '../../components/shared/RescueReadinessChecklist'
 import { useAuthStore } from '../../store/auth.store'
+import { useDMS } from '../../hooks/useDMS'
 import { queryClient } from '../../lib/queryClient'
 import touristApi from '../../api/tourist.api'
+import tripApi from '../../api/trip.api'
 import { cn } from '../../lib/utils'
 import { SUPPORTED_LANGUAGES } from '../../i18n/config'
+import { TRIP_STATUSES } from '../../constants/enums'
 import type { EmergencyContact } from '../../types/api.types'
 
 export default function ProfilePage() {
@@ -33,6 +37,21 @@ export default function ProfilePage() {
     queryFn: () => touristApi.getMe().then(r => r.data.data),
     initialData: tourist || undefined,
   })
+
+  // Same query key/shape as DashboardPage's Rescue Readiness widget so the
+  // two screens share one cache entry and, more importantly, one number —
+  // this used to read the narrower, backend-computed profile.rescue_readiness_score
+  // (contact/medical-info completeness only) while the Dashboard showed a
+  // richer 6-item client-side score (also checking DMS/TSI/offline), so the
+  // same "Rescue Readiness" label could show two different percentages for
+  // the same tourist depending which screen you were on.
+  const { dms } = useDMS()
+  const { data: tripsData } = useQuery({
+    queryKey: ['trips'],
+    queryFn: () => tripApi.getMyTrips({ limit: 10 }).then(r => r.data),
+    staleTime: 60_000,
+  })
+  const activeTrip = (tripsData?.data || []).find(t => t.status === TRIP_STATUSES.ACTIVE)
 
   const { mutate: sendContactOTP, isPending: sendingOTP } = useMutation({
     mutationFn: (phone: string) => touristApi.sendEmergencyContactOTP(phone),
@@ -133,28 +152,9 @@ export default function ProfilePage() {
           </Select>
         </div>
 
-        {/* Rescue readiness */}
-        <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-primary" />
-              <span className="font-bold text-on-surface">{t('profile.rescueReadiness')}</span>
-            </div>
-            <span className={cn('font-black text-lg',
-              profile.rescue_readiness_score >= 80 ? 'text-tsi-low' :
-              profile.rescue_readiness_score >= 50 ? 'text-primary' : 'text-sos-dark'
-            )}>{profile.rescue_readiness_score}%</span>
-          </div>
-          <div className="w-full bg-surface-container-high rounded-full h-3">
-            <div className={cn('h-3 rounded-full transition-all duration-700',
-              profile.rescue_readiness_score >= 80 ? 'bg-tsi-low' :
-              profile.rescue_readiness_score >= 50 ? 'bg-primary' : 'bg-sos'
-            )} style={{ width: `${profile.rescue_readiness_score}%` }} />
-          </div>
-          <p className="text-xs text-on-surface-variant mt-2">
-            {profile.rescue_readiness_score < 100 ? t('profile.rescueReadinessIncomplete') : t('profile.rescueReadinessComplete')}
-          </p>
-        </div>
+        {/* Rescue readiness — same component and inputs as the Dashboard's,
+            so this is the same number wherever a tourist sees it. */}
+        <RescueReadinessChecklist tourist={profile} activeTrip={activeTrip} dms={dms} />
 
         {/* Health info */}
         <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 space-y-3">

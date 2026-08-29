@@ -11,6 +11,7 @@ import { Input } from '../../../components/ui/input'
 import { PasswordInput } from '../../../components/ui/password-input'
 import { Label } from '../../../components/ui/label'
 import authApi from '../../../api/auth.api'
+import { getErrorMessage } from '../../../api/client'
 import { useAuthStore } from '../../../store/auth.store'
 
 // Client-side validation is intentionally loose (length only) — the backend's
@@ -37,6 +38,11 @@ export function LoginForm({ onSwitch }: { onSwitch: () => void }) {
       toast.success(`Welcome back, ${res.data.data.tourist.full_name.split(' ')[0]}!`)
       navigate('/dashboard')
     },
+    // Previously missing entirely -- a wrong password failed completely
+    // silently: no toast, no inline error, the form just sat there with no
+    // indication anything happened. getErrorMessage() already existed for
+    // exactly this, just wasn't wired in here.
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 
   return (

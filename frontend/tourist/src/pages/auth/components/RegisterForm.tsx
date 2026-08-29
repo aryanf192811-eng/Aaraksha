@@ -14,6 +14,7 @@ import { PasswordInput } from '../../../components/ui/password-input'
 import { Label } from '../../../components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select'
 import authApi, { type RegisterPayload } from '../../../api/auth.api'
+import { getErrorMessage } from '../../../api/client'
 import { useAuthStore } from '../../../store/auth.store'
 import type { GovtIdType } from '../../../constants/enums'
 
@@ -83,6 +84,11 @@ export function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
       toast.success('Account created! Welcome to Aaraksha.')
       navigate('/dashboard')
     },
+    // Previously missing -- a backend-side rejection (duplicate phone,
+    // duplicate govt ID, a validation rule the client-side Zod schema
+    // doesn't also encode) failed completely silently after all 3 steps
+    // were filled in, with no indication anything went wrong.
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 
   const handleStep1 = step1.handleSubmit((d) => {
