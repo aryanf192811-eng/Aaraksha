@@ -12,7 +12,7 @@ screenshots live in `docs/screenshots/`. Don't mix the three.
 | # | Phase | Report | Status |
 |---|---|---|---|
 | 1 | System audit | [`01-system-audit.md`](./01-system-audit.md) | PASS WITH ISSUES |
-| 2 | Backend/API/DB | `02-backend-api-db.md` | not started |
+| 2 | Backend/API/DB | [`02-backend-api-db.md`](./02-backend-api-db.md) | PASS WITH ISSUES |
 | 3 | Tourist PWA | `03-tourist-pwa.md` | not started |
 | 4 | Government Command Center | `04-government-portal.md` | not started |
 | 5 | Guardian Portal | `05-guardian-portal.md` | not started |

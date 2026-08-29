@@ -80,7 +80,7 @@ async function requestDeletion(touristId) {
   if (openSOS > 0 || openIncidents > 0) {
     const reasons = []
     if (openSOS > 0) reasons.push(`${openSOS} active SOS event${openSOS === 1 ? '' : 's'}`)
-    if (openIncidents > 0) reasons.push(`${openIncidents} open E-FIR case${openIncidents === 1 ? '' : 's'}`)
+    if (openIncidents > 0) reasons.push(`${openIncidents} E-FIR case${openIncidents === 1 ? '' : 's'}`)
     const reason = `Deletion deferred — ${reasons.join(' and ')} still open. Retention is required until resolved; you can request deletion again afterward.`
     const request = await repo.createDeletionRequest(touristId, 'DENIED', reason)
     logger.info({ touristId, requestId: request.id }, 'Data deletion request deferred — open safety/legal record')
