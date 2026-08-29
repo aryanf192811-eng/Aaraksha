@@ -86,7 +86,13 @@ router.patch('/rescue-teams/:id/status', requireGovtRole(...COMMAND_CENTER_ROLES
 router.post('/checkpoint/scan',
   requireGovtRole(GOVT_ROLES.SUPER_ADMIN, GOVT_ROLES.POLICE, GOVT_ROLES.TOURISM_OFFICER, GOVT_ROLES.CHECKPOINT_OFFICER),
   validate(ScanCheckpointSchema), ctrl.scanCheckpoint)
-router.get('/checkpoint/recent',   ctrl.getRecentCheckpointScans)
+// Missing this same role gate every sibling route above has meant any
+// authenticated govt account -- including a CHECKPOINT_OFFICER, whose
+// entire intended access is the scan endpoints above -- could read tourist
+// name+phone across every checkpoint scan nationwide. Found in Phase 9's
+// security audit; the surrounding comment already documented the intended
+// scope (command-center roles only), the route just never enforced it.
+router.get('/checkpoint/recent',   requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getRecentCheckpointScans)
 router.post('/destinations/:id/news', requireGovtRole(...COMMAND_CENTER_ROLES), validate(PostNewsSchema), ctrl.postDestinationNews)
 router.get('/volunteers',              requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getAllVolunteers)
 router.post('/volunteers',             requireGovtRole(...COMMAND_CENTER_ROLES), validate(CreateVolunteerByGovtSchema), ctrl.createVolunteer)

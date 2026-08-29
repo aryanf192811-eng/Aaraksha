@@ -17,6 +17,22 @@ function optionalEnv(key, defaultVal = null) {
   return process.env[key]?.trim() || defaultVal
 }
 
+// scripts/preflight.js already checked JWT_SECRET's length, but that script
+// is a manual/CI convenience, not part of the actual boot path (render.yaml's
+// startCommand is `npm run migrate && npm start`, never preflight.js) -- a
+// deploy that skips running it would boot fine on a 1-character JWT_SECRET,
+// producing brute-forceable HS256 tokens. Found in Phase 9's security audit.
+// Moved here so every real boot enforces it, and extended to the other two
+// HMAC secrets (GOVT_ID_SECRET, GUARDIAN_SECRET) for the same reason -- they
+// weren't checked anywhere at all before, not even in preflight.js.
+function requireSecret(key, minLength = 32) {
+  const val = requireEnv(key)
+  if (val.length < minLength) {
+    throw new Error(`[ENV] "${key}" is only ${val.length} characters — must be at least ${minLength} for a brute-force-resistant HMAC/JWT key.`)
+  }
+  return val
+}
+
 const config = {
   // Core
   nodeEnv:     requireEnv('NODE_ENV'),
@@ -45,15 +61,15 @@ const config = {
 
   // JWT
   jwt: {
-    secret:    requireEnv('JWT_SECRET'),
+    secret:    requireSecret('JWT_SECRET'),
     expiresIn: optionalEnv('JWT_EXPIRES_IN', '24h'),
   },
 
   // Security
   security: {
     bcryptRounds: parseInt(optionalEnv('BCRYPT_ROUNDS', '12'), 10),
-    govtIdSecret: requireEnv('GOVT_ID_SECRET'),
-    guardianSecret: requireEnv('GUARDIAN_SECRET'),
+    govtIdSecret: requireSecret('GOVT_ID_SECRET'),
+    guardianSecret: requireSecret('GUARDIAN_SECRET'),
   },
 
   // Rate limiting

@@ -43,7 +43,21 @@ app.use((req, _res, next) => {
   next()
 })
 
-// ── Uploaded content (review photos) ─────────────────────────────────
+// ── Uploaded content ──────────────────────────────────────────────────
+// /uploads/incidents holds E-FIR evidence photos -- sensitive, unlike the
+// public review photos the rest of /uploads serves. The app-wide Helmet
+// crossOriginResourcePolicy below is set to 'cross-origin' for the PDF
+// download routes, which as a side effect let ANY third-party site
+// embed/hotlink these evidence photos cross-origin too (found in Phase 9's
+// security audit). Registered before the general /uploads mount so Express
+// matches this more specific path first and overrides the header just for
+// this subtree -- doesn't touch the PDF routes' own requirement, and
+// doesn't add auth (see docs/testing/09-security-audit.md's Remaining
+// Issues for why that's a bigger follow-up, not this fix).
+app.use('/uploads/incidents', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
+  next()
+}, express.static(path.join(__dirname, '../uploads/incidents')))
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 // ── Health check (no auth, no rate limit) ────────────────────────────
