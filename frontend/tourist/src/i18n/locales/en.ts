@@ -123,7 +123,7 @@ export default {
     hideLink: 'Hide link',
     copyLink: 'Copy Link',
     shareLink: 'Share',
-    guardianLinkValidity: 'Valid for 90 days · Renews automatically',
+    guardianLinkValidity: 'Valid for 90 days from registration',
     digitalId: 'Digital Tourist ID',
     digitalIdDescription: 'Show your verified ID at govt checkpoints and ILP posts',
     footer: 'Aaraksha v1.0.0 · SIH 2025 · Smart Tourism · Safe Journey',

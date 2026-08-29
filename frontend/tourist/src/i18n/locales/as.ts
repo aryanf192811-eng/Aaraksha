@@ -127,7 +127,7 @@ export default {
     hideLink: 'লিংক লুকুৱাওক',
     copyLink: 'লিংক কপি কৰক',
     shareLink: 'শ্বেয়াৰ কৰক',
-    guardianLinkValidity: '৯০ দিনৰ বাবে বৈধ · স্বয়ংক্ৰিয়ভাৱে নবীকৰণ',
+    guardianLinkValidity: 'পঞ্জীয়নৰ পৰা ৯০ দিনলৈকে বৈধ',
     digitalId: 'ডিজিটেল পৰ্যটক পৰিচয় পত্ৰ',
     digitalIdDescription: 'চৰকাৰী চেকপষ্ট আৰু ILP পষ্টত আপোনাৰ সত্যাপিত পৰিচয় দেখুৱাওক',
     footer: "Aaraksha v1.0.0 · SIH 2025 · স্মাৰ্ট পৰ্যটন · সুৰক্ষিত যাত্ৰা",

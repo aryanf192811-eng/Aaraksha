@@ -15,7 +15,7 @@ screenshots live in `docs/screenshots/`. Don't mix the three.
 | 2 | Backend/API/DB | [`02-backend-api-db.md`](./02-backend-api-db.md) | PASS WITH ISSUES |
 | 3 | Tourist PWA | [`03-tourist-pwa.md`](./03-tourist-pwa.md) | PASS WITH ISSUES |
 | 4 | Government Command Center | [`04-government-portal.md`](./04-government-portal.md) | PASS WITH ISSUES |
-| 5 | Guardian Portal | `05-guardian-portal.md` | not started |
+| 5 | Guardian Portal | [`05-guardian-portal.md`](./05-guardian-portal.md) | PASS WITH ISSUES |
 | 6 | Rescuer App | `06-rescuer-app.md` | not started |
 | 7 | Cross-portal E2E | `07-cross-portal-e2e.md` | not started |
 | 8 | Offline/resilience | `08-offline-resilience.md` | not started |

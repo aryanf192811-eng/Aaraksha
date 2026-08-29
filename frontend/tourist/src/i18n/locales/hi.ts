@@ -121,7 +121,7 @@ export default {
     hideLink: 'लिंक छुपाएं',
     copyLink: 'लिंक कॉपी करें',
     shareLink: 'साझा करें',
-    guardianLinkValidity: '90 दिनों के लिए मान्य · स्वतः नवीनीकरण',
+    guardianLinkValidity: 'पंजीकरण से 90 दिनों तक मान्य',
     digitalId: 'डिजिटल पर्यटक पहचान पत्र',
     digitalIdDescription: 'सरकारी चौकियों और ILP पोस्ट पर अपनी सत्यापित पहचान दिखाएं',
     footer: 'Aaraksha v1.0.0 · SIH 2025 · स्मार्ट पर्यटन · सुरक्षित यात्रा',
