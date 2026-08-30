@@ -58,6 +58,14 @@ const ERRORS = Object.freeze({
   // Guardian
   GUARDIAN_TOKEN_INVALID: 'Tracking link not found or expired',
 
+  // Messaging
+  MESSAGE_NOT_YOUR_SOS:       'This SOS doesn\'t belong to you',
+  MESSAGE_NO_ACTIVE_RESCUER:  'No active rescuer assigned to this SOS — nobody to message yet',
+  MESSAGE_NOT_YOUR_ASSIGNMENT:'You\'re not the currently assigned rescuer for this SOS',
+  MESSAGE_SOS_CLOSED:         'This rescue is closed — you can still read the conversation, but new messages can\'t be sent',
+  MESSAGE_TEAM_NOT_SUPPORTED: 'Official rescue teams don\'t have in-app messaging yet — use the phone number shown instead',
+  MESSAGE_NO_ASSIGNMENT:      'No active rescue assignment — the case may have been resolved, declined, or reassigned since you last checked',
+
   // Volunteer
   VOLUNTEER_PHONE_TAKEN:   'Phone number already registered as a volunteer',
   VOLUNTEER_GOVTID_TAKEN:  'A volunteer is already registered with this government ID',

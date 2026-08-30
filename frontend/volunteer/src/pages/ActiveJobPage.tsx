@@ -3,9 +3,11 @@
 // official or not — see rescue.repository.js#findActiveAssignmentByVolunteerId).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Siren, Navigation2, LocateFixed, User, Clock, CheckCircle2, MapPinned, UserCheck, Flag, Check, KeyRound, Phone, Loader2, XCircle, ChevronDown } from 'lucide-react'
+import { Siren, Navigation2, LocateFixed, User, Clock, CheckCircle2, MapPinned, UserCheck, Flag, Check, KeyRound, Phone, Loader2, XCircle, ChevronDown, MessageCircle, X } from 'lucide-react'
+import { getSocket } from '../lib/socket'
+import { MessageThread } from '../components/MessageThread'
 // MapLibre GL over free vector tiles (OpenFreeMap, no API key) instead of
 // Leaflet + raster OSM — same swap as the tourist app's RescueTrackingCard,
 // so both sides of the live rescue view now share one rendering engine and
@@ -75,6 +77,8 @@ const LOCATION_PUSH_INTERVAL_MS = 9000
 
 export default function ActiveJobPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [showChat, setShowChat] = useState(false)
   const [rescuerPos, setRescuerPos] = useState<[number, number] | null>(null)
   const [route, setRoute] = useState<Route | null>(null)
   const lastPushRef = useRef(0)
@@ -89,6 +93,33 @@ export default function ActiveJobPage() {
     queryFn: () => volunteerApi.getActiveAssignment().then((r) => r.data.data),
     refetchInterval: 20_000,
   })
+
+  // Tourist <-> Rescuer messaging, scoped to this one active assignment —
+  // extends the tel: call button already on this page.
+  const { data: messages, isLoading: loadingMessages } = useQuery({
+    queryKey: ['volunteer', 'assignment-messages'],
+    queryFn: () => volunteerApi.getAssignmentMessages().then((r) => r.data.data),
+    enabled: showChat,
+    staleTime: 5_000,
+  })
+  const { mutate: sendMessage, isPending: sendingMessage } = useMutation({
+    mutationFn: (body: string) => volunteerApi.sendAssignmentMessage(body),
+    onSuccess: (res) => {
+      queryClient.setQueryData(['volunteer', 'assignment-messages'], (prev: typeof messages) => [...(prev ?? []), res.data.data])
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to send'),
+  })
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+    const onMessage = (payload: { conversation_type: string }) => {
+      if (payload.conversation_type === 'TOURIST_RESCUER') {
+        queryClient.invalidateQueries({ queryKey: ['volunteer', 'assignment-messages'] })
+      }
+    }
+    socket.on('MESSAGE_RECEIVED', onMessage)
+    return () => { socket.off('MESSAGE_RECEIVED', onMessage) }
+  }, [queryClient])
 
   const sosPos = useMemo<[number, number] | null>(() => {
     if (!assignment) return null
@@ -478,6 +509,10 @@ export default function ActiveJobPage() {
                 onChange={(e) => setHandoffCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 className="flex-1 h-11 rounded-xl border border-outline-variant px-3 text-center text-lg font-black tracking-[0.3em] tabular-nums focus:outline-none focus:border-primary"
               />
+              <button onClick={() => setShowChat(true)} title="Message them"
+                className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center flex-shrink-0">
+                <MessageCircle className="w-4.5 h-4.5 text-on-surface-variant" />
+              </button>
               {assignment.tourist_phone && (
                 <a href={`tel:${assignment.tourist_phone}`} title="Call them"
                   className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center flex-shrink-0">
@@ -545,6 +580,29 @@ export default function ActiveJobPage() {
           </div>
         )}
       </div>
+
+      {/* ── Message thread — custom overlay, this app has no Dialog
+          primitive (everything here is hand-rolled Tailwind, see the
+          bottom sheet above), so this matches that same fixed-overlay
+          pattern rather than pulling in a new component library. */}
+      {showChat && (
+        <div className="fixed inset-0 z-[1100] flex items-end sm:items-center sm:justify-center bg-black/40" onClick={() => setShowChat(false)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="w-full sm:w-[420px] sm:rounded-3xl bg-white rounded-t-3xl shadow-2xl h-[70vh] max-h-[560px] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-outline-variant flex-shrink-0">
+              <p className="flex items-center gap-2 font-bold text-on-surface">
+                <MessageCircle className="w-4.5 h-4.5 text-primary" /> {assignment.tourist_name ?? 'Tourist'}
+              </p>
+              <button onClick={() => setShowChat(false)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container">
+                <X className="w-4 h-4 text-on-surface-variant" />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0">
+              <MessageThread messages={messages} isLoading={loadingMessages} onSend={sendMessage} sending={sendingMessage} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

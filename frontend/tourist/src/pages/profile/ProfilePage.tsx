@@ -1,22 +1,25 @@
 // src/pages/profile/ProfilePage.tsx
 // Profile: personal info, govt ID suffix, guardian link, emergency contacts
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Copy, ExternalLink, LogOut, User, Phone, Droplet, Lock, Eye, Siren, CheckCircle2, Pencil, ShieldCheck, Loader2, QrCode, Languages, FileLock2, HelpCircle } from 'lucide-react'
+import { ArrowLeft, Copy, ExternalLink, LogOut, User, Phone, Droplet, Lock, Eye, Siren, CheckCircle2, Pencil, ShieldCheck, Loader2, QrCode, Languages, FileLock2, HelpCircle, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
-import { PageSkeleton } from '../../components/shared'
+import { PageSkeleton, MessageThread } from '../../components/shared'
 import { RescueReadinessChecklist } from '../../components/shared/RescueReadinessChecklist'
 import { useAuthStore } from '../../store/auth.store'
 import { useDMS } from '../../hooks/useDMS'
 import { queryClient } from '../../lib/queryClient'
 import touristApi from '../../api/tourist.api'
 import tripApi from '../../api/trip.api'
+import { getSocket } from '../../lib/socket'
+import { SOCKET_EVENTS } from '../../constants/enums'
+import { getErrorMessage } from '../../api/client'
 import { cn } from '../../lib/utils'
 import { SUPPORTED_LANGUAGES } from '../../i18n/config'
 import { TRIP_STATUSES } from '../../constants/enums'
@@ -27,6 +30,7 @@ export default function ProfilePage() {
   const { t, i18n } = useTranslation()
   const { tourist, logout } = useAuthStore()
   const [showGuardianLink, setShowGuardianLink] = useState(false)
+  const [showGuardianChat, setShowGuardianChat] = useState(false)
   const [verifyingContact, setVerifyingContact] = useState<EmergencyContact | null>(null)
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
@@ -99,6 +103,38 @@ export default function ProfilePage() {
     await navigator.clipboard.writeText(guardianUrl)
     toast.success(t('profile.toastLinkCopied'))
   }
+
+  // Tourist <-> Guardian messaging — always available (not gated on an
+  // active SOS), reused from the same MessageThread the rescue thread on
+  // RescueTrackingCard.tsx uses.
+  const { data: guardianMessages, isLoading: loadingGuardianMessages } = useQuery({
+    queryKey: ['messages', 'guardian'],
+    queryFn: () => touristApi.getGuardianMessages().then(r => r.data.data),
+    enabled: showGuardianChat,
+    staleTime: 5_000,
+  })
+  const { mutate: sendGuardianMessage, isPending: sendingGuardianMessage } = useMutation({
+    mutationFn: (body: string) => touristApi.sendGuardianMessage(body),
+    onSuccess: (res) => {
+      queryClient.setQueryData(['messages', 'guardian'], (prev: typeof guardianMessages) => [...(prev ?? []), res.data.data])
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+    // MESSAGE_RECEIVED fans out for both threads this tourist has (guardian
+    // + any active rescue) -- only touch this query for a guardian-thread
+    // message, or a reply arriving on the rescue thread would trigger a
+    // pointless refetch here.
+    const onMessage = (payload: { conversation_type: string }) => {
+      if (payload.conversation_type === 'TOURIST_GUARDIAN') {
+        queryClient.invalidateQueries({ queryKey: ['messages', 'guardian'] })
+      }
+    }
+    socket.on(SOCKET_EVENTS.MESSAGE_RECEIVED, onMessage)
+    return () => { socket.off(SOCKET_EVENTS.MESSAGE_RECEIVED, onMessage) }
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -258,7 +294,11 @@ export default function ProfilePage() {
               </Button>
             )}
           </div>
-          <p className="text-xs text-primary mt-2">{t('profile.guardianLinkValidity')}</p>
+          <p className="text-xs text-primary mt-2 mb-3">{t('profile.guardianLinkValidity')}</p>
+          <button onClick={() => setShowGuardianChat(true)}
+            className="w-full h-10 rounded-full bg-surface-container-lowest text-primary text-xs font-bold flex items-center justify-center gap-1.5 border border-primary/20">
+            <MessageCircle className="w-3.5 h-3.5" /> Message your guardian
+          </button>
         </div>
 
         {/* Digital Tourist ID */}
@@ -307,6 +347,26 @@ export default function ProfilePage() {
           <CheckCircle2 className="w-3 h-3" /> {t('profile.footer')}
         </p>
       </div>
+
+      <Dialog open={showGuardianChat} onOpenChange={setShowGuardianChat}>
+        <DialogContent className="p-0 gap-0 h-[70vh] max-h-[560px] flex flex-col overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-3 border-b border-outline-variant flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <MessageCircle className="w-4.5 h-4.5 text-primary" /> Your guardian
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            <MessageThread
+              messages={guardianMessages}
+              isLoading={loadingGuardianMessages}
+              mine="TOURIST"
+              onSend={sendGuardianMessage}
+              sending={sendingGuardianMessage}
+              emptyHint="No messages yet — send a quick update to reassure whoever's tracking your journey."
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!verifyingContact} onOpenChange={(open) => !open && closeVerifyDialog()}>
         <DialogContent>

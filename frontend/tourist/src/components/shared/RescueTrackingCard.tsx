@@ -7,7 +7,7 @@
 // the RESCUER_LOCATION_UPDATE push (see ActiveJobPage.tsx on the Rescuer
 // app side) — the road route is real OSRM routing, not a straight line.
 import { useEffect, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 // MapLibre GL over free vector tiles (OpenFreeMap, no API key) instead of
 // Leaflet + raster OSM — real road labels/rendering at a premium level
 // Leaflet's raster tiles can't match, same rendering engine already proven
@@ -15,7 +15,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Map as MapLibreMap, Marker as MapLibreMarker, NavigationControl, type GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { Feature, LineString } from 'geojson'
-import { ShieldCheck, Phone, Navigation, LocateFixed, UserCheck, Navigation2, Flag, Check, KeyRound, ShieldAlert, RotateCw, Loader2 } from 'lucide-react'
+import { ShieldCheck, Phone, Navigation, LocateFixed, UserCheck, Navigation2, Flag, Check, KeyRound, ShieldAlert, RotateCw, Loader2, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import sosApi from '../../api/sos.api'
 import { getSocket } from '../../lib/socket'
@@ -23,6 +23,8 @@ import { SOCKET_EVENTS } from '../../constants/enums'
 import { getRoute, type Route } from '../../lib/osrm'
 import { getErrorMessage } from '../../api/client'
 import { cn } from '../../lib/utils'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
+import { MessageThread } from './MessageThread'
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 
@@ -166,6 +168,7 @@ export function RescueTrackingCard() {
   const [livePos, setLivePos] = useState<[number, number] | null>(null)
   const [route, setRoute] = useState<Route | null>(null)
   const [follow, setFollow] = useState(false)
+  const [showChat, setShowChat] = useState(false)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const rescuerMarkerRef = useRef<MapLibreMarker | null>(null)
@@ -199,6 +202,35 @@ export function RescueTrackingCard() {
       socket.off(SOCKET_EVENTS.HANDOFF_VERIFIED, onUpdate)
     }
   }, [queryClient])
+
+  // Tourist <-> Rescuer messaging — scoped to this one active assignment,
+  // extends the tel: link right next to it. sosId only exists once the
+  // active-rescue query above has resolved, so this stays disabled until then.
+  const sosId = data?.sosId
+  const { data: rescueMessages, isLoading: loadingRescueMessages } = useQuery({
+    queryKey: ['messages', 'rescue', sosId],
+    queryFn: () => sosApi.getRescueMessages(sosId!).then(r => r.data.data),
+    enabled: showChat && !!sosId,
+    staleTime: 5_000,
+  })
+  const { mutate: sendRescueMessage, isPending: sendingRescueMessage } = useMutation({
+    mutationFn: (body: string) => sosApi.sendRescueMessage(sosId!, body),
+    onSuccess: (res) => {
+      queryClient.setQueryData(['messages', 'rescue', sosId], (prev: typeof rescueMessages) => [...(prev ?? []), res.data.data])
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket || !sosId) return
+    const onMessage = (payload: { conversation_type: string; sos_event_id: string | null }) => {
+      if (payload.conversation_type === 'TOURIST_RESCUER' && payload.sos_event_id === sosId) {
+        queryClient.invalidateQueries({ queryKey: ['messages', 'rescue', sosId] })
+      }
+    }
+    socket.on(SOCKET_EVENTS.MESSAGE_RECEIVED, onMessage)
+    return () => { socket.off(SOCKET_EVENTS.MESSAGE_RECEIVED, onMessage) }
+  }, [sosId, queryClient])
 
   const rescuer = data?.rescuer
   const rescuerPos: [number, number] | null = rescuer
@@ -407,6 +439,10 @@ export function RescueTrackingCard() {
               {rescuer.isLive && ' · Live'}
             </p>
           </div>
+          <button onClick={() => setShowChat(true)}
+            className="w-9 h-9 rounded-full bg-tsi-low/20 flex items-center justify-center flex-shrink-0">
+            <MessageCircle className="w-4 h-4 text-tsi-low" />
+          </button>
           <a href={`tel:${rescuer.phone}`}
             className="w-9 h-9 rounded-full bg-tsi-low/20 flex items-center justify-center flex-shrink-0">
             <Phone className="w-4 h-4 text-tsi-low" />
@@ -462,6 +498,27 @@ export function RescueTrackingCard() {
           </div>
         </div>
       )}
+
+      <Dialog open={showChat} onOpenChange={setShowChat}>
+        <DialogContent className="p-0 gap-0 h-[70vh] max-h-[560px] flex flex-col overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-3 border-b border-outline-variant flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <MessageCircle className="w-4.5 h-4.5 text-tsi-low" /> {rescuer.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            <MessageThread
+              messages={rescueMessages}
+              isLoading={loadingRescueMessages}
+              mine="TOURIST"
+              onSend={sendRescueMessage}
+              sending={sendingRescueMessage}
+              disabledReason={rescuer.kind === 'TEAM' ? "Official rescue teams don't have in-app messaging yet — use the call button instead." : null}
+              emptyHint="No messages yet — let your rescuer know anything they should see on arrival."
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -118,3 +118,17 @@ export interface RescuerStatusUpdatePayload {
   status: 'EN_ROUTE' | 'ARRIVED'
   updatedAt: string
 }
+
+// Chat message — Tourist<->Guardian (sos_event_id null) or Tourist<->Rescuer
+// (sos_event_id set), see backend/src/repositories/message.repository.js.
+export interface Message {
+  id: string
+  conversation_type: "TOURIST_GUARDIAN" | "TOURIST_RESCUER"
+  tourist_id: string
+  sos_event_id: string | null
+  sender_kind: "TOURIST" | "GUARDIAN" | "VOLUNTEER" | "TEAM"
+  sender_id: string | null
+  body: string
+  read_at: string | null
+  created_at: string
+}

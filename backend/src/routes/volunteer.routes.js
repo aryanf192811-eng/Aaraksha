@@ -3,10 +3,12 @@
 
 const router = require('express').Router()
 const ctrl = require('../controllers/volunteer.controller')
+const messageCtrl = require('../controllers/message.controller')
 const { validate } = require('../middleware/validate')
 const { authenticateVolunteer } = require('../middleware/auth')
-const { createAuthLimiter } = require('../middleware/rateLimiter')
+const { createAuthLimiter, createMessageLimiter } = require('../middleware/rateLimiter')
 const { UUIDParamSchema } = require('../validators/common.validator')
+const { SendMessageSchema } = require('../validators/message.validator')
 const {
   RegisterVolunteerSchema, LoginVolunteerSchema,
   UpdateVolunteerStatusSchema, UpdateDispatchStatusSchema, UpdateLocationSchema,
@@ -29,6 +31,8 @@ router.patch('/me/location',       validate(UpdateLocationSchema), ctrl.updateLo
 router.patch('/me/assignment/status', validate(UpdateAssignmentStatusSchema), ctrl.updateAssignmentStatus)
 router.post('/me/assignment/verify-handoff', validate(VerifyHandoffSchema), ctrl.verifyHandoff)
 router.post('/me/assignment/exit', validate(ExitAssignmentSchema), ctrl.exitAssignment)
+router.get('/me/assignment/messages',  messageCtrl.getRescueThreadAsVolunteer)
+router.post('/me/assignment/messages', createMessageLimiter(), validate(SendMessageSchema), messageCtrl.sendRescueMessageAsVolunteer)
 router.patch('/dispatches/:id/status',
   validate(UUIDParamSchema, 'params'), validate(UpdateDispatchStatusSchema), ctrl.updateDispatchStatus)
 

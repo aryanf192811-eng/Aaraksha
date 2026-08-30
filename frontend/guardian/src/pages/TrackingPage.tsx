@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off, LocateFixed, Truck } from 'lucide-react'
+import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off, LocateFixed, Truck, MessageCircle, X } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
@@ -11,7 +11,8 @@ import touristApi from '../api/tourist.api'
 import { connectSocket, disconnectSocket } from '../lib/socket'
 import { getErrorMessage } from '../api/client'
 import { getRoute, type Route } from '../lib/osrm'
-import type { GuardianView } from '../types/api.types'
+import { MessageThread } from '../components/MessageThread'
+import type { GuardianView, Message } from '../types/api.types'
 
 // Fix Leaflet's default marker icon — its bundled asset paths break under
 // Vite's bundling, so point at the CDN copies instead (standard workaround).
@@ -123,6 +124,10 @@ export default function TrackingPage() {
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [rescuerLivePos, setRescuerLivePos] = useState<[number, number] | null>(null)
   const [route, setRoute] = useState<Route | null>(null)
+  const [showChat, setShowChat] = useState(false)
+  const [messages, setMessages] = useState<Message[] | null>(null)
+  const [loadingMessages, setLoadingMessages] = useState(false)
+  const [sendingMessage, setSendingMessage] = useState(false)
 
   const fetchTracking = async () => {
     if (!token) return
@@ -135,6 +140,39 @@ export default function TrackingPage() {
       setError(getErrorMessage(err))
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Tourist <-> Guardian messaging — always available, not gated on an
+  // active SOS. Fetched on-demand when the chat panel opens rather than
+  // alongside the 30s tracking poll, since most visits never open it.
+  const fetchMessages = async () => {
+    if (!token) return
+    setLoadingMessages(true)
+    try {
+      const res = await touristApi.getGuardianMessages(token)
+      setMessages(res.data.data)
+    } catch (err) {
+      toast.error(getErrorMessage(err))
+    } finally {
+      setLoadingMessages(false)
+    }
+  }
+  useEffect(() => {
+    if (showChat) fetchMessages()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showChat])
+
+  const sendMessage = async (body: string) => {
+    if (!token) return
+    setSendingMessage(true)
+    try {
+      const res = await touristApi.sendGuardianMessage(token, body)
+      setMessages((prev) => [...(prev ?? []), res.data.data])
+    } catch (err) {
+      toast.error(getErrorMessage(err))
+    } finally {
+      setSendingMessage(false)
     }
   }
 
@@ -201,6 +239,17 @@ export default function TrackingPage() {
         description: data.reason || undefined,
         duration: 10000,
       })
+    })
+    // A new guardian-thread message — append it live if the panel is open,
+    // matching what the tourist app's own MESSAGE_RECEIVED handler does.
+    // Rescue-thread messages (conversation_type TOURIST_RESCUER) fan out on
+    // this same event name too, but this portal never opens that thread, so
+    // filtering to TOURIST_GUARDIAN keeps it from appending someone else's
+    // conversation here.
+    socket.on('MESSAGE_RECEIVED', (data: Message) => {
+      if (data.conversation_type === 'TOURIST_GUARDIAN') {
+        setMessages((prev) => (prev ? [...prev, data] : prev))
+      }
     })
     return () => { disconnectSocket() }
   }, [token])
@@ -438,6 +487,14 @@ export default function TrackingPage() {
           </div>
         )}
 
+        {/* Message the traveler — always available, not tied to an active
+            SOS. This portal had no way to reach the traveler at all before
+            (no tel: link either) — genuinely new, not an extension. */}
+        <button onClick={() => setShowChat(true)}
+          className="w-full h-12 rounded-2xl bg-primary text-white font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform">
+          <MessageCircle className="w-4.5 h-4.5" /> Message {name}
+        </button>
+
         {/* Refresh indicator */}
         <div className="flex items-center justify-center gap-2 py-4">
           <RefreshCw className="w-3.5 h-3.5 text-on-surface-variant" />
@@ -456,6 +513,25 @@ export default function TrackingPage() {
           <span className="text-sm text-on-surface-variant">Aaraksha · Smart Tourism · Safe Journey</span>
         </div>
       </div>
+
+      {showChat && (
+        <div className="fixed inset-0 z-[1100] flex items-end sm:items-center sm:justify-center bg-black/40" onClick={() => setShowChat(false)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="w-full sm:w-[420px] sm:rounded-3xl bg-white rounded-t-3xl shadow-2xl h-[70vh] max-h-[560px] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-outline-variant flex-shrink-0">
+              <p className="flex items-center gap-2 font-bold text-on-surface">
+                <MessageCircle className="w-4.5 h-4.5 text-primary" /> {name}
+              </p>
+              <button onClick={() => setShowChat(false)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container">
+                <X className="w-4 h-4 text-on-surface-variant" />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0">
+              <MessageThread messages={messages ?? undefined} isLoading={loadingMessages} onSend={sendMessage} sending={sendingMessage} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

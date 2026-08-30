@@ -405,6 +405,18 @@ function emitIncidentStatusUpdated(incident) {
   }
 }
 
+// A new chat message landed in either thread — fan out to whichever rooms
+// are actually party to it. Guardian-thread messages never reach the
+// rescuer room and vice versa; the two threads stay genuinely separate.
+// `touristId` is always present (both threads anchor to it); pass
+// `guardianToken` for a TOURIST_GUARDIAN message, `volunteerId` for a
+// TOURIST_RESCUER one — never both.
+function emitMessageReceived(message, { touristId, guardianToken, volunteerId }) {
+  safeEmit(SOCKET_ROOMS.tourist(touristId), SOCKET_EVENTS.MESSAGE_RECEIVED, message)
+  if (guardianToken) safeEmit(SOCKET_ROOMS.guardian(guardianToken), SOCKET_EVENTS.MESSAGE_RECEIVED, message)
+  if (volunteerId)   safeEmit(SOCKET_ROOMS.volunteer(volunteerId), SOCKET_EVENTS.MESSAGE_RECEIVED, message)
+}
+
 module.exports = {
   emitSOSReceived, emitSOSResolved, emitRescueAssigned, emitDMSTriggered,
   emitTSIUpdated, emitCheckinUpdate, emitGuardianSOSAlert, emitGuardianRescueAssigned,
@@ -414,4 +426,5 @@ module.exports = {
   emitHandoffVerified, emitAssignmentCancelled,
   emitAnomalyDetected, emitAnomalyResolved,
   emitIncidentFiled, emitIncidentStatusUpdated,
+  emitMessageReceived,
 }

@@ -2,7 +2,7 @@
 // FIELD NAMES: verified against backend src/validators/volunteer.validator.js
 // and src/routes/volunteer.routes.js
 import api from './client'
-import type { APIResponse, Volunteer, VolunteerAuthResponse, Dispatch, ActiveAssignment } from '../types/api.types'
+import type { APIResponse, Volunteer, VolunteerAuthResponse, Dispatch, ActiveAssignment, Message } from '../types/api.types'
 
 export interface RegisterVolunteerPayload {
   fullName: string
@@ -57,6 +57,14 @@ const volunteerApi = {
   // starting" and "can't continue mid-response".
   exitAssignment: (reason: string) =>
     api.post<APIResponse<ActiveAssignment>>('/volunteers/me/assignment/exit', { reason }),
+
+  // Tourist <-> Rescuer messaging, scoped to the current active assignment
+  // (resolved server-side — no sosId needed here).
+  getAssignmentMessages: () =>
+    api.get<APIResponse<Message[]>>('/volunteers/me/assignment/messages'),
+
+  sendAssignmentMessage: (body: string) =>
+    api.post<APIResponse<Message>>('/volunteers/me/assignment/messages', { body }),
 }
 
 export default volunteerApi

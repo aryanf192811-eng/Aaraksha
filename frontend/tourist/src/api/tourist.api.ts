@@ -2,7 +2,7 @@
 // FIELD NAMES: verified against backend src/routes/tourist.routes.js's
 // inline UpdateProfileSchema (max 3 emergency contacts).
 import api from './client'
-import type { APIResponse, Tourist, GuardianView, EmergencyContact } from '../types/api.types'
+import type { APIResponse, Tourist, GuardianView, EmergencyContact, Message } from '../types/api.types'
 
 export interface UpdateProfilePayload {
   fullName?: string
@@ -31,6 +31,14 @@ const touristApi = {
 
   verifyEmergencyContactOTP: (phone: string, otp: string) =>
     api.post<APIResponse<Tourist>>('/tourists/emergency-contacts/verify-otp', { phone, otp }),
+
+  // Tourist <-> Guardian messaging — always available, not gated on an
+  // active SOS.
+  getGuardianMessages: () =>
+    api.get<APIResponse<Message[]>>('/tourists/me/guardian-messages'),
+
+  sendGuardianMessage: (body: string) =>
+    api.post<APIResponse<Message>>('/tourists/me/guardian-messages', { body }),
 }
 
 export default touristApi

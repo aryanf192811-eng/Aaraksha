@@ -53,4 +53,19 @@ const webhookLimiter = rateLimit({
   max:      config.rateLimit.webhookMax,
 })
 
-module.exports = { generalLimiter, createAuthLimiter, createOtpLimiter, webhookLimiter }
+// Per-conversation, not just per-IP — copies createOtpLimiter's composite
+// keyGenerator precedent so one noisy conversation can't drain another
+// tourist's messaging budget on the same IP (e.g. a shared govt-office
+// connection, or two demo tourists on the same test network). Identifies
+// the conversation from whichever route param is present rather than
+// requiring the caller to know which thread type it's rate-limiting —
+// guardian messaging has no JWT identity to key on otherwise.
+const createMessageLimiter = () => rateLimit({
+  ...limiterDefaults,
+  windowMs: 60 * 1000,
+  max:      20,
+  message:  { success: false, message: 'Too many messages — please slow down.' },
+  keyGenerator: (req) => `${req.ip}-${req.params.sosId || req.params.token || req.tourist?.id || ''}`,
+})
+
+module.exports = { generalLimiter, createAuthLimiter, createOtpLimiter, webhookLimiter, createMessageLimiter }

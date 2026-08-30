@@ -66,6 +66,12 @@ const SOCKET_EVENTS = Object.freeze({
 
   // Client → Server (from govt dashboard)
   GOVT_JOIN_DISTRICT: 'GOVT_JOIN_DISTRICT',
+
+  // Server → Tourist/Guardian/Volunteer rooms — a new chat message landed
+  // in either the tourist-guardian or tourist-rescuer thread. The two
+  // threads never cross rooms (see emitMessageReceived), so a client only
+  // ever receives messages from a thread it's actually party to.
+  MESSAGE_RECEIVED: 'MESSAGE_RECEIVED',
 })
 
 const SOCKET_ROOMS = Object.freeze({

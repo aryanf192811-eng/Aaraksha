@@ -1,7 +1,7 @@
 // src/api/sos.api.ts
 // FIELD NAMES: verified against backend src/validators/sos.validator.js
 import api from './client'
-import type { APIResponse, PaginatedResponse, SOSEvent } from '../types/api.types'
+import type { APIResponse, PaginatedResponse, SOSEvent, Message } from '../types/api.types'
 
 export interface CreateSOSPayload {
   latitude: number            // -90 to 90
@@ -72,6 +72,13 @@ const sosApi = {
 
   regenerateHandoffCode: (sosId: string) =>
     api.post<APIResponse<HandoffCodeResponse>>(`/sos/${sosId}/handoff-code/regenerate`),
+
+  // Tourist <-> Rescuer messaging, scoped to this one active assignment.
+  getRescueMessages: (sosId: string) =>
+    api.get<APIResponse<Message[]>>(`/sos/${sosId}/messages`),
+
+  sendRescueMessage: (sosId: string, body: string) =>
+    api.post<APIResponse<Message>>(`/sos/${sosId}/messages`, { body }),
 }
 
 export default sosApi
