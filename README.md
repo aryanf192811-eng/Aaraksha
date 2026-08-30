@@ -436,7 +436,7 @@ client · jsQR (checkpoint camera scanning).
 Every layer is intentionally narrow: controllers hold no SQL or business logic, all queries live
 in repositories, and every multi-table write that must be atomic goes through a single
 `withTransaction()` helper. The full mechanism, traced from the actual source, is diagrammed in
-the [production readiness report](./PRODUCTION_READINESS_REPORT.html).
+[`Aaraksha-Architecture-Diagram.svg`](./Aaraksha-Architecture-Diagram.svg).
 
 ---
 
@@ -472,8 +472,7 @@ Aaraksha/
 ├── API_GUIDE.md                     HTTP verbs, error codes, response envelope
 ├── DB_GUIDE.md                      table definitions, relationships, query rules
 ├── UI_GUIDE.md                      design tokens, components, offline strategy
-├── PRODUCTION_READINESS_REPORT.html architecture dossier + adversarial-testing findings
-├── SIH_COMPETITIVE_ANALYSIS.html    feature-by-feature comparison vs. prior-year winners
+├── docs/testing/                    12-phase adversarial QA pass — see docs/testing/README.md
 │
 ├── backend/
 │   ├── src/
@@ -699,10 +698,11 @@ payloads fired at a live server, not code review:
 - **Malformed input** — a SQLi-shaped string in a phone field crashed with an unhandled 500
   before the fix; now a clean 400.
 
-Five real defects were found and fixed in that initial pass. The full findings, plus 13
-hand-drawn diagrams tracing the actual request pipeline, transaction boundaries, and SOS/DMS/TSI
-lifecycles from the real source code, are in
-**[`PRODUCTION_READINESS_REPORT.html`](./PRODUCTION_READINESS_REPORT.html)**.
+Five real defects were found and fixed in that initial pass. A later, far more extensive
+12-phase adversarial QA pass — covering every portal, the backend, security, real-time
+consistency, and a full regression sweep — is documented in full in
+[`docs/testing/README.md`](./docs/testing/README.md), including [`09-security-audit.md`](./docs/testing/09-security-audit.md)
+for the follow-up security-focused findings.
 
 A follow-up authentication-focused audit (after that report was written) found three more, all
 fixed:
@@ -769,8 +769,8 @@ otherwise.
 | [`API_GUIDE.md`](./API_GUIDE.md) | You're calling or adding an endpoint |
 | [`DB_GUIDE.md`](./DB_GUIDE.md) | You're writing a query or touching the schema |
 | [`UI_GUIDE.md`](./UI_GUIDE.md) | You're building one of the four frontends |
-| [`PRODUCTION_READINESS_REPORT.html`](./PRODUCTION_READINESS_REPORT.html) | You want architecture diagrams + adversarial-testing evidence |
-| [`SIH_COMPETITIVE_ANALYSIS.html`](./SIH_COMPETITIVE_ANALYSIS.html) | You want the feature-by-feature comparison against last year's SIH Travel & Tourism winners |
+| [`Aaraksha-Architecture-Diagram.svg`](./Aaraksha-Architecture-Diagram.svg) | You want the architecture diagram |
+| [`docs/testing/README.md`](./docs/testing/README.md) | You want the adversarial-testing evidence — 12 phase reports covering every portal, the backend, security, real-time consistency, and a full regression pass |
 
 ---
 
@@ -778,10 +778,8 @@ otherwise.
 
 Everything above is built and working end-to-end — including rule-based anomaly detection, the
 E-FIR triage queue, checkpoint scans chained into the Journey Integrity Hash, and the
-authentication security hardening pass, all closed out in the most recent round of competitive
-gap analysis against prior SIH Travel & Tourism submissions (see
-[`SIH_COMPETITIVE_ANALYSIS.html`](./SIH_COMPETITIVE_ANALYSIS.html) for that comparison). What's
-next:
+authentication security hardening pass, all verified in a 12-phase adversarial QA pass (see
+[`docs/testing/README.md`](./docs/testing/README.md)). What's next:
 
 - [ ] Real Twilio/Gemini/OpenWeatherMap/VAPID credentials wired in for the live demo environment
 - [ ] Postman collection coverage for the anomaly-detection, E-FIR queue, and Journey Integrity

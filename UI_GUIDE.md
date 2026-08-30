@@ -1,4 +1,3 @@
-markdown
 # UI Guide — Aaraksha
 
 > Read this before building any React component, hook, page, or styling rule.
@@ -13,6 +12,7 @@ markdown
 | Tourist PWA | `frontend/tourist/` | White + amber, mobile-first, premium | Tourists |
 | Govt Dashboard | `frontend/govt/` | Emerald-50 light, desktop-first, data-dense | Government officials |
 | Guardian Portal | `frontend/guardian/` | White, status-driven, public | Family / friends |
+| Rescuer App | `frontend/volunteer/` | White + teal, mobile-first, dispatch-focused | Verified volunteers / official rescue teams |
 
 ---
 

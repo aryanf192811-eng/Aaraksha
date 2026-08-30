@@ -42,6 +42,18 @@ try {
 
 ## TABLE REFERENCE
 
+> **This section is stale and does not reflect the live schema.** It documents an early 13-table
+> design; the actual database (both `aaraksha` and `aaraksha_test`) has grown to 22 domain tables
+> across 19 migrations (`backend/src/migrations/001_initial_schema.js` through
+> `019_vadodara_rescue_team.js`) — including `volunteers`, `checkpoint_scans`,
+> `destination_news`, `destination_reviews`, `incident_reports`, `safety_anomalies`,
+> `otp_verifications`, `push_subscriptions`, and `trip_members`, none of which appear below.
+> **Treat the migrations directory as the authoritative source for exact table/column names and
+> types** — the golden rules above (parameterized queries, named columns, transactions) remain
+> accurate and in force; only this specific table list has drifted. Kept below for the general
+> shape/relationship intuition it still conveys, not as a column-accurate reference. (Flagged in
+> `docs/testing/01-system-audit.md`'s Phase 1 finding D6, addressed here in the final QA pass.)
+
 ### `tourists`
 | Column | Type | Notes |
 |--------|------|-------|
