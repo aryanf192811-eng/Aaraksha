@@ -8,7 +8,7 @@
 [![Status](https://img.shields.io/badge/status-demo--ready-brightgreen)]()
 [![Portals](https://img.shields.io/badge/portals-4-blue)]()
 [![API](https://img.shields.io/badge/API%20endpoints-101-orange)]()
-[![Tables](https://img.shields.io/badge/DB%20tables-23-orange)]()
+[![Tables](https://img.shields.io/badge/DB%20tables-24-orange)]()
 [![Offline SOS](https://img.shields.io/badge/offline%20SOS-2G%20capable-red)]()
 [![Digital ID](https://img.shields.io/badge/digital%20ID-hash--chained-9cf)]()
 [![Track](https://img.shields.io/badge/SIH%202025-Travel%20%26%20Tourism-purple)]()
@@ -36,8 +36,7 @@ real-time data model instead of four disconnected apps.
 
 ## Table of contents
 
-- [Building the presentation](#building-the-presentation)
-- [Why this wins](#why-this-wins)
+- [Why this is better than last year's winners](#why-this-is-better-than-last-years-winners)
 - [Four portals, one system](#four-portals-one-system)
 - [Feature walkthrough](#feature-walkthrough)
 - [Verifiable Digital ID — the Journey Integrity Hash](#verifiable-digital-id--the-journey-integrity-hash)
@@ -58,48 +57,36 @@ real-time data model instead of four disconnected apps.
 
 ---
 
-## Building the presentation
+## Why this is better than last year's winners
 
-This README is written so a slide deck can be built straight off it — every section below maps
-to one slide's worth of content, in the order a pitch actually flows. Screenshots are real,
-captured from the running app (`docs/screenshots/`), not mockups — drop them straight into
-slides.
+Every prior SIH Travel & Tourism cycle has rewarded the same recognizable shape of submission: a
+planning-and-itinerary app with a safety feature bolted on, a static "call police" button standing
+in for a real emergency pipeline, a single audience (the tourist) with no real government or
+rescuer-side counterpart, and a demo that only survives one happy-path click-through. That's the
+bar this comparison is written against — not a specific team's exact build, which none of us have
+access to, but the well-known shape of what clears a Travel & Tourism round: real breadth
+(planning *and* safety, not one or the other), a real second audience (the state actually has to
+operate this, not just admire it), and a security/reliability pass that goes further than "it
+didn't crash during rehearsal." Aaraksha is built to clear a higher version of that bar on every
+axis a judge is likely to probe:
 
-| # | Slide | Pull from | Notes |
-|---|---|---|---|
-| 1 | **Title** | The H1 + tagline at the top of this file | "Safety that keeps working after the signal drops" is the whole pitch in one line — use it as the deck's title or opening line |
-| 2 | **The problem** | [The pitch, in one paragraph](#the-pitch-in-one-paragraph) | Lead with terrain, not tech: 3048m passes, zero-signal valleys, two-hour hospital drives |
-| 3 | **Our bet / thesis** | The pitch paragraph above | One line: *"the moment someone needs help is exactly the moment their phone stops being reliable."* Everything else on the following slides proves this line |
-| 4 | **Four portals** | [Four portals, one system](#four-portals-one-system) table + `tourist-landing.png`, `govt-dashboard.png`, `guardian-portal.png`, `rescuer-active-job.png` | One slide, four screenshots side by side — this alone shows more scope than most competing teams |
-| 5 | **Live demo / walkthrough script** | [Demo accounts](#demo-accounts) | Don't demo a blank app — log into **Rahul Verma** (`9876500002` / `Demo@123`) to show a *live SOS with a rescue team already en route*, then open his Guardian link to show the same emergency from a family member's view. For the newer unified-rescuer story, use **Karan Mehta** (`9000055501` / `DemoPass123`) — his SOS is assigned to volunteer **Priya Deka**, live-tracked on a real road route. That one flow sells the whole platform in 90 seconds |
-| 6 | **Feature highlights** | [Feature walkthrough](#feature-walkthrough) — pick 2–3 lines per pillar, don't read the whole list | Planning → Safety → Digital ID → Unified Rescue Network → Government Ops → Community → Offline-first. Safety, the Digital ID hash chain, and the Rescuer network are the pillars to spend the most slide time on |
-| 7 | **The "blockchain-based Digital ID" line item, made real** | [Verifiable Digital ID](#verifiable-digital-id--the-journey-integrity-hash) | SIH25002 literally names this requirement — most teams ship a static ID card image. Show the hash changing live: scan a checkpoint QR, refetch `/journey-passport/:tripId/hash`, watch the fingerprint change. That's a stronger technical answer than any slide bullet |
-| 8 | **Numbers** | [By the numbers](#by-the-numbers) | Drop the whole table on one slide as a stat grid — 97 endpoints, 23 tables, 45 rotating news items land better as bold numbers than as prose |
-| 9 | **Why we win** | [Why this wins](#why-this-wins) comparison table | This table is already written as a "typical hackathon app vs. Aaraksha" comparison — use it verbatim as a two-column slide |
-| 10 | **Under the hood** *(for technical judges)* | [Architecture at a glance](#architecture-at-a-glance) diagram + [Production readiness](#production-readiness) | Keep this slide for a technical Q&A round — the adversarial-testing bullet points (SQLi, race conditions, forced rollbacks, a real privilege-escalation fix) are the strongest "we didn't just make a demo" evidence in the whole repo |
-| 11 | **What's next** | [Roadmap](#roadmap) | Everything on the roadmap is a deliberate, named scope decision — say so explicitly, it reads as intentional prioritization rather than unfinished work |
-
----
-
-## Why this wins
-
-| What most hackathon safety apps ship | What Aaraksha ships |
+| The recognizable pattern that usually wins a round | What Aaraksha ships instead |
 |---|---|
 | A static "call police" button | A rule-based Travel Safety Index recalculated **hourly from live weather**, scored per destination |
 | Safety features that assume signal | **Offline SOS over raw SMS** — no data connection required, a Twilio webhook does the rest |
 | One app, one audience | **Four cooperating portals** — tourist, government, a no-login family tracking link, and a dedicated Rescuer app for volunteers and official teams — sharing one real-time data model |
-| A mocked/seeded demo that falls apart under a second click | A backend that was **adversarially attacked after launch** — rate-limit bypass attempts, SQLi payloads, concurrent double-resolve races, forced transaction rollbacks — and fixed, not just tested |
+| A mocked/seeded demo that falls apart under a second click | A backend that went through **13 adversarial QA phases** after the first build was "done" — rate-limit bypass attempts, SQLi payloads, concurrent double-resolve races, forced transaction rollbacks, real-time session bugs — each one found, fixed, and re-verified live, not just tested once (full record: [`docs/testing/`](./docs/testing/)) |
 | Safety as an isolated feature | Safety **woven into planning** — every trip gets a TSI score before it's even booked, every destination card carries a live risk badge |
-| A single "it's a demo" happy path | **Five live demo accounts**, each mid-scenario: an active SOS with a rescue team en route, another already assigned to a live-tracked volunteer, a running Dead Man's Switch, a completed trip ready for PDF export, a fresh account to show onboarding |
-| Rescue dispatch as a phone call | A **unified Rescuer network** — official teams and govt-verified citizen volunteers in one assignable pool, live GPS, real OSRM road routing, not a straight line on a map |
+| Rescue dispatch as a phone call | A **unified Rescuer network** — official teams and govt-verified citizen volunteers in one assignable pool, live GPS, real OSRM road routing, plus a **Rescue Verification Code** so a case can't be closed on a rescuer's word alone — they need the code from the tourist in person |
 | "Blockchain-based Digital ID" as a marketing phrase over a static ID card image | A real **SHA-256 hash chain** over every trip's itinerary, check-ins, SOS events, *and* government checkpoint scans — tamper-evident, independently recomputable from platform records, verifiable live with one API call |
 | "AI" meaning an LLM call with a prompt attached | A **genuine trained model** for predictive risk — real gradient descent, a printed loss curve, held-out test accuracy, and per-prediction explainability — sitting *alongside* (not instead of) an honestly rule-based TSI, each clearly labeled as what it is |
 | Safety that only reacts once someone presses a button | A **rule-based anomaly detector** running every minute against every active trip — flags a tourist who's gone quiet or drifted off-route *before* anyone presses SOS, no opt-in required |
-| "Report a crime" ends at a crowd-sourced warning post | A real **E-FIR triage workflow** — a formal, case-numbered report routed to a role-based officer queue with an actual investigation ladder (Filed → Assigned → Under Investigation → Resolved), not just a community bulletin board |
-| "We tested it" meaning the happy path worked once | A security pass that found and closed a **live unauthenticated privilege-escalation path** to govt SUPER\_ADMIN, pinned every JWT verification against algorithm-confusion attacks, and fixed a rate-limiter that silently ignored its own configuration |
+| "Report a crime" ends at a crowd-sourced warning post | A real **E-FIR triage workflow** — a formal, case-numbered report routed to a role-scoped officer queue (only the roles that actually investigate can even open it) with an investigation ladder (Filed → Assigned → Under Investigation → Resolved), not a community bulletin board |
+| "We tested it" meaning the happy path worked once | A dedicated security pass that found and closed a **live unauthenticated privilege-escalation path** to govt SUPER\_ADMIN, an unauthenticated SMS webhook that could forge a real emergency alert, a missing role gate on a govt endpoint, pinned every JWT verification against algorithm-confusion attacks, and fixed a rate-limiter that silently ignored its own configuration |
 | Flat 2D maps vs. competitors' VR/3D showpieces, or a rescue queue sorted by raw distance alone | **Real 3D elevation terrain** on the govt map (free, keyless, no CesiumJS bloat) so a dispatcher can see the mountain ridge between a rescuer and an SOS, plus **weighted dispatch scoring** that ranks a rescuer by category fit and reputation, not distance alone |
 | "Govt ID verified" meaning a regex checked the digit count | The actual **Verhoeff checksum** — the real algorithm UIDAI uses to generate an Aadhaar number's 12th digit — run client-independent, server-side, at registration |
 | Privacy as a paragraph in a slide deck | Working **DPDP Act 2023 data rights** — a tourist can view exactly what's collected and why, export every record held about them as a real file download, and request deletion, which anonymizes their row in place (never a raw `DELETE`, so legally-retainable SOS/E-FIR history survives) and is refused automatically while an open SOS or E-FIR exists |
+| A UI that works until an accessibility or screen-reader pass is requested | A **WCAG 2.1 AA / GIGW 3.0 accessibility pass** on the government dashboard, not left as an afterthought for a public-sector system |
 
 ---
 
@@ -107,7 +94,7 @@ slides.
 
 ```
                      ┌──────────────────┐
-                     │   PostgreSQL      │  21 tables — raw pg, no ORM
+                     │   PostgreSQL      │  24 tables — raw pg, no ORM
                      │   parameterized   │  see DB_GUIDE.md
                      │   SQL only        │
                      └────────▲──────────┘
@@ -115,7 +102,7 @@ slides.
                      ┌────────┴──────────┐
                      │  Express API       │  Route → Middleware → Controller
                      │  (backend/)        │  → Service → Repository
-                     │  JWT + RBAC        │  84 endpoints · 14 route groups
+                     │  JWT + RBAC        │  101 endpoints · 15 route groups
                      └─┬───────┬───────┬──┘
               Socket.IO│       │       │  REST (JSON)
               real-time│       │       │
@@ -446,8 +433,8 @@ in repositories, and every multi-table write that must be atomic goes through a 
 |---|---|
 | **Portals** | 4 (Tourist PWA, Govt Command Center, Guardian Portal, Rescuer App) |
 | **API endpoints** | 101, across 15 route groups |
-| **Database tables** | 23 |
-| **Migrations** | 15, applied incrementally — every schema change is a reviewable, named diff, never a hand-edited table |
+| **Database tables** | 24 |
+| **Migrations** | 19, applied incrementally — every schema change is a reviewable, named diff, never a hand-edited table |
 | **Destinations seeded** | 10, across Assam, Meghalaya, Nagaland, Arunachal Pradesh, Sikkim, Manipur — each with real altitude, connectivity, ILP, and hospital data |
 | **Curated news items** | ~45, hand-written per destination, auto-rotating |
 | **Tourist app screens** | 15 (landing, auth, dashboard, trip planning + detail with 6 tabs, check-in, SOS, incident reporting, community, advisory, profile) |
@@ -593,15 +580,22 @@ the free public OSRM demo server directly from the browser — no API key, nothi
 
 ## Demo accounts
 
-Seeded by `npm run seed` — each tourist account is mid-scenario, not a blank slate:
+Seeded by `npm run seed` — each tourist account is mid-scenario, not a blank slate. The
+SOS/Dead-Man's-Switch scenarios below are one-time snapshots, not standing fixtures — a real
+tourist demo team will eventually resolve, cancel, or let a demo-mode timer lapse on a shared
+account, and the next person to look finds it empty. That's expected, not a bug: trigger a fresh
+one yourself (every flow is reproducible in under a minute — see
+[`docs/testing/README.md`](./docs/testing/README.md) for exact steps), or use the Meera Shah /
+Rajesh Solanki pairing below, seeded most recently and least likely to have been trampled.
 
 | Account | Login | Scenario |
 |---|---|---|
 | Aryan Demo | `9999999999` / `Demo@123` | Active trip, 1 check-in, 1 resolved SOS |
 | Priya Sharma | `9876500001` / `Demo@123` | Completed trip, passport-ready (check-ins, activities, packing list) |
-| Rahul Verma | `9876500002` / `Demo@123` | Active trip with a live unresolved SOS + **official rescue team** en route |
-| Sneha Das | `9876500003` / `Demo@123` | Active trip with a running Dead Man's Switch |
-| Karan Mehta | `9000055501` / `DemoPass123` | **SOS assigned to a volunteer (not a team), EN\_ROUTE with a live GPS fix** — open the Rescuer app as Priya Deka below to see it live |
+| Meera Shah | `9099911001` / `Demo@123` | Active trip through Parul University, Vadodara — pairs with rescuer Rajesh Solanki below for a fresh end-to-end SOS→rescue walkthrough |
+| Rahul Verma | `9876500002` / `Demo@123` | Originally seeded with a live unresolved SOS + official rescue team en route — re-trigger if the live scenario is wanted |
+| Sneha Das | `9876500003` / `Demo@123` | Originally seeded with a running Dead Man's Switch — re-arm from the Safety Center if the live scenario is wanted |
+| Karan Mehta | `9000055501` / `DemoPass123` | Originally seeded with an SOS assigned to a volunteer, EN\_ROUTE — the Meera Shah / Rajesh Solanki pairing above is the more reliable live version of this exact scenario |
 
 | Govt role | Login |
 |---|---|
@@ -612,7 +606,8 @@ Seeded by `npm run seed` — each tourist account is mid-scenario, not a blank s
 
 | Rescuer App login | Scenario |
 |---|---|
-| Priya Deka — `9000055503` / `DemoPass123` | Verified volunteer, already `EN_ROUTE` to Karan Mehta above — logs straight into the live-navigation screen |
+| Rajesh Solanki — `9099911002` / `7PSDH7CWE9MN` | Official rescue team account (Parul University Response Team, Vadodara) — pairs with Meera Shah above |
+| Priya Deka — `9000055503` / `DemoPass123` | Verified citizen volunteer — assign her a fresh SOS to see the live-navigation screen |
 
 The Guardian Portal needs no login — copy any tourist's guardian token (visible on their Profile
 page) into `/track/:token` on the guardian app.

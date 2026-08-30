@@ -43,7 +43,7 @@ try {
 ## TABLE REFERENCE
 
 > **This section is stale and does not reflect the live schema.** It documents an early 13-table
-> design; the actual database (both `aaraksha` and `aaraksha_test`) has grown to 22 domain tables
+> design; the actual database (both `aaraksha` and `aaraksha_test`) has grown to 24 domain tables
 > across 19 migrations (`backend/src/migrations/001_initial_schema.js` through
 > `019_vadodara_rescue_team.js`) — including `volunteers`, `checkpoint_scans`,
 > `destination_news`, `destination_reviews`, `incident_reports`, `safety_anomalies`,
