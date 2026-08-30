@@ -5,12 +5,20 @@ const { BaseRepository } = require('./base.repository')
 const { haversineKm } = require('../utils/geo')
 const { scoreRescuerCandidate } = require('../utils/rescueScoring')
 
+// DECLINED/CANCELLED (migration 017) are just as terminal as RESOLVED for
+// "is this assignment still the live one" purposes -- every query below
+// that used to check only `status NOT IN ('RESOLVED')` must exclude all
+// three, or a declined/cancelled row would still count as blocking a new
+// assignment, still show as the tourist's "active" rescuer, still occupy
+// a team/volunteer's capacity, etc.
+const ACTIVE_ASSIGNMENT_FILTER = `status NOT IN ('RESOLVED', 'DECLINED', 'CANCELLED')`
+
 class RescueRepository extends BaseRepository {
   async findAllTeams() {
     return this.query(`
       SELECT rt.*,
         (SELECT COUNT(*)::int FROM rescue_assignments ra
-         WHERE ra.team_id=rt.id AND ra.status NOT IN ('RESOLVED')) as active_assignments
+         WHERE ra.team_id=rt.id AND ra.${ACTIVE_ASSIGNMENT_FILTER}) as active_assignments
       FROM rescue_teams rt ORDER BY rt.status ASC, rt.name ASC`)
   }
 
@@ -37,7 +45,7 @@ class RescueRepository extends BaseRepository {
 
   async findActiveAssignmentBySOS(sosEventId) {
     return this.queryOne(
-      `SELECT * FROM rescue_assignments WHERE sos_event_id=$1 AND status NOT IN ('RESOLVED') LIMIT 1`,
+      `SELECT * FROM rescue_assignments WHERE sos_event_id=$1 AND ${ACTIVE_ASSIGNMENT_FILTER} LIMIT 1`,
       [sosEventId]
     )
   }
@@ -52,15 +60,28 @@ class RescueRepository extends BaseRepository {
   async updateAssignmentStatus(assignmentId, volunteerId, status) {
     return this.queryOne(
       `UPDATE rescue_assignments SET status=$3
-       WHERE id=$1 AND volunteer_id=$2 AND status NOT IN ('RESOLVED') RETURNING *`,
+       WHERE id=$1 AND volunteer_id=$2 AND ${ACTIVE_ASSIGNMENT_FILTER} RETURNING *`,
       [assignmentId, volunteerId, status]
+    )
+  }
+
+  // A rescuer backing out -- either DECLINED (never left ASSIGNED) or
+  // CANCELLED (was EN_ROUTE/ARRIVED). Same ownership scoping as
+  // updateAssignmentStatus above. Returns the closed row (still carries
+  // sos_event_id/volunteer_id for the service layer to free the volunteer
+  // and revert the SOS status with).
+  async exitAssignment(assignmentId, volunteerId, status, reason) {
+    return this.queryOne(
+      `UPDATE rescue_assignments SET status=$3, exit_reason=$4, exited_at=NOW()
+       WHERE id=$1 AND volunteer_id=$2 AND ${ACTIVE_ASSIGNMENT_FILTER} RETURNING *`,
+      [assignmentId, volunteerId, status, reason]
     )
   }
 
   async resolveAssignment(sosEventId) {
     return this.queryOne(`
       UPDATE rescue_assignments SET status='RESOLVED', resolved_at=NOW()
-      WHERE sos_event_id=$1 AND status NOT IN ('RESOLVED')
+      WHERE sos_event_id=$1 AND ${ACTIVE_ASSIGNMENT_FILTER}
       RETURNING team_id, volunteer_id`,
       [sosEventId]
     )
@@ -78,7 +99,7 @@ class RescueRepository extends BaseRepository {
       FROM rescue_assignments ra
       JOIN sos_events se ON se.id = ra.sos_event_id
       LEFT JOIN tourists t ON t.id = se.tourist_id
-      WHERE ra.volunteer_id = $1 AND ra.status NOT IN ('RESOLVED')
+      WHERE ra.volunteer_id = $1 AND ra.${ACTIVE_ASSIGNMENT_FILTER}
       ORDER BY ra.assigned_at DESC
       LIMIT 1`,
       [volunteerId]
@@ -108,7 +129,7 @@ class RescueRepository extends BaseRepository {
       JOIN tourists t ON t.id = se.tourist_id
       LEFT JOIN rescue_teams rt ON rt.id = ra.team_id
       LEFT JOIN volunteers v ON v.id = ra.volunteer_id
-      WHERE ra.status != 'RESOLVED'
+      WHERE ra.${ACTIVE_ASSIGNMENT_FILTER}
       ORDER BY ra.assigned_at DESC`
     )
   }

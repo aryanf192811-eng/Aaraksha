@@ -2,6 +2,7 @@
 // Shows: status banner (safe/warning/SOS) -> map -> last checkin time -> TSI -> medical info
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off, LocateFixed, Truck } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -183,6 +184,23 @@ export default function TrackingPage() {
       setView(prev => (prev && prev.activeSOS && prev.activeSOS.id === data.sosId)
         ? { ...prev, activeSOS: { ...prev.activeSOS, handoffVerifiedAt: data.verifiedAt } }
         : prev)
+    })
+    // The assigned volunteer had to back out — the SOS itself is still
+    // active (government is reassigning), so this reverts to the plain
+    // "help is on the way" (well, not yet) ACTIVE state rather than
+    // clearing the whole banner, matching what GUARDIAN_SOS_ALERT already
+    // does for a brand-new SOS. A family member watching this screen
+    // deserves the same honest explanation the tourist's own app shows,
+    // not a rescuer marker that just quietly stops moving.
+    socket.on('RESCUER_ASSIGNMENT_CANCELLED', (data: { sosId: string; reason?: string }) => {
+      setView(prev => (prev && prev.activeSOS && prev.activeSOS.id === data.sosId)
+        ? { ...prev, activeSOS: { ...prev.activeSOS, status: 'ACTIVE', rescueTeam: null, rescuer: null } }
+        : prev)
+      setRescuerLivePos(null)
+      toast.info("The assigned rescuer couldn't continue — government is reassigning.", {
+        description: data.reason || undefined,
+        duration: 10000,
+      })
     })
     return () => { disconnectSocket() }
   }, [token])

@@ -4,10 +4,11 @@
 const { VolunteerRepository } = require('../repositories/volunteer.repository')
 const { VolunteerDispatchRepository } = require('../repositories/volunteerDispatch.repository')
 const { RescueRepository } = require('../repositories/rescue.repository')
+const { SOSRepository } = require('../repositories/sos.repository')
 const { hashPassword, verifyPassword, hashGovtId, normalizePhone, extractSuffix } = require('../utils/crypto')
 const { generateJWT } = require('./auth.service')
-const { emitVolunteerAssignmentUpdated, emitRescuerLocationUpdate, emitRescuerStatusUpdate } = require('../socket/emitters')
-const { VOLUNTEER_DISPATCH_STATUSES } = require('../constants/enums')
+const { emitVolunteerAssignmentUpdated, emitRescuerLocationUpdate, emitRescuerStatusUpdate, emitAssignmentCancelled } = require('../socket/emitters')
+const { VOLUNTEER_DISPATCH_STATUSES, ASSIGNMENT_STATUSES, SOS_STATUSES, VOLUNTEER_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const logger = require('../utils/logger')
 
@@ -142,7 +143,62 @@ async function updateAssignmentStatus(volunteerId, status) {
   return updated
 }
 
+// A rescuer backing out of a live assignment — vehicle breakdown, they
+// become unable to continue safely, a higher-priority call, or on arrival
+// realizing the situation is beyond what they can handle and it needs to
+// go to an official team instead. The target status is derived server-side
+// from where the assignment actually was, not client-supplied — DECLINED
+// if they never left ASSIGNED (backing out before starting), CANCELLED if
+// they were already EN_ROUTE/ARRIVED (backing out mid-response). This
+// keeps the label honest regardless of what the client sends, and means
+// one endpoint covers both cases instead of two that could disagree with
+// reality.
+//
+// Blocked once the handoff has been verified — at that point the rescuer
+// has already proven they physically reached the tourist and the case is
+// concluding; "cancelling" a completed handoff doesn't mean anything.
+//
+// Side effects mirror what assignRescue did in reverse: the volunteer goes
+// back to AVAILABLE, and — only if no other assignment is already active
+// for this SOS — the SOS itself reverts from ASSIGNED to ACTIVE so it
+// reappears in govt's unassigned queue for reassignment. Every room
+// watching (tourist, guardian, govt) gets an immediate, honest explanation
+// via emitAssignmentCancelled rather than silently stale "EN_ROUTE" data.
+async function exitAssignment(volunteerId, reason) {
+  const rescueRepo = new RescueRepository()
+  const current = await rescueRepo.findActiveAssignmentByVolunteerId(volunteerId)
+  if (!current) throw Object.assign(new Error(ERRORS.ASSIGNMENT_NOT_FOUND), { statusCode: 404 })
+  if (current.handoff_verified_at) {
+    throw Object.assign(new Error(ERRORS.ASSIGNMENT_ALREADY_VERIFIED), { statusCode: 400 })
+  }
+
+  const targetStatus = current.status === ASSIGNMENT_STATUSES.ASSIGNED
+    ? ASSIGNMENT_STATUSES.DECLINED
+    : ASSIGNMENT_STATUSES.CANCELLED
+
+  const closed = await rescueRepo.exitAssignment(current.id, volunteerId, targetStatus, reason)
+  if (!closed) throw Object.assign(new Error(ERRORS.ASSIGNMENT_NOT_FOUND), { statusCode: 404 })
+
+  const volunteerRepo = new VolunteerRepository()
+  const volunteer = await volunteerRepo.updateStatus(volunteerId, VOLUNTEER_STATUSES.AVAILABLE)
+
+  const stillActive = await rescueRepo.findActiveAssignmentBySOS(current.sos_event_id)
+  if (!stillActive) {
+    const sosRepo = new SOSRepository()
+    await sosRepo.updateStatus(current.sos_event_id, SOS_STATUSES.ACTIVE)
+  }
+
+  emitAssignmentCancelled(
+    { id: current.sos_event_id, tourist_id: current.tourist_id },
+    current.guardian_token,
+    volunteer?.full_name ?? 'Your assigned volunteer',
+    reason
+  )
+  logger.warn({ volunteerId, assignmentId: current.id, status: targetStatus, reason }, 'Rescuer exited assignment')
+  return closed
+}
+
 module.exports = {
   registerVolunteer, loginVolunteer, updateStatus, getMyDispatches, updateDispatchStatus,
-  getActiveAssignment, updateRescuerLocation, updateAssignmentStatus,
+  getActiveAssignment, updateRescuerLocation, updateAssignmentStatus, exitAssignment,
 }

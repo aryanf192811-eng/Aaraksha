@@ -51,6 +51,12 @@ const volunteerApi = {
 
   verifyHandoff: (code: string) =>
     api.post<APIResponse<{ handoff_verified_at: string }>>('/volunteers/me/assignment/verify-handoff', { code }),
+
+  // Backend derives DECLINED vs CANCELLED from where the assignment
+  // actually was — this one endpoint covers both "backing out before
+  // starting" and "can't continue mid-response".
+  exitAssignment: (reason: string) =>
+    api.post<APIResponse<ActiveAssignment>>('/volunteers/me/assignment/exit', { reason }),
 }
 
 export default volunteerApi

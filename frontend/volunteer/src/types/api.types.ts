@@ -79,7 +79,12 @@ export interface ActiveAssignment {
   team_id: string | null
   volunteer_id: string | null
   assigned_by: string | null
-  status: 'ASSIGNED' | 'EN_ROUTE' | 'ARRIVED' | 'RESOLVED'
+  // DECLINED/CANCELLED never appear on getActiveAssignment's result (a
+  // row in either state is no longer "active"), only on exitAssignment's
+  // own response -- included here since both endpoints share this type.
+  status: 'ASSIGNED' | 'EN_ROUTE' | 'ARRIVED' | 'RESOLVED' | 'DECLINED' | 'CANCELLED'
+  exit_reason: string | null
+  exited_at: string | null
   notes: string | null
   assigned_at: string
   resolved_at: string | null

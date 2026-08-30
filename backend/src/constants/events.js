@@ -25,6 +25,12 @@ const SOCKET_EVENTS = Object.freeze({
   // checked out — same 3-room fan-out (tourist/guardian/govt) as the two
   // above, plus the rescuer's own room so their app updates too.
   HANDOFF_VERIFIED: 'HANDOFF_VERIFIED',
+  // A volunteer declined/cancelled their assignment (see migration 017 /
+  // volunteer.service.js#exitAssignment) — the SOS reverts to ACTIVE and
+  // needs reassignment; everyone watching (tourist, guardian, govt) needs
+  // to know immediately rather than keep seeing a stale "EN_ROUTE" rescuer
+  // who isn't actually coming.
+  RESCUER_ASSIGNMENT_CANCELLED: 'RESCUER_ASSIGNMENT_CANCELLED',
   // Rule-based anomaly cron flagged a tourist as needing a check — not an
   // SOS, a softer "look into this" signal (see migration 011).
   TOURIST_ANOMALY_DETECTED: 'TOURIST_ANOMALY_DETECTED',

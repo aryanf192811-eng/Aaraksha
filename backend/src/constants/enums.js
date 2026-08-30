@@ -133,7 +133,18 @@ const ASSIGNMENT_STATUSES = Object.freeze({
   EN_ROUTE: 'EN_ROUTE',
   ARRIVED: 'ARRIVED',
   RESOLVED: 'RESOLVED',
+  // Rescuer-initiated exits (see migration 017). Both terminal for this
+  // specific assignment row -- govt reassigning creates a new row, the same
+  // way it always has; nothing is overwritten or deleted, so the full
+  // attempt history stays visible.
+  DECLINED: 'DECLINED',   // never left ASSIGNED -- backing out before starting
+  CANCELLED: 'CANCELLED', // was EN_ROUTE/ARRIVED -- backing out mid-response
 })
+// Every "is this assignment still active" check across the repo layer must
+// exclude all three of these, not just RESOLVED.
+const ASSIGNMENT_TERMINAL_STATUSES = [
+  ASSIGNMENT_STATUSES.RESOLVED, ASSIGNMENT_STATUSES.DECLINED, ASSIGNMENT_STATUSES.CANCELLED,
+]
 
 const SCAM_CATEGORIES = Object.freeze({
   FAKE_GUIDE: 'FAKE_GUIDE',
@@ -250,7 +261,7 @@ module.exports = {
   TRAVEL_TYPES, TRIP_STATUSES, SOS_CATEGORIES, SOS_STATUSES, SOS_TRIGGER_TYPES,
   DMS_STATUSES, CHECKIN_TYPES, GOVT_ROLES, GOVT_ID_TYPES, CONNECTIVITY, DIFFICULTY,
   ZONE_TYPES, WEATHER_CONDITIONS, WEATHER_RISK, TEAM_TYPES, TEAM_STATUSES,
-  ASSIGNMENT_STATUSES, SCAM_CATEGORIES, ACTIVITY_TYPES, PACKING_CATEGORIES,
+  ASSIGNMENT_STATUSES, ASSIGNMENT_TERMINAL_STATUSES, SCAM_CATEGORIES, ACTIVITY_TYPES, PACKING_CATEGORIES,
   NOTIFICATION_TIERS, VOLUNTEER_STATUSES, VOLUNTEER_DISPATCH_STATUSES, RESCUER_TYPES,
   ANOMALY_TYPES, ANOMALY_STATUSES, INCIDENT_CATEGORIES, INCIDENT_STATUSES, INCIDENT_PRIORITIES,
 }

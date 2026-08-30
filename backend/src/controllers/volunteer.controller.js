@@ -86,7 +86,16 @@ const verifyHandoff = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+// POST /api/volunteers/me/assignment/exit — decline (still ASSIGNED) or
+// cancel (already EN_ROUTE/ARRIVED); the service derives which one applies.
+const exitAssignment = async (req, res, next) => {
+  try {
+    const updated = await volunteerService.exitAssignment(req.volunteer.id, req.validatedBody.reason)
+    sendSuccess(res, updated, `Assignment ${updated.status.toLowerCase()}`)
+  } catch (err) { next(err) }
+}
+
 module.exports = {
   register, login, getProfile, updateStatus, getMyDispatches, updateDispatchStatus,
-  getActiveAssignment, updateLocation, updateAssignmentStatus, verifyHandoff,
+  getActiveAssignment, updateLocation, updateAssignmentStatus, verifyHandoff, exitAssignment,
 }

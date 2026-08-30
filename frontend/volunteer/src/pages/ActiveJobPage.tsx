@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Siren, Navigation2, LocateFixed, User, Clock, CheckCircle2, MapPinned, UserCheck, Flag, Check, KeyRound, Phone, Loader2 } from 'lucide-react'
+import { Siren, Navigation2, LocateFixed, User, Clock, CheckCircle2, MapPinned, UserCheck, Flag, Check, KeyRound, Phone, Loader2, XCircle, ChevronDown } from 'lucide-react'
 // MapLibre GL over free vector tiles (OpenFreeMap, no API key) instead of
 // Leaflet + raster OSM — same swap as the tourist app's RescueTrackingCard,
 // so both sides of the live rescue view now share one rendering engine and
@@ -248,6 +248,18 @@ export default function ActiveJobPage() {
     // needed, same pattern as this file's other mutations.
   })
 
+  const [showExitForm, setShowExitForm] = useState(false)
+  const [exitReason, setExitReason] = useState('')
+  const { mutate: exitAssignment, isPending: exiting } = useMutation({
+    mutationFn: (reason: string) => volunteerApi.exitAssignment(reason),
+    onSuccess: (res) => {
+      toast.success(res.data.data.status === 'DECLINED' ? 'Assignment declined' : 'Response cancelled — govt has been notified')
+      setShowExitForm(false)
+      setExitReason('')
+      navigate('/', { replace: true })
+    },
+  })
+
   if (!assignment) return null
 
   const category = CATEGORY_LABELS[assignment.category] || assignment.category
@@ -412,6 +424,44 @@ export default function ActiveJobPage() {
           >
             {assignment.status === 'ASSIGNED' ? "I'm on my way" : 'Mark arrived'}
           </button>
+        )}
+
+        {/* Backing out — vehicle trouble, a higher-priority call, or on
+            arrival realizing this needs an official team instead. Never
+            shown once the handoff is verified: at that point the case is
+            concluding, "cancelling" it doesn't mean anything. Deliberately
+            a secondary, harder-to-reach link (not a button next to the
+            primary action) — same "audited escape hatch, not a casual
+            tap-away option" posture as govt's force-resolve override. */}
+        {!assignment.handoff_verified_at && (
+          <div className="mt-3">
+            <button onClick={() => setShowExitForm(v => !v)}
+              className="flex items-center gap-1 text-[11px] font-semibold text-on-surface-variant hover:text-sos mx-auto">
+              <ChevronDown className={`w-3 h-3 transition-transform ${showExitForm ? 'rotate-180' : ''}`} />
+              {assignment.status === 'ASSIGNED' ? "Can't take this one?" : "Can't continue?"}
+            </button>
+            {showExitForm && (
+              <div className="mt-2 bg-sos/5 border border-sos/20 rounded-2xl p-3 space-y-2">
+                <p className="text-[11px] text-sos-dark flex items-start gap-1.5">
+                  <XCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  {assignment.status === 'ASSIGNED'
+                    ? "This returns the case to government for reassignment — say briefly why."
+                    : "This tells government you can't complete the response — they'll reassign immediately. Say briefly why."}
+                </p>
+                <textarea rows={2} placeholder="e.g. Vehicle broke down, can't reach the location"
+                  value={exitReason} onChange={(e) => setExitReason(e.target.value)}
+                  className="w-full rounded-xl border border-outline-variant bg-white px-3 py-2 text-xs resize-none focus:outline-none focus:border-sos" />
+                <button
+                  onClick={() => exitAssignment(exitReason.trim())}
+                  disabled={exiting || exitReason.trim().length < 5}
+                  className="w-full h-10 rounded-xl bg-sos text-white font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-40 active:scale-[0.98] transition-transform"
+                >
+                  {exiting ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                  {assignment.status === 'ASSIGNED' ? 'Decline this assignment' : "Cancel — I can't continue"}
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

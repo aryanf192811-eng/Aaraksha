@@ -63,7 +63,26 @@ export function useSOSStatusListener() {
       queryClient.invalidateQueries({ queryKey: ['sos', 'mine'] })
     }
 
+    // The assigned volunteer had to back out (vehicle trouble, can't
+    // continue, etc.) — the SOS itself is still active and government is
+    // reassigning, so this deliberately doesn't clear activeSOSId or touch
+    // the SOS-history query the way a real ASSIGNED/RESOLVED update does.
+    // It only needs to refresh the rescue-tracking data so the stale
+    // rescuer marker disappears, and reassure the tourist rather than
+    // leave them wondering why their rescuer's ETA just vanished.
+    const onAssignmentCancelled = (data: { sosId: string; reason?: string }) => {
+      toast.info("Your assigned rescuer couldn't continue — government has been notified and is reassigning.", {
+        description: data.reason || undefined,
+        duration: 10000,
+      })
+      queryClient.invalidateQueries({ queryKey: ['sos', 'active-rescue'] })
+    }
+
     socket.on(SOCKET_EVENTS.SOS_STATUS_UPDATED, onStatusUpdate)
-    return () => { socket.off(SOCKET_EVENTS.SOS_STATUS_UPDATED, onStatusUpdate) }
+    socket.on(SOCKET_EVENTS.RESCUER_ASSIGNMENT_CANCELLED, onAssignmentCancelled)
+    return () => {
+      socket.off(SOCKET_EVENTS.SOS_STATUS_UPDATED, onStatusUpdate)
+      socket.off(SOCKET_EVENTS.RESCUER_ASSIGNMENT_CANCELLED, onAssignmentCancelled)
+    }
   }, [token, setActiveSOSId])
 }

@@ -158,6 +158,22 @@ function registerListeners(socket: ReturnType<typeof connectSocket>) {
     queryClient.invalidateQueries({ queryKey: ['govt', 'incidents'] })
   }
 
+  // A volunteer declined/cancelled — the SOS has already reverted to
+  // ACTIVE server-side by the time this fires. Loud and non-dismissing-
+  // by-default (duration: 0) since this needs an operator to actually act
+  // (reassign), same urgency level as a fresh DMS trigger, not a routine
+  // status tick.
+  const onAssignmentCancelled = (data: { sosId: string; rescuerName?: string; reason?: string }) => {
+    toast.warning(`${data.rescuerName ?? 'A volunteer'} can't continue — reassignment needed`, {
+      description: data.reason,
+      duration: 0,
+      action: { label: 'View', onClick: () => { window.location.href = '/sos' } },
+    })
+    queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
+    queryClient.invalidateQueries({ queryKey: ['govt', 'dashboard'] })
+    queryClient.invalidateQueries({ queryKey: ['govt', 'active-rescuers'] })
+  }
+
   socket.on(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
   socket.on(SOCKET_EVENTS.SOS_RESOLVED, onSOSResolved)
   socket.on(SOCKET_EVENTS.DMS_TRIGGERED, onDMSTriggered)
@@ -169,8 +185,10 @@ function registerListeners(socket: ReturnType<typeof connectSocket>) {
   socket.on(SOCKET_EVENTS.TOURIST_ANOMALY_RESOLVED, onAnomalyResolved)
   socket.on(SOCKET_EVENTS.INCIDENT_FILED, onIncidentFiled)
   socket.on(SOCKET_EVENTS.INCIDENT_STATUS_UPDATED, onIncidentStatusUpdated)
+  socket.on(SOCKET_EVENTS.RESCUER_ASSIGNMENT_CANCELLED, onAssignmentCancelled)
 
   return () => {
+    socket.off(SOCKET_EVENTS.RESCUER_ASSIGNMENT_CANCELLED, onAssignmentCancelled)
     socket.off(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
     socket.off(SOCKET_EVENTS.SOS_RESOLVED, onSOSResolved)
     socket.off(SOCKET_EVENTS.DMS_TRIGGERED, onDMSTriggered)

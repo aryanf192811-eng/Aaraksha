@@ -311,6 +311,23 @@ function emitRescuerStatusUpdate(sosEvent, guardianToken, status) {
   safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.RESCUER_STATUS_UPDATE, payload)
 }
 
+// A volunteer declined (never left ASSIGNED) or cancelled (was EN_ROUTE/
+// ARRIVED) mid-response. Same 3-room fan-out as emitRescuerStatusUpdate —
+// the SOS has already reverted to ACTIVE by the time this fires, so govt's
+// dashboard just needs to know to reassign, and the tourist/guardian need
+// an honest explanation instead of a rescuer marker that silently stops
+// moving.
+function emitAssignmentCancelled(sosEvent, guardianToken, rescuerName, reason) {
+  const payload = { sosId: sosEvent.id, rescuerName, reason, cancelledAt: new Date().toISOString() }
+  if (sosEvent.tourist_id) {
+    safeEmit(SOCKET_ROOMS.tourist(sosEvent.tourist_id), SOCKET_EVENTS.RESCUER_ASSIGNMENT_CANCELLED, payload)
+  }
+  if (guardianToken) {
+    safeEmit(SOCKET_ROOMS.guardian(guardianToken), SOCKET_EVENTS.RESCUER_ASSIGNMENT_CANCELLED, payload)
+  }
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.RESCUER_ASSIGNMENT_CANCELLED, payload)
+}
+
 // The rescuer got the handoff code from the tourist in person and it
 // checked out — real proof of a successful rescue, not just a self-report.
 // Same 3-room fan-out as emitRescuerStatusUpdate, plus the rescuer's own
@@ -394,7 +411,7 @@ module.exports = {
   emitWeatherRiskIncreased, emitGroupSOSAlert, emitDestinationNewsCritical,
   emitVolunteerSOSAlert, emitVolunteerAssignmentUpdated,
   emitVolunteerAssigned, emitRescuerLocationUpdate, emitRescuerStatusUpdate,
-  emitHandoffVerified,
+  emitHandoffVerified, emitAssignmentCancelled,
   emitAnomalyDetected, emitAnomalyResolved,
   emitIncidentFiled, emitIncidentStatusUpdated,
 }
