@@ -306,15 +306,30 @@ export function RescueTrackingCard() {
     if (follow) {
       map.easeTo({ center: [rescuerPos[1], rescuerPos[0]], zoom: Math.max(map.getZoom(), 15), duration: 600 })
     } else if (sosPos) {
-      // maxZoom guards against fitBounds zooming in past the point where
-      // tiles render anything recognizable — with the rescuer essentially
-      // on top of the tourist (near-zero-distance bounding box), it would
-      // otherwise drive the camera to an extreme zoom that renders blank.
-      map.fitBounds(
-        [[Math.min(rescuerPos[1], sosPos[1]), Math.min(rescuerPos[0], sosPos[0])],
-         [Math.max(rescuerPos[1], sosPos[1]), Math.max(rescuerPos[0], sosPos[0])]],
-        { padding: 48, duration: 600, maxZoom: 16 }
-      )
+      // fitBounds correctly frames both markers for a real nearby rescue,
+      // but a rescuer/tourist pair that's implausibly far apart (real GPS
+      // on a device that isn't near the demo destination's fixed
+      // coordinates, or a stale cross-region demo assignment) drives the
+      // camera out to a whole-country/world view -- MapLibre still
+      // "renders" there, it's just the near-featureless low-zoom base
+      // layer with no roads or landmarks, which reads as a blank map.
+      // Past that distance, showing the rescuer's own position at a real,
+      // legible zoom is more useful than technically-correct-but-useless
+      // bounds-fitting.
+      const distanceKm = rescuer?.distanceKm ?? routeDistanceKm
+      if (distanceKm != null && distanceKm > 150) {
+        map.easeTo({ center: [rescuerPos[1], rescuerPos[0]], zoom: 12, duration: 600 })
+      } else {
+        // maxZoom guards against fitBounds zooming in past the point where
+        // tiles render anything recognizable — with the rescuer essentially
+        // on top of the tourist (near-zero-distance bounding box), it would
+        // otherwise drive the camera to an extreme zoom that renders blank.
+        map.fitBounds(
+          [[Math.min(rescuerPos[1], sosPos[1]), Math.min(rescuerPos[0], sosPos[0])],
+           [Math.max(rescuerPos[1], sosPos[1]), Math.max(rescuerPos[0], sosPos[0])]],
+          { padding: 48, duration: 600, maxZoom: 16 }
+        )
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [follow, rescuerPos?.[0], rescuerPos?.[1], sosPos?.[0], sosPos?.[1]])
@@ -390,7 +405,7 @@ export function RescueTrackingCard() {
       <HandoffCodeCard sosId={data.sosId} verifiedAt={data.handoffVerifiedAt} rescuerName={rescuer.name} />
 
       {hasValidCoords && rescuerPos && (
-        <div className="h-64 relative">
+        <div className="h-80 relative">
           <style>{`
             @keyframes rescue-pin-pulse {
               0% { transform: scale(.6); opacity: .7; }
