@@ -21,7 +21,7 @@ screenshots live in `docs/screenshots/`. Don't mix the three.
 | 8 | Offline/resilience | [`08-offline-resilience.md`](./08-offline-resilience.md) | PASS WITH ISSUES |
 | 9 | Security audit | [`09-security-audit.md`](./09-security-audit.md) | PASS WITH ISSUES |
 | 10 | Real-time consistency | [`10-realtime-validation.md`](./10-realtime-validation.md) | PASS WITH ISSUES |
-| 11 | UI/UX QA | `11-ui-ux-qa.md` | not started |
+| 11 | UI/UX QA | [`11-ui-ux-qa.md`](./11-ui-ux-qa.md) | PASS WITH ISSUES |
 | 12 | Regression report | `12-regression-report.md` | not started |
 | — | Final QA report | `FINAL_QA_REPORT.md` | not started |
 

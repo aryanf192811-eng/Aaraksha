@@ -163,7 +163,9 @@ export default function HomePage() {
           <h2 className="font-display font-black text-on-surface mb-3">Active alerts</h2>
           {active.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-outline-variant p-6 text-center">
-              <Siren className="w-7 h-7 text-on-surface-variant mx-auto mb-2" />
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                <Siren className="w-6 h-6 text-primary" />
+              </div>
               <p className="text-sm text-on-surface-variant">No nearby SOS right now</p>
             </div>
           ) : (
