@@ -48,27 +48,6 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'aaraksha-backend', timestamp: new Date().toISOString() })
 })
 
-// TEMPORARY — diagnosing a live incident where every DB-touching route
-// 500s with no visible stack trace in Render's logs. Runs the exact same
-// pool query mechanism the app uses, but returns the raw error directly
-// in the HTTP response instead of relying on log visibility. Remove once
-// the root cause is found and fixed.
-app.get('/health/db', async (_req, res) => {
-  const { getPool } = require('./database/pool')
-  try {
-    const result = await getPool().query('SELECT id, name FROM destinations LIMIT 1')
-    res.json({ ok: true, rows: result.rows })
-  } catch (err) {
-    res.status(500).json({
-      ok: false,
-      message: err.message,
-      code: err.code,
-      name: err.name,
-      stack: err.stack,
-    })
-  }
-})
-
 // ── Rate limiting ────────────────────────────────────────────────────
 app.use(generalLimiter)
 

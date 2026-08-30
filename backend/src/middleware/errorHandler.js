@@ -10,15 +10,7 @@ function errorHandler(err, req, res, next) {
   // Already responded — abort
   if (res.headersSent) return next(err)
 
-  // Log with context. Also a raw console.error alongside the structured
-  // pino log: while diagnosing a live incident where every DB-touching
-  // route 500'd, the pino "Request error" entries were consistently
-  // absent from Render's log search even though this code path was
-  // definitely running (confirmed by the response body's exact envelope
-  // shape) -- a plain, unstructured line guarantees something is visible
-  // in the raw log stream regardless of any pino serialization/transport/
-  // search-indexing quirk, without depending on it for real production use.
-  console.error('[Request error]', req.method, req.url, '-', err.message, '\n', err.stack)
+  // Log with context
   logger.error({
     err: {
       message: err.message,
