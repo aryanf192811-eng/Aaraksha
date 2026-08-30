@@ -34,6 +34,20 @@ app.use('/api/webhooks', express.urlencoded({ extended: true, limit: '1mb' }), w
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
+// ── Health check (no auth, no rate limit) ────────────────────────────
+// MUST be registered before generalLimiter below — Render's own health
+// probe hits this path on every instance, repeatedly and forever. When
+// this route lived after the limiter (the bug this comment used to
+// describe but didn't actually implement), the probe shared a rate-limit
+// bucket with real traffic; once exhausted, Render started seeing 429s
+// on its own health check, decided the instance was unhealthy, and
+// killed + restarted it on a loop — visible in the Render dashboard as
+// repeating "Instance failed: HTTP health check failed with status code
+// 429" events every few minutes, taking the whole API down with it.
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', service: 'aaraksha-backend', timestamp: new Date().toISOString() })
+})
+
 // ── Rate limiting ────────────────────────────────────────────────────
 app.use(generalLimiter)
 
@@ -59,11 +73,6 @@ app.use('/uploads/incidents', (req, res, next) => {
   next()
 }, express.static(path.join(__dirname, '../uploads/incidents')))
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
-
-// ── Health check (no auth, no rate limit) ────────────────────────────
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'aaraksha-backend', timestamp: new Date().toISOString() })
-})
 
 // ── API routes ────────────────────────────────────────────────────────
 app.use('/api', routes)
