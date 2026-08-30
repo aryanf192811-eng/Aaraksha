@@ -14,6 +14,7 @@ import { usePanicGesture } from './hooks/usePanicGesture'
 import { useGroupSOSListener } from './hooks/useGroupSOSListener'
 import { useDestinationNewsListener } from './hooks/useDestinationNewsListener'
 import { AppLayout } from './components/AppLayout'
+import { ScrollToTop } from './components/ScrollToTop'
 import './index.css'
 // Pages
 import LandingPage from './pages/LandingPage'
@@ -60,6 +61,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <ScrollToTop />
         <AppWithSync />
         <Routes>
           <Route path="/" element={<LandingPage />} />

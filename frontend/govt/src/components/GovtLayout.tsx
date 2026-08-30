@@ -1,5 +1,5 @@
 // src/components/GovtLayout.tsx
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Shield, Map, Bell, TrendingUp, AlertTriangle, LogOut, Activity, ScanLine, Smartphone, Menu, X, HeartHandshake, FileWarning } from 'lucide-react'
@@ -123,6 +123,15 @@ export default function GovtLayout() {
   const location = useLocation()
   const activeLabel = navItems.find(n => (n.exact ? location.pathname === n.to : location.pathname.startsWith(n.to)))?.label ?? 'Dashboard'
 
+  // <main> below is its own scroll container, not the window — React Router
+  // doesn't reset scroll position on navigation, so a new page used to
+  // render already scrolled to wherever the previous page was left,
+  // hiding its own heading under whatever content used to be at that offset.
+  const mainRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0)
+  }, [location.pathname])
+
   // Nav badge only — VolunteersPage runs its own query for the actual list.
   const { data: pendingVolunteers } = useQuery({
     queryKey: ['govt', 'volunteers', 'pending'],
@@ -181,7 +190,7 @@ export default function GovtLayout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+        <main ref={mainRef} className="flex-1 overflow-x-hidden overflow-y-auto">
           <Outlet />
         </main>
       </div>

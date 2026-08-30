@@ -7,6 +7,7 @@ import { queryClient } from './lib/queryClient'
 import { useAuthStore } from './store/auth.store'
 import { useVolunteerSocketSync } from './hooks/useVolunteerSocketSync'
 import './index.css'
+import { ScrollToTop } from './components/ScrollToTop'
 import AuthPage from './pages/AuthPage'
 import HomePage from './pages/HomePage'
 import ActiveJobPage from './pages/ActiveJobPage'
@@ -26,6 +27,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <ScrollToTop />
         <AppWithSync />
         <Routes>
           <Route path="/auth" element={<AuthPage />} />
