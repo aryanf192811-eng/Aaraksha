@@ -24,6 +24,14 @@ import type { ActiveRescuer } from '../api/govt.api'
 
 const TERRAIN_STYLE: StyleSpecification = {
   version: 8,
+  // Renders as a curved 3D globe with atmosphere at low zoom, flattening
+  // to a normal map as the operator zooms into a district — MapLibre's
+  // built-in globe mode, not a separate library or API key, so it keeps
+  // the same free/keyless terrain underneath.
+  projection: { type: 'globe' },
+  sky: {
+    'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0],
+  },
   sources: {
     osm: {
       type: 'raster',
