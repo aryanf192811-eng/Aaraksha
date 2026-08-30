@@ -209,6 +209,7 @@ has to *operate* the system, not just use it. That's the bar this comparison is 
 - **Anti-fraud handoff verification** — closing an SOS is blocked at the database level until the rescuer has the tourist's own 6-digit code (HMAC-SHA256 hashed, 3-attempt lockout, timing-safe comparison — the exact same primitive as password-reset OTPs, reused rather than reinvented) *and* their live GPS is within 250m of the tourist's last known position. A govt operator can still force-resolve a genuine edge case (tourist unconscious, phone dead) — but only with a required, logged reason stamped to the record, never silently
 - **Self-service status, govt-owned resolution** — a rescuer reports their own `EN_ROUTE`/`ARRIVED` progress; closing the incident stays an exclusive govt-operator action, matching how a real emergency response chain of custody works
 - **Honest decline/cancel, not silent ghosting** — a rescuer who can't take the job anymore exits with a required reason: `DECLINED` if they hadn't started moving yet, `CANCELLED` if they were already en route, each labeled honestly rather than collapsed into one vague status. The SOS immediately reverts to `ACTIVE` in govt's queue for reassignment (unless another rescuer is already on it), and tourist/guardian/govt all get a real-time explanation instead of a stale "still coming" marker. Locked once the handoff code is already verified — a rescuer can't back out after confirming they physically reached the tourist
+- **In-app messaging with the rescuer** — a real-time chat thread scoped to the active assignment, right beside the existing call button on both ends; a declined, reassigned, or already-resolved rescuer is rejected from posting (the same live-assignment check every other rescuer endpoint already enforces), so a stale conversation can't be mistaken for a current one
 
 ### 🖥️ Government Operations
 - **Live ops map** (Leaflet + Socket.IO) — every active tourist, every open SOS, every rescuer currently en route with their real OSRM road route, and every open **anomaly flag** (gone-quiet / off-route), all updating in real time, no refresh — plus a toggleable **Risk Density layer**, weighted circles showing where active trips are concentrated per destination, colored by zone type
@@ -235,6 +236,7 @@ has to *operate* the system, not just use it. That's the bar this comparison is 
 - **Zero-friction access** — a cryptographically random token in the URL, no login, works the instant it's opened
 - **Five status states**, each visually distinct: safe, check-in-due warning, SOS active, help-dispatched (amber, distinct from a raw SOS), and no-signal
 - **Live rescuer tracking** once help is dispatched — the assigned team or volunteer's real-time position and road route to the traveler, the same picture the govt operator sees
+- **In-app messaging with the traveler** — always available, not gated on an active SOS; a real-time chat thread reachable straight from the tracking screen, no login required to send or read it
 - Live location on a Leaflet map, battery level, medical info (blood group, conditions), auto-refresh every 30s
 
 ### 📴 Offline-first
@@ -859,18 +861,20 @@ otherwise.
 Everything described in this README is built, deployed, and working end-to-end on a live public
 backend — real Twilio/Gemini/OpenWeatherMap/VAPID credentials wired in, not stubbed for the
 demo — including rule-based anomaly detection, the E-FIR triage queue, checkpoint scans chained
-into the Journey Integrity Hash, the anti-fraud rescue handoff verification, and the
-authentication security hardening pass, all verified in a 12-phase adversarial QA pass (see
-[`docs/testing/README.md`](./docs/testing/README.md)) plus a full API contract regression via
-Postman/Newman (see [Testing](#testing)). What's next, honestly scoped beyond the current build:
+into the Journey Integrity Hash, the anti-fraud rescue handoff verification, in-app messaging
+between tourist/guardian and tourist/rescuer, and the authentication security hardening pass, all
+verified in a 12-phase adversarial QA pass (see [`docs/testing/README.md`](./docs/testing/README.md))
+plus a full API contract regression via Postman/Newman (see [Testing](#testing)). What's next,
+honestly scoped beyond the current build:
 
 - [ ] **Official rescue team login and live GPS tracking** — teams are currently dispatched and
       tracked the same way volunteers are through the unified rescuer pool, but don't yet have
       their own standalone login/session the way volunteers do; a team-specific auth flow is the
       next natural extension of the unified rescuer model
-- [ ] **In-app messaging** between tourist, guardian, and rescuer beyond the existing `tel:` call
-      links — deliberately scoped out of this build in favor of getting anti-fraud handoff
-      verification right first, not because it's out of reach next
+- [ ] **Guardian ↔ Rescuer messaging** — deliberately out of scope for the Tourist ↔ Guardian /
+      Tourist ↔ Rescuer messaging that does exist today; a rescuer messaging an anonymous
+      link-holder with no real identity is a different trust boundary, worth its own design pass
+      rather than bolting on as a third thread
 
 ---
 
