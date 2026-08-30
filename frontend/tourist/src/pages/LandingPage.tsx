@@ -563,7 +563,7 @@ export default function LandingPage() {
 
         <footer className="border-t border-outline-variant py-8 text-center text-sm text-on-surface-variant flex items-center justify-center gap-2 max-w-6xl mx-auto px-5">
           <Users className="w-4 h-4" />
-          Aaraksha © 2025 · SIH 2025 · Smart Tourism · Safe Journey · Northeast India
+          Aaraksha © 2026 · SIH 2026 · Smart Tourism · Safe Journey · Northeast India
         </footer>
       </main>
     </div>

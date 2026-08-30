@@ -149,7 +149,7 @@ export default function GovtLoginPage() {
             <Shield className="w-4 h-4" /> AARAKSHA
           </div>
           <div className="text-xs text-on-surface-variant text-center">
-            © 2025 AARAKSHA COMMAND CENTER · RESTRICTED ACCESS SYSTEM
+            © 2026 AARAKSHA COMMAND CENTER · RESTRICTED ACCESS SYSTEM
           </div>
         </footer>
       </div>

@@ -126,7 +126,7 @@ export default {
     guardianLinkValidity: 'Valid for 90 days from registration',
     digitalId: 'Digital Tourist ID',
     digitalIdDescription: 'Show your verified ID at govt checkpoints and ILP posts',
-    footer: 'Aaraksha v1.0.0 · SIH 2025 · Smart Tourism · Safe Journey',
+    footer: 'Aaraksha v1.0.0 · SIH 2026 · Smart Tourism · Safe Journey',
     verifyDialogTitle: 'Verify {{name}}',
     verifyDialogSentCode: 'Enter the 6-digit code sent to {{phone}}.',
     verifyDialogConfirm: "Confirm this is a real, reachable number before it's relied on during an SOS.",

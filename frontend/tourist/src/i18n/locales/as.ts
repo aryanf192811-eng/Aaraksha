@@ -130,7 +130,7 @@ export default {
     guardianLinkValidity: 'পঞ্জীয়নৰ পৰা ৯০ দিনলৈকে বৈধ',
     digitalId: 'ডিজিটেল পৰ্যটক পৰিচয় পত্ৰ',
     digitalIdDescription: 'চৰকাৰী চেকপষ্ট আৰু ILP পষ্টত আপোনাৰ সত্যাপিত পৰিচয় দেখুৱাওক',
-    footer: "Aaraksha v1.0.0 · SIH 2025 · স্মাৰ্ট পৰ্যটন · সুৰক্ষিত যাত্ৰা",
+    footer: "Aaraksha v1.0.0 · SIH 2026 · স্মাৰ্ট পৰ্যটন · সুৰক্ষিত যাত্ৰা",
     verifyDialogTitle: '{{name}} সত্যাপন কৰক',
     verifyDialogSentCode: "{{phone}}লৈ পঠোৱা ৬-অংকৰ ক'ড দিয়ক।",
     verifyDialogConfirm: 'SOSৰ সময়ত ভাৰসা কৰাৰ আগতে নিশ্চিত কৰক যে এইটো এটা প্ৰকৃত, নাগাল পোৱা নম্বৰ।',

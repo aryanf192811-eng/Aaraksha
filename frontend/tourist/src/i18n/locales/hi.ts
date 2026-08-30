@@ -124,7 +124,7 @@ export default {
     guardianLinkValidity: 'पंजीकरण से 90 दिनों तक मान्य',
     digitalId: 'डिजिटल पर्यटक पहचान पत्र',
     digitalIdDescription: 'सरकारी चौकियों और ILP पोस्ट पर अपनी सत्यापित पहचान दिखाएं',
-    footer: 'Aaraksha v1.0.0 · SIH 2025 · स्मार्ट पर्यटन · सुरक्षित यात्रा',
+    footer: 'Aaraksha v1.0.0 · SIH 2026 · स्मार्ट पर्यटन · सुरक्षित यात्रा',
     verifyDialogTitle: '{{name}} को सत्यापित करें',
     verifyDialogSentCode: '{{phone}} पर भेजा गया 6-अंकीय कोड दर्ज करें।',
     verifyDialogConfirm: 'SOS के दौरान भरोसा करने से पहले पुष्टि करें कि यह एक वास्तविक, पहुंच योग्य नंबर है।',
