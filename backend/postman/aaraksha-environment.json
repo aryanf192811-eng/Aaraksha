@@ -4,6 +4,7 @@
     { "key": "BASE_URL", "value": "http://localhost:5000/api", "type": "default", "enabled": true },
     { "key": "BASE_URL_ROOT", "value": "http://localhost:5000", "type": "default", "enabled": true },
     { "key": "SOCKET_URL", "value": "http://localhost:5000", "type": "default", "enabled": true },
+    { "key": "TWILIO_AUTH_TOKEN", "value": "", "type": "secret", "enabled": true, "description": "Set this to match your local backend's .env TWILIO_AUTH_TOKEN to exercise the signed webhook path in Test 73. Leave blank to instead assert the (also correct) rejected-unsigned-request path." },
     { "key": "TOURIST_TOKEN", "value": "", "type": "secret", "enabled": true },
     { "key": "TOURIST_2_TOKEN", "value": "", "type": "secret", "enabled": true },
     { "key": "GOVT_TOKEN", "value": "", "type": "secret", "enabled": true },
