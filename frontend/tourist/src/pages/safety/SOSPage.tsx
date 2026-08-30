@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft, Battery, Loader2, Timer, CheckCircle2, Wifi, WifiOff,
-  PowerOff, Smartphone, Bell, FileWarning,
+  PowerOff, Smartphone, Bell, FileWarning, Radar,
   Check, ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -21,6 +21,7 @@ import { useSOS } from '../../hooks/useSOS'
 import { useBattery } from '../../hooks/useBattery'
 import { useDMS } from '../../hooks/useDMS'
 import { requestPanicGesturePermission } from '../../hooks/usePanicGesture'
+import { useSafetyMode, isSafetyModeSupported } from '../../hooks/useSafetyMode'
 import { usePushNotifications, isPushSupported } from '../../hooks/usePushNotifications'
 import dmsApi, { withSecondsRemaining } from '../../api/dms.api'
 import { queryClient } from '../../lib/queryClient'
@@ -52,6 +53,8 @@ export default function SOSPage() {
   const { dms, disableDMS, disabling } = useDMS()
   const panicGestureEnabled = useSafetyStore((s) => s.panicGestureEnabled)
   const setPanicGestureEnabled = useSafetyStore((s) => s.setPanicGestureEnabled)
+  const [safetyModeMinutes, setSafetyModeMinutes] = useState(30)
+  const safetyMode = useSafetyMode()
   // Unlike the nav bar's SOS button (NavSOSButton.tsx), this one never
   // passed isActive -- so even with an SOS already live (the banner above
   // this button already says so), holding it again showed the same "SEND
@@ -121,6 +124,30 @@ export default function SOSPage() {
     if (ok) toast.success(t('sos.toastPushEnabled'))
     else toast.error(t('sos.toastPushFailed'))
   }
+
+  const handleActivateSafetyMode = async () => {
+    await safetyMode.activate(safetyModeMinutes)
+    toast.success(t('sos.toastSafetyModeActivated', { minutes: safetyModeMinutes }))
+  }
+
+  const handleDeactivateSafetyMode = () => {
+    safetyMode.deactivate()
+    toast(t('sos.toastSafetyModeDeactivated'))
+  }
+
+  // expiresAt is a fixed timestamp -- nothing re-renders this component on
+  // its own as time passes, so the "X min left" label would otherwise be
+  // frozen at whatever it read on activation. A 30s tick is coarse enough
+  // for a minutes-only display without spamming re-renders.
+  const [, forceTick] = useState(0)
+  useEffect(() => {
+    if (!safetyMode.active) return
+    const id = setInterval(() => forceTick((n) => n + 1), 30_000)
+    return () => clearInterval(id)
+  }, [safetyMode.active])
+  const safetyModeMinutesLeft = safetyMode.expiresAt
+    ? Math.max(1, Math.ceil((safetyMode.expiresAt - Date.now()) / 60_000))
+    : 0
 
   // pb-40, not the usual pb-24 — this page's last section (DMS setup)
   // expands in place when the interval picker opens, and pb-24 wasn't
@@ -325,6 +352,58 @@ export default function SOSPage() {
             </>
           )}
         </div>
+
+        {/* Safety Mode — a Screen Wake Lock, time-boxed and opt-in, so the
+            panic-gesture toggle below stays functionally live instead of
+            silently lapsing the moment the screen auto-sleeps. Not a
+            background-detection feature -- see useSafetyMode.ts's header. */}
+        {isSafetyModeSupported() && (
+          <div className={cn('rounded-2xl p-5 shadow-sm border transition-colors',
+            safetyMode.active ? 'bg-tsi-low/5 border-tsi-low/30' : 'bg-surface-container-lowest border-outline-variant'
+          )}>
+            <div className="flex items-center gap-3 mb-4">
+              <Radar className="w-6 h-6 text-primary" />
+              <div>
+                <h2 className="font-display font-black text-on-surface">{t('sos.safetyModeTitle')}</h2>
+                <p className="text-xs text-on-surface-variant">{t('sos.safetyModeSubtitle')}</p>
+              </div>
+            </div>
+
+            {safetyMode.active ? (
+              <div className="space-y-2">
+                <div className="bg-tsi-low/10 border border-tsi-low/30 rounded-xl p-4 text-center">
+                  <p className="flex items-center justify-center gap-1.5 font-bold text-tsi-low">
+                    <CheckCircle2 className="w-4 h-4" />
+                    {t('sos.safetyModeActiveLabel', { minutes: safetyModeMinutesLeft })}
+                  </p>
+                </div>
+                <button
+                  onClick={handleDeactivateSafetyMode}
+                  className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:text-sos-dark py-2 transition-colors"
+                >
+                  <PowerOff className="w-3.5 h-3.5" /> {t('sos.safetyModeTurnOff')}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  {[15, 30, 60].map((m) => (
+                    <button key={m} type="button" onClick={() => setSafetyModeMinutes(m)}
+                      className={cn('rounded-xl border-2 py-2 text-center text-xs font-bold transition-all',
+                        safetyModeMinutes === m ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant'
+                      )}>
+                      {t(`sos.safetyMode${m}`)}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={handleActivateSafetyMode}
+                  className="w-full bg-primary hover:brightness-95 text-primary-foreground font-bold rounded-full h-12 transition-all active:scale-95">
+                  {t('sos.safetyModeActivate')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Panic gesture + Push notifications — one grouped settings list
             (iOS-style rows sharing a card) instead of two duplicate cards */}
