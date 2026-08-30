@@ -87,9 +87,20 @@ export function TerrainMap({ tourists, rescuers, center, zoom }: TerrainMapProps
     })
     map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right')
     map.on('load', () => setLoading(false))
+    // MapLibre's 'load' event only fires once every style resource has
+    // resolved — a single flaky request to either free tile source (OSM
+    // imagery or the AWS Terrarium elevation tiles) leaves it never firing
+    // at all, even though the map is otherwise rendering fine underneath.
+    // That left the loading overlay stuck indefinitely with no visible
+    // error. A tile error clears the spinner too (the map already
+    // gracefully renders around a missing tile) and a hard timeout covers
+    // any other reason 'load' might not fire, so the operator is never
+    // blocked from a usable map by a single bad request.
+    map.on('error', () => setLoading(false))
+    const timeout = setTimeout(() => setLoading(false), 8000)
     mapRef.current = map
 
-    return () => { map.remove(); mapRef.current = null }
+    return () => { map.remove(); mapRef.current = null; clearTimeout(timeout) }
     // Intentionally init once — center/zoom below only apply on first
     // mount, matching Leaflet's own MapContainer behavior elsewhere in
     // this app (re-centering happens via the explicit Recenter control,
