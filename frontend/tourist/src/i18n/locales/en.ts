@@ -496,7 +496,7 @@ export default {
     faq: {
       sendSos: {
         q: 'How do I send an SOS?',
-        a: 'Hold the red SOS button — in the bottom nav or the Safety Center — for about 2 seconds. Release early for a quick default alert, or keep holding to pick a specific category like Medical or Trapped. Your live location goes out immediately to your emergency contacts, your guardian, and the nearest rescue network.',
+        a: 'Hold the red SOS button — in the bottom nav or the Safety Center — briefly. Release right away for a quick default alert, or keep holding a little longer to pick a specific category like Medical or Trapped. Your live location goes out immediately to your emergency contacts, your guardian, and the nearest rescue network.',
       },
       afterSos: {
         q: 'What happens after I send an SOS?',

@@ -22,11 +22,18 @@ export function useGeolocation() {
     setError(null)
 
     try {
-      // Step 1: Try live GPS (satellite-based, works offline)
+      // Step 1: Try live GPS (satellite-based, works offline). Timeout was
+      // 30s -- for SOS specifically that meant a tourist who'd already
+      // completed the hold gesture could then sit blocked for up to half a
+      // minute before the app even attempted the cached-location fallback
+      // below, let alone sent anything. A slow/cold GPS fix (indoors, urban
+      // canyon) is common and exactly the situation where every second
+      // matters most. 4s is enough for a warm fix; anything slower falls
+      // through to cache immediately instead of making help wait on GPS.
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,   // Use GPS chip, not network/wifi
-          timeout: 30000,             // 30s for satellite fix
+          timeout: 4000,              // fail fast to the cache fallback below
           maximumAge: 300000,         // Accept fix cached in last 5 minutes
         })
       })

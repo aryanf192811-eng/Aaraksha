@@ -4,15 +4,34 @@
 // filling ring around the button as feedback, before it triggers —
 // releasing early cancels cleanly with no side effect.
 //
+// Hold duration is deliberately short, not zero. A bare instant tap was
+// considered and rejected: this button sits in the bottom nav on every
+// screen in the app, and a zero-friction single tap there turns every
+// pocket jostle, bag contact, or screen-wake touch into a real government
+// dispatch — a common failure mode a hold-based control is specifically
+// good at filtering, since an incidental touch is rarely a sustained,
+// continuous press. The counter-argument for zero friction is usually "what
+// if the tourist is incapacitated mid-hold" — but that's the Dead Man's
+// Switch's job, not this button's: DMS exists precisely for "can't interact
+// with the phone at all," while this button is for "conscious, urgent,
+// capable of one deliberate action." Splitting that responsibility two ways
+// is why the hold only needs to be *short*, not zero — long enough to
+// reject a stray touch (~200-300ms in practice), short enough that someone
+// losing fine motor control over a second or two still very likely
+// completes it. The real protection against a false-positive turning into
+// government/rescue load isn't the hold at all — it's the backend's
+// same-tourist active-incident idempotency guard (sos.service.js), the
+// button locking via `isActive` the instant one fires, and the always-
+// available False Alarm cancel already on the Safety Center.
+//
 // Two interaction modes, both driven by the same pointer-capture/hold-loop
 // mechanics below:
 //   - Single-stage (default, used by the Safety Center's full-size button):
-//     hold 2s, `onTrigger` fires once at 100%. Unchanged from the original
-//     behavior — every existing call site keeps working exactly as before.
+//     hold SINGLE_STAGE_DURATION_MS, `onTrigger` fires once at 100%.
 //   - Two-stage (`twoStage`, used by the Dashboard's quick-access button):
-//     hold window is 3s. Releasing between 66% and 100% fires `onQuickSend`
-//     (send now, with whatever default category the caller wants) — this is
-//     the "hold ~2s" case. Holding all the way to 100% instead fires
+//     hold window is TWO_STAGE_DURATION_MS. Releasing between 66% and 100%
+//     fires `onQuickSend` (send now, with whatever default category the
+//     caller wants). Holding all the way to 100% instead fires
 //     `onHoldComplete` and does NOT send anything itself — it's the signal
 //     for the caller to open a category picker, since holding that long
 //     reads as "I want to specify what's wrong," not "send immediately."
@@ -21,8 +40,8 @@ import { AlertTriangle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '../../lib/utils'
 
-const SINGLE_STAGE_DURATION_MS = 2000
-const TWO_STAGE_DURATION_MS = 3000
+const SINGLE_STAGE_DURATION_MS = 600
+const TWO_STAGE_DURATION_MS = 1000
 const QUICK_SEND_THRESHOLD_PCT = 66
 
 interface SOSButtonProps {
@@ -231,8 +250,8 @@ export function SOSButton({
             : 'bg-sos hover:bg-sos-dark text-white shadow-sos/40',
         )}
         aria-label={twoStage
-          ? 'Hold 2 seconds to send SOS, or hold 3 seconds to choose an emergency category'
-          : 'Hold for 2 seconds to send SOS emergency alert'}
+          ? 'Hold briefly to send SOS, or hold slightly longer to choose an emergency category'
+          : 'Hold briefly to send SOS emergency alert'}
       >
         {loading ? (
           <Loader2 className={cn('animate-spin', size === 'default' ? 'w-10 h-10' : size === 'compact' ? 'w-6 h-6' : 'w-5 h-5')} />
@@ -254,7 +273,7 @@ export function SOSButton({
         {size === 'default' && !isActive && !loading && (
           <span className="text-xs font-medium opacity-80">
             {holdProgress === 0
-              ? (twoStage ? 'Hold to alert' : 'Hold 2s to alert')
+              ? 'Hold to alert'
               : twoStage
                 ? (armed ? 'Release to send' : 'Keep holding...')
                 : 'Keep holding...'}
