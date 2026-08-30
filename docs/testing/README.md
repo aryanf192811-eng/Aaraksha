@@ -23,7 +23,7 @@ screenshots live in `docs/screenshots/`. Don't mix the three.
 | 10 | Real-time consistency | [`10-realtime-validation.md`](./10-realtime-validation.md) | PASS WITH ISSUES |
 | 11 | UI/UX QA | [`11-ui-ux-qa.md`](./11-ui-ux-qa.md) | PASS WITH ISSUES |
 | 12 | Regression report | [`12-regression-report.md`](./12-regression-report.md) | PASS |
-| — | Final QA report | `FINAL_QA_REPORT.md` | not started |
+| — | Final QA report | [`FINAL_QA_REPORT.md`](./FINAL_QA_REPORT.md) | PASS |
 
 ## Other testing artifacts in this repo
 
