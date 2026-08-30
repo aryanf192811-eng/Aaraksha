@@ -174,6 +174,33 @@ function registerListeners(socket: ReturnType<typeof connectSocket>) {
     queryClient.invalidateQueries({ queryKey: ['govt', 'active-rescuers'] })
   }
 
+  // The rescuer's code check against the tourist passed -- gates "Mark as
+  // Resolved" (see SOSManagementPage.tsx), so an operator watching the
+  // queue needs to see this land live, not on the next 30s poll.
+  const onHandoffVerified = () => {
+    toast.success('Handoff verified — ready to resolve', {
+      action: { label: 'View', onClick: () => { window.location.href = '/sos' } },
+    })
+    queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
+    queryClient.invalidateQueries({ queryKey: ['govt', 'dashboard'] })
+  }
+
+  // Hourly weather-driven TSI recalcs fire per-tourist and can arrive in a
+  // burst -- no toast (would flood the operator), just keep the risk
+  // overview current instead of waiting on its own poll interval.
+  const onTsiBulkUpdate = () => {
+    queryClient.invalidateQueries({ queryKey: ['govt', 'risk-overview'] })
+    queryClient.invalidateQueries({ queryKey: ['govt', 'dashboard'] })
+  }
+
+  // A volunteer moved their own dispatch forward (RESPONDED/COMPLETED/
+  // DECLINED) on an SOS a team may also be assigned to -- routine, so
+  // silent like onRescuerUpdate rather than another toast.
+  const onVolunteerAssignmentUpdated = () => {
+    queryClient.invalidateQueries({ queryKey: ['govt', 'volunteers'] })
+    queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
+  }
+
   socket.on(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
   socket.on(SOCKET_EVENTS.SOS_RESOLVED, onSOSResolved)
   socket.on(SOCKET_EVENTS.DMS_TRIGGERED, onDMSTriggered)
@@ -186,8 +213,14 @@ function registerListeners(socket: ReturnType<typeof connectSocket>) {
   socket.on(SOCKET_EVENTS.INCIDENT_FILED, onIncidentFiled)
   socket.on(SOCKET_EVENTS.INCIDENT_STATUS_UPDATED, onIncidentStatusUpdated)
   socket.on(SOCKET_EVENTS.RESCUER_ASSIGNMENT_CANCELLED, onAssignmentCancelled)
+  socket.on(SOCKET_EVENTS.HANDOFF_VERIFIED, onHandoffVerified)
+  socket.on(SOCKET_EVENTS.TSI_BULK_UPDATE, onTsiBulkUpdate)
+  socket.on(SOCKET_EVENTS.VOLUNTEER_ASSIGNMENT_UPDATED, onVolunteerAssignmentUpdated)
 
   return () => {
+    socket.off(SOCKET_EVENTS.HANDOFF_VERIFIED, onHandoffVerified)
+    socket.off(SOCKET_EVENTS.TSI_BULK_UPDATE, onTsiBulkUpdate)
+    socket.off(SOCKET_EVENTS.VOLUNTEER_ASSIGNMENT_UPDATED, onVolunteerAssignmentUpdated)
     socket.off(SOCKET_EVENTS.RESCUER_ASSIGNMENT_CANCELLED, onAssignmentCancelled)
     socket.off(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
     socket.off(SOCKET_EVENTS.SOS_RESOLVED, onSOSResolved)

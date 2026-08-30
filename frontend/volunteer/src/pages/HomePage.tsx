@@ -3,14 +3,14 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { ShieldCheck, LogOut, Award, MapPin, Clock, CheckCircle2, XCircle, Siren, ShieldAlert, Truck, Radio } from 'lucide-react'
+import { ShieldCheck, LogOut, Award, MapPin, Clock, CheckCircle2, XCircle, Siren, ShieldAlert, Radio } from 'lucide-react'
 import volunteerApi from '../api/volunteer.api'
 import { getErrorMessage } from '../api/client'
-import { connectSocket, disconnectSocket } from '../lib/socket'
+import { disconnectSocket } from '../lib/socket'
 import { queryClient } from '../lib/queryClient'
 import { useAuthStore } from '../store/auth.store'
 import { cn, formatTimeAgo } from '../lib/utils'
-import type { Dispatch, VolunteerSOSAlertPayload, VolunteerAssignedPayload } from '../types/api.types'
+import type { Dispatch } from '../types/api.types'
 
 const CATEGORY_LABELS: Record<string, string> = {
   MEDICAL: 'Medical', LOST: 'Lost', TRAPPED: 'Trapped',
@@ -19,7 +19,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { volunteer, token, logout, updateVolunteer } = useAuthStore()
+  const { volunteer, logout, updateVolunteer } = useAuthStore()
   const [togglingStatus, setTogglingStatus] = useState(false)
 
   const { data: dispatches = [] } = useQuery({
@@ -42,34 +42,6 @@ export default function HomePage() {
   useEffect(() => {
     if (activeAssignment) navigate('/active-job')
   }, [activeAssignment, navigate])
-
-  useEffect(() => {
-    if (!token) return
-    const socket = connectSocket(token)
-    const onAlert = (payload: VolunteerSOSAlertPayload) => {
-      toast.warning(`Nearby SOS — ${CATEGORY_LABELS[payload.category] || payload.category} (${payload.distanceKm.toFixed(1)} km)`, {
-        description: payload.touristFirstName ? `${payload.touristFirstName} needs help` : undefined,
-        duration: 12000,
-      })
-      queryClient.invalidateQueries({ queryKey: ['volunteer', 'dispatches'] })
-    }
-    const onAssigned = (payload: VolunteerAssignedPayload) => {
-      toast.success(`You've been assigned — ${CATEGORY_LABELS[payload.category] || payload.category}`, {
-        description: payload.touristFirstName ? `${payload.touristFirstName} needs help` : undefined,
-        icon: <Truck className="w-4 h-4" />,
-      })
-      queryClient.invalidateQueries({ queryKey: ['volunteer', 'active-assignment'] })
-      navigate('/active-job')
-    }
-    socket.on('VOLUNTEER_SOS_ALERT', onAlert)
-    socket.on('VOLUNTEER_ASSIGNED', onAssigned)
-    return () => {
-      socket.off('VOLUNTEER_SOS_ALERT', onAlert)
-      socket.off('VOLUNTEER_ASSIGNED', onAssigned)
-      disconnectSocket()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
 
   const { mutate: updateDispatchStatus, isPending: updatingDispatch } = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'RESPONDED' | 'COMPLETED' | 'DECLINED' }) =>

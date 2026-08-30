@@ -39,7 +39,16 @@ function initSocket(server) {
       return next()
     }
 
-    // Tourist or Govt — require JWT
+    // Tourist, Govt, or Volunteer — require JWT. Every frontend always sends
+    // one of `token`/`guardianToken` (no caller ever connects intentionally
+    // credential-less), so a missing or invalid token is always a real auth
+    // failure, not a legitimate anonymous/public connection. Previously this
+    // fell through to `role: 'anonymous'` and still called `next()` — the
+    // socket connected "successfully" but joined zero rooms, so a tab with
+    // an expired token silently stopped receiving every real-time SOS/
+    // rescue/DMS update for the rest of its life with no visible signal.
+    // Rejecting here instead surfaces a `connect_error` the client can
+    // detect and act on (e.g. prompt re-login).
     if (token) {
       try {
         const payload = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] })
@@ -49,14 +58,13 @@ function initSocket(server) {
         if (payload.role === 'volunteer') socket.data.volunteerId = payload.id
         return next()
       } catch (err) {
-        logger.debug({ err: err.message }, 'Socket auth failed — connecting without auth')
-        socket.data.role = 'anonymous'
-        return next()
+        logger.debug({ err: err.message }, 'Socket auth failed — rejecting connection')
+        return next(new Error('AUTH_INVALID'))
       }
     }
 
-    socket.data.role = 'anonymous'
-    next()
+    logger.debug('Socket connection attempted with no credentials — rejecting')
+    next(new Error('AUTH_REQUIRED'))
   })
 
   _io.on('connection', (socket) => {
