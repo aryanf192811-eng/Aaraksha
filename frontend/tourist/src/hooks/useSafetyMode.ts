@@ -19,7 +19,10 @@ export function isSafetyModeSupported() {
   return 'wakeLock' in navigator
 }
 
-export function useSafetyMode() {
+// onExpire fires only when the window runs out on its own -- distinct from
+// a manual deactivate() call, so the caller can tell a tourist "Safety Mode
+// ended" (passive, expected) apart from confirming their own "Turn off" tap.
+export function useSafetyMode(onExpire?: () => void) {
   const [active, setActive] = useState(false)
   const [expiresAt, setExpiresAt] = useState<number | null>(null)
   const sentinelRef = useRef<WakeLockSentinel | null>(null)
@@ -53,8 +56,11 @@ export function useSafetyMode() {
     setActive(true)
     setExpiresAt(until)
     await acquireLock()
-    timeoutRef.current = setTimeout(deactivate, minutes * 60_000)
-  }, [acquireLock, deactivate])
+    timeoutRef.current = setTimeout(() => {
+      deactivate()
+      onExpire?.()
+    }, minutes * 60_000)
+  }, [acquireLock, deactivate, onExpire])
 
   // The Wake Lock spec auto-releases the instant the document is hidden
   // (tab/app switch, screen off via power button) -- re-acquire on return,

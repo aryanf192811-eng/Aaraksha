@@ -54,7 +54,7 @@ export default function SOSPage() {
   const panicGestureEnabled = useSafetyStore((s) => s.panicGestureEnabled)
   const setPanicGestureEnabled = useSafetyStore((s) => s.setPanicGestureEnabled)
   const [safetyModeMinutes, setSafetyModeMinutes] = useState(30)
-  const safetyMode = useSafetyMode()
+  const safetyMode = useSafetyMode(() => toast(t('sos.toastSafetyModeExpired')))
   // Unlike the nav bar's SOS button (NavSOSButton.tsx), this one never
   // passed isActive -- so even with an SOS already live (the banner above
   // this button already says so), holding it again showed the same "SEND
@@ -376,6 +376,20 @@ export default function SOSPage() {
                     <CheckCircle2 className="w-4 h-4" />
                     {t('sos.safetyModeActiveLabel', { minutes: safetyModeMinutesLeft })}
                   </p>
+                </div>
+                {/* At-a-glance status of the two features Safety Mode exists
+                    to keep usable -- not new state, just surfacing what this
+                    page already knows (panicGestureEnabled, dms) so a
+                    tourist doesn't have to scroll down to check either one. */}
+                <div className="grid grid-cols-2 gap-2 text-xs px-1">
+                  <div className="flex items-center gap-1.5 text-on-surface-variant">
+                    <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', panicGestureEnabled ? 'bg-tsi-low' : 'bg-outline-variant')} />
+                    {panicGestureEnabled ? t('sos.safetyModeShakeReady') : t('sos.safetyModeShakeOff')}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-on-surface-variant">
+                    <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', dms?.status === 'ACTIVE' ? 'bg-tsi-low' : 'bg-outline-variant')} />
+                    {dms?.status === 'ACTIVE' ? t('sos.safetyModeDmsActive') : t('sos.safetyModeDmsOff')}
+                  </div>
                 </div>
                 <button
                   onClick={handleDeactivateSafetyMode}
