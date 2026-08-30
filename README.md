@@ -26,7 +26,7 @@ Smart India Hackathon 2026, Student Innovation category, Travel & Tourism theme.
 
 ---
 
-## The pitch, in one paragraph
+## 🎯 The pitch, in one paragraph
 
 Northeast India pulls a growing number of tourists into terrain most safety apps were never
 built for: 3000m mountain passes, zero-connectivity valleys, single-lane approach roads, and
@@ -45,30 +45,30 @@ real-time data model instead of four disconnected apps.
 
 ---
 
-## Table of contents
+## 📑 Table of contents
 
-- [Research & prior art — where Aaraksha sits](#research--prior-art--where-aaraksha-sits)
-- [Four portals, one system](#four-portals-one-system)
-- [Feature walkthrough](#feature-walkthrough)
-- [Verifiable Digital ID — the Journey Integrity Hash](#verifiable-digital-id--the-journey-integrity-hash)
-- [A real trained model — the Predictive Risk Score](#a-real-trained-model--the-predictive-risk-score)
-- [The unified Rescuer network](#the-unified-rescuer-network)
-- [Screenshots](#screenshots)
-- [Architecture at a glance](#architecture-at-a-glance)
-- [By the numbers](#by-the-numbers)
-- [Repository layout](#repository-layout)
-- [Getting started](#getting-started)
-- [Demo accounts](#demo-accounts)
-- [API surface](#api-surface)
-- [Testing](#testing)
-- [Production readiness](#production-readiness)
-- [Legal & Compliance](#legal--compliance)
-- [Documentation map](#documentation-map)
-- [Roadmap](#roadmap)
+- [🔬 Research & prior art — where Aaraksha sits](#-research--prior-art--where-aaraksha-sits)
+- [🧩 Four portals, one system](#-four-portals-one-system)
+- [⭐ Feature walkthrough](#-feature-walkthrough)
+- [🔗 Verifiable Digital ID — the Journey Integrity Hash](#-verifiable-digital-id--the-journey-integrity-hash)
+- [🤖 A real trained model — the Predictive Risk Score](#-a-real-trained-model--the-predictive-risk-score)
+- [🚑 The unified Rescuer network](#-the-unified-rescuer-network)
+- [📸 Screenshots](#-screenshots)
+- [🏗️ Architecture at a glance](#️-architecture-at-a-glance)
+- [📈 By the numbers](#-by-the-numbers)
+- [📁 Repository layout](#-repository-layout)
+- [🚀 Getting started](#-getting-started)
+- [🔑 Demo accounts](#-demo-accounts)
+- [🔌 API surface](#-api-surface)
+- [✅ Testing](#-testing)
+- [🛡️ Production readiness](#️-production-readiness)
+- [⚖️ Legal & Compliance](#️-legal--compliance)
+- [📚 Documentation map](#-documentation-map)
+- [🛤️ Roadmap](#️-roadmap)
 
 ---
 
-## Research & prior art — where Aaraksha sits
+## 🔬 Research & prior art — where Aaraksha sits
 
 Aaraksha's origin point is real and worth stating plainly: it began as an answer to **SIH25002 —
 "Smart Tourist Safety Monitoring & Incident Response System using AI, Geo-Fencing, and
@@ -120,7 +120,7 @@ has to *operate* the system, not just use it. That's the bar this comparison is 
 
 ---
 
-## Four portals, one system
+## 🧩 Four portals, one system
 
 ```
                      ┌──────────────────┐
@@ -173,7 +173,7 @@ has to *operate* the system, not just use it. That's the bar this comparison is 
 
 ---
 
-## Feature walkthrough
+## ⭐ Feature walkthrough
 
 ### 🧭 Planning
 - **Multi-stop itineraries** built from a real destination catalog (10 Northeast India destinations, each with live weather, altitude, connectivity rating, ILP requirements, and nearest-hospital data)
@@ -244,7 +244,7 @@ has to *operate* the system, not just use it. That's the bar this comparison is 
 
 ---
 
-## Verifiable Digital ID — the Journey Integrity Hash
+## 🔗 Verifiable Digital ID — the Journey Integrity Hash
 
 "Blockchain-based Digital ID" is where this project started — SIH25002's own phrasing — and it
 stayed in scope even after moving to the self-defined Student Innovation category, because the
@@ -304,42 +304,51 @@ mean something instead of just sounding like it does.
 
 ---
 
-## A real trained model — the Predictive Risk Score
+## 🤖 A real trained model — the Predictive Risk Score
+
+> **Not a prompt. Not an API call to someone else's model. A model *we* wrote, *we* trained, and
+> *we* can show you the loss curve for.**
 
 Gemini in this platform is deliberately never asked to score or decide anything — it only
-explains an already-computed number in plain language (see the AI Safety Briefing above), the
+explains an already-computed number in plain language (see the AI Safety Briefing below), the
 same "AI never makes the call, only explains it" honesty stance TSI is built on. That leaves a
 fair question: where's the actual machine learning? Here:
 
 `backend/scripts/trainRiskModel.js` trains a real binary logistic regression —
 `backend/src/ml/logisticRegression.js` is the entire model, about 90 lines of batch gradient
-descent on L2-regularized cross-entropy loss, no ML framework in between. No public,
-destination-level tourist-incident dataset exists for India to train against, so rather than
-falsely claim one, the trainer generates a labeled corpus from a probabilistic incident-rate
-function over real, already-collected destination risk factors (connectivity, difficulty,
-altitude, zone classification, hospital distance, monsoon season) — stated plainly in both the
-training output and the live UI tooltip, not hidden. The training pipeline itself doesn't change
-the moment real incident records exist to train on instead; only the label source would.
+descent on L2-regularized cross-entropy loss, **no scikit-learn, no TensorFlow, no ML framework
+in between — the math is ours.** No public, destination-level tourist-incident dataset exists for
+India to train against, so rather than falsely claim one, the trainer generates a labeled corpus
+from a probabilistic incident-rate function over real, already-collected destination risk factors
+(connectivity, difficulty, altitude, zone classification, hospital distance, monsoon season) —
+stated plainly in both the training output and the live UI tooltip, not hidden. The training
+pipeline itself doesn't change the moment real incident records exist to train on instead; only
+the label source would.
 
-A real training run, from the actual console output:
+**📊 Benchmark — a real training run, from the actual console output:**
 
-| | |
+| Metric | Score | | Metric | Score |
+|---|---|---|---|---|
+| 🎯 Test accuracy | **75.6%** | | 🧪 Training corpus | 4,000 examples |
+| 🔍 Precision | **69.0%** | | ✂️ Train / test split | 3,200 / 800 |
+| 📡 Recall | **48.5%** | | 🔁 Reproducibility | Seeded — bit-identical every run |
+| ⚖️ F1 score | **0.57** | | 🧩 Engineered features | 17 |
+
+| Sanity check | Predicted incident probability |
 |---|---|
-| Training corpus | 4,000 examples (3,200 train / 800 test), seeded and fully reproducible |
-| Test accuracy / precision / recall | 75.6% / 69.0% / 48.5% |
-| Kaziranga (safest seeded destination) | 22.5% predicted incident probability |
-| Dzukou Valley (most extreme seeded destination) | 74.7% predicted incident probability |
+| 🟢 Kaziranga *(safest seeded destination)* | 22.5% |
+| 🔴 Dzukou Valley *(most extreme seeded destination)* | 74.7% |
 
 The learned weights are directionally sane on inspection — `monsoon_season`, `connectivity_NONE`,
 and `difficulty_EXTREME` are the three largest positive contributors, `difficulty_EASY` and
 `connectivity_GOOD` the largest negative ones — which is exactly what a real fit against
 risk-grounded labels should produce, not a random or overfit result. Every prediction shown in
 the govt Risk Overview page is explainable down to its top four contributing features, live, not
-just a bare percentage.
+just a bare percentage — reproduce the whole run yourself with `npm run train:risk-model`.
 
 ---
 
-## The unified Rescuer network
+## 🚑 The unified Rescuer network
 
 Two kinds of rescuer used to be structurally separate systems: official rescue teams (a shared
 phone number, manually dispatched by a govt operator) and citizen volunteers (individually
@@ -421,7 +430,7 @@ loops drifting out of sync.
 
 ---
 
-## Screenshots
+## 📸 Screenshots
 
 All captured live from the running app — real seeded data, not mockups. Full-resolution files
 are in [`docs/screenshots/`](./docs/screenshots/), free to drop straight into slides.
@@ -481,7 +490,7 @@ are in [`docs/screenshots/`](./docs/screenshots/), free to drop straight into sl
 
 ---
 
-## Architecture at a glance
+## 🏗️ Architecture at a glance
 
 **Backend stack:** Node.js ≥20 · Express · PostgreSQL (raw `pg`, zero ORM) · JWT + bcrypt ·
 Socket.IO · node-cron (DMS checks every minute, anomaly detection every minute, weather+TSI
@@ -503,7 +512,7 @@ in repositories, and every multi-table write that must be atomic goes through a 
 
 ---
 
-## By the numbers
+## 📈 By the numbers
 
 | | |
 |---|---|
@@ -526,7 +535,7 @@ in repositories, and every multi-table write that must be atomic goes through a 
 
 ---
 
-## Repository layout
+## 📁 Repository layout
 
 ```
 Aaraksha/
@@ -592,7 +601,7 @@ Aaraksha/
 
 ---
 
-## Getting started
+## 🚀 Getting started
 
 ### Prerequisites
 - Node.js ≥ 20
@@ -654,7 +663,7 @@ the free public OSRM demo server directly from the browser — no API key, nothi
 
 ---
 
-## Demo accounts
+## 🔑 Demo accounts
 
 Seeded by `npm run seed` — each tourist account is mid-scenario, not a blank slate. The
 SOS/Dead-Man's-Switch scenarios below are one-time snapshots, not standing fixtures — a real
@@ -690,7 +699,7 @@ page) into `/track/:token` on the guardian app.
 
 ---
 
-## API surface
+## 🔌 API surface
 
 109 REST endpoints across 15 route groups, all under `/api`:
 
@@ -717,7 +726,7 @@ Full request/response contracts, status codes, and the response envelope shape a
 
 ---
 
-## Testing
+## ✅ Testing
 
 **Unit + integration (vitest)**
 ```bash
@@ -749,7 +758,7 @@ change `finalHash` deterministically) rather than through Postman assertions yet
 
 ---
 
-## Production readiness
+## 🛡️ Production readiness
 
 Passing the test suite proves the API matches its contract. It doesn't prove the API survives
 someone actively trying to break it. The backend went through a second, adversarial pass — real
@@ -796,7 +805,7 @@ Eight real defects found and fixed across both passes.
 
 ---
 
-## Legal & Compliance
+## ⚖️ Legal & Compliance
 
 Two Indian regulatory frameworks apply directly to a platform that handles government ID numbers
 and runs a public-sector command center — both are treated as real requirements, not slide bullets.
@@ -832,7 +841,7 @@ otherwise.
 
 ---
 
-## Documentation map
+## 📚 Documentation map
 
 | Document | Read it when |
 |---|---|
@@ -845,7 +854,7 @@ otherwise.
 
 ---
 
-## Roadmap
+## 🛤️ Roadmap
 
 Everything described in this README is built, deployed, and working end-to-end on a live public
 backend — real Twilio/Gemini/OpenWeatherMap/VAPID credentials wired in, not stubbed for the
