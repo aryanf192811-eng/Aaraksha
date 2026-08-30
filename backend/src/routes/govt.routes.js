@@ -52,6 +52,19 @@ const ScanCheckpointSchema = z.object({
 // be remembered at every call site.
 const COMMAND_CENTER_ROLES = Object.values(GOVT_ROLES).filter(r => r !== GOVT_ROLES.CHECKPOINT_OFFICER)
 
+// E-FIRs are legal case records (evidence photos, investigation notes) --
+// narrower than the general command-center set. Matches exactly the role
+// list incident.repository.js#findAssignableOfficers already uses for who
+// can be handed a case: POLICE as the natural investigating role, plus
+// DISTRICT_ADMIN/SUPER_ADMIN for oversight and reassignment. Before this,
+// every incident route below used COMMAND_CENTER_ROLES, so a
+// TOURISM_OFFICER or MEDICAL account -- neither ever assignable as an
+// investigating officer -- could still read case details/evidence photos
+// and move a case through its status ladder. Found in a security-access
+// review; those two roles keep every other command-center route (SOS,
+// analytics, risk overview) they legitimately need, just not this one.
+const INVESTIGATING_ROLES = [GOVT_ROLES.SUPER_ADMIN, GOVT_ROLES.DISTRICT_ADMIN, GOVT_ROLES.POLICE]
+
 router.use(authenticateGovt)
 
 router.get('/dashboard',           requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getDashboard)
@@ -69,12 +82,12 @@ router.post('/sos/:id/verify-handoff', requireGovtRole(...COMMAND_CENTER_ROLES),
 router.get('/sos/:id/report',      requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.downloadIncidentReport)
 router.get('/anomalies',           requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getAnomalies)
 router.patch('/anomalies/:id/resolve', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.resolveAnomaly)
-router.get('/incidents',           requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getIncidentQueue)
-router.get('/incidents/officers',  requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getAssignableOfficers)
-router.get('/incidents/:id',       requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getIncident)
-router.get('/incidents/:id/report', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.downloadEfirReport)
-router.patch('/incidents/:id/assign', requireGovtRole(...COMMAND_CENTER_ROLES), validate(AssignIncidentSchema), ctrl.assignIncident)
-router.patch('/incidents/:id/status', requireGovtRole(...COMMAND_CENTER_ROLES), validate(UpdateIncidentStatusSchema), ctrl.updateIncidentStatus)
+router.get('/incidents',           requireGovtRole(...INVESTIGATING_ROLES), ctrl.getIncidentQueue)
+router.get('/incidents/officers',  requireGovtRole(...INVESTIGATING_ROLES), ctrl.getAssignableOfficers)
+router.get('/incidents/:id',       requireGovtRole(...INVESTIGATING_ROLES), ctrl.getIncident)
+router.get('/incidents/:id/report', requireGovtRole(...INVESTIGATING_ROLES), ctrl.downloadEfirReport)
+router.patch('/incidents/:id/assign', requireGovtRole(...INVESTIGATING_ROLES), validate(AssignIncidentSchema), ctrl.assignIncident)
+router.patch('/incidents/:id/status', requireGovtRole(...INVESTIGATING_ROLES), validate(UpdateIncidentStatusSchema), ctrl.updateIncidentStatus)
 router.get('/rescue-teams',        requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getRescueTeams)
 router.patch('/rescue-teams/:id/status', requireGovtRole(...COMMAND_CENTER_ROLES), validate(UpdateTeamStatusSchema), ctrl.updateTeamStatus)
 // Checkpoint scanning is a ground-level action — SUPER_ADMIN as a

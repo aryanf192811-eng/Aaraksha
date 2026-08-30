@@ -6,6 +6,7 @@ import { Shield, Map, Bell, TrendingUp, AlertTriangle, LogOut, Activity, ScanLin
 import { useAuthStore } from '../store/auth.store'
 import { useSOSSocket } from '../hooks/useSOSSocket'
 import { ALLOWED_CHECKPOINT_ROLES } from '../pages/CheckpointScanPage'
+import { ALLOWED_EFIR_ROLES } from '../pages/IncidentQueuePage'
 import govtApi from '../api/govt.api'
 import { cn } from '../lib/utils'
 
@@ -22,7 +23,8 @@ const NAV_ITEMS = [
 // Shared between the always-visible desktop sidebar and the mobile slide-in
 // drawer so the two never drift out of sync — one source of nav truth,
 // two shells around it.
-function SidebarContent({ activeSosCount, pendingVolunteerCount, filedIncidentCount, canScanCheckpoints, onNavigate }: {
+function SidebarContent({ navItems, activeSosCount, pendingVolunteerCount, filedIncidentCount, canScanCheckpoints, onNavigate }: {
+  navItems: typeof NAV_ITEMS
   activeSosCount: number
   pendingVolunteerCount: number
   filedIncidentCount: number
@@ -48,7 +50,7 @@ function SidebarContent({ activeSosCount, pendingVolunteerCount, filedIncidentCo
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map(({ to, icon: Icon, label, exact }) => (
+        {navItems.map(({ to, icon: Icon, label, exact }) => (
           <NavLink key={to} to={to} end={exact} onClick={onNavigate}
             className={({ isActive }) => cn(
               'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all',
@@ -111,9 +113,15 @@ export default function GovtLayout() {
   const { govtUser } = useAuthStore()
   const { activeSosCount } = useSOSSocket()
   const canScanCheckpoints = !!govtUser && ALLOWED_CHECKPOINT_ROLES.includes(govtUser.role)
+  // E-FIR routes are now restricted server-side to investigating roles
+  // (POLICE/DISTRICT_ADMIN/SUPER_ADMIN) -- hide the nav link entirely for
+  // TOURISM_OFFICER/MEDICAL/CHECKPOINT_OFFICER rather than showing a queue
+  // link that would 403 on every request.
+  const canViewEfirs = !!govtUser && ALLOWED_EFIR_ROLES.includes(govtUser.role)
+  const navItems = NAV_ITEMS.filter(n => n.label !== 'E-FIR Queue' || canViewEfirs)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const location = useLocation()
-  const activeLabel = NAV_ITEMS.find(n => (n.exact ? location.pathname === n.to : location.pathname.startsWith(n.to)))?.label ?? 'Dashboard'
+  const activeLabel = navItems.find(n => (n.exact ? location.pathname === n.to : location.pathname.startsWith(n.to)))?.label ?? 'Dashboard'
 
   // Nav badge only — VolunteersPage runs its own query for the actual list.
   const { data: pendingVolunteers } = useQuery({
@@ -123,11 +131,15 @@ export default function GovtLayout() {
   })
   const pendingVolunteerCount = pendingVolunteers?.length ?? 0
 
-  // Nav badge only — IncidentQueuePage runs its own query for the full queue.
+  // Nav badge only — IncidentQueuePage runs its own query for the full
+  // queue. Gated on canViewEfirs — this route now 403s for roles that
+  // can't view E-FIRs at all, and there's no badge to show them anyway
+  // since the nav link itself is hidden.
   const { data: filedIncidents } = useQuery({
     queryKey: ['govt', 'incidents', 'FILED', false],
     queryFn: () => govtApi.getIncidentQueue({ status: 'FILED', limit: 50 }).then(r => r.data),
     refetchInterval: 30_000,
+    enabled: canViewEfirs,
   })
   const filedIncidentCount = filedIncidents?.pagination.total ?? 0
 
@@ -135,7 +147,7 @@ export default function GovtLayout() {
     <div className="min-h-screen flex bg-surface font-sans">
       {/* Desktop sidebar — always visible from lg up, hidden below it */}
       <aside className="hidden lg:flex w-64 bg-surface-container-lowest border-r border-outline-variant flex-col shadow-sm flex-shrink-0">
-        <SidebarContent activeSosCount={activeSosCount} pendingVolunteerCount={pendingVolunteerCount} filedIncidentCount={filedIncidentCount} canScanCheckpoints={canScanCheckpoints} />
+        <SidebarContent navItems={navItems} activeSosCount={activeSosCount} pendingVolunteerCount={pendingVolunteerCount} filedIncidentCount={filedIncidentCount} canScanCheckpoints={canScanCheckpoints} />
       </aside>
 
       {/* Mobile slide-in drawer + backdrop */}
@@ -150,7 +162,7 @@ export default function GovtLayout() {
           className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container">
           <X className="w-5 h-5" />
         </button>
-        <SidebarContent activeSosCount={activeSosCount} pendingVolunteerCount={pendingVolunteerCount} filedIncidentCount={filedIncidentCount} canScanCheckpoints={canScanCheckpoints} onNavigate={() => setDrawerOpen(false)} />
+        <SidebarContent navItems={navItems} activeSosCount={activeSosCount} pendingVolunteerCount={pendingVolunteerCount} filedIncidentCount={filedIncidentCount} canScanCheckpoints={canScanCheckpoints} onNavigate={() => setDrawerOpen(false)} />
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">

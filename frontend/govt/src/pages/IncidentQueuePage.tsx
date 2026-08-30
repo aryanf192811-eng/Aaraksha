@@ -1,7 +1,8 @@
 // src/pages/IncidentQueuePage.tsx — E-FIR officer triage queue
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { FileWarning, Loader2, X, Phone, Clock, MapPin, UserCheck, CheckCircle2, FileText, UserPlus, ShieldAlert, Sparkles } from 'lucide-react'
+import { FileWarning, Loader2, X, Phone, Clock, MapPin, UserCheck, CheckCircle2, FileText, UserPlus, ShieldAlert, Sparkles, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
@@ -13,6 +14,15 @@ import { useAuthStore } from '../store/auth.store'
 import { useSOSSocket } from '../hooks/useSOSSocket'
 
 const API_ORIGIN = (import.meta.env.VITE_API_URL as string || '').replace(/\/api\/?$/, '')
+
+// E-FIRs are legal case records (evidence photos, investigation notes) --
+// matches backend govt.routes.js's INVESTIGATING_ROLES exactly, the same
+// role set incident.repository.js#findAssignableOfficers uses for who can
+// actually be handed a case. TOURISM_OFFICER/MEDICAL keep every other
+// command-center page they legitimately need, just not this one -- this
+// export just lets GovtLayout hide the nav link for them instead of
+// showing a queue that would 403 on every request.
+export const ALLOWED_EFIR_ROLES = ['SUPER_ADMIN', 'DISTRICT_ADMIN', 'POLICE']
 
 const CATEGORY_LABEL: Record<string, string> = {
   THEFT: 'Theft', HARASSMENT: 'Harassment', ASSAULT: 'Assault', FRAUD: 'Fraud',
@@ -75,7 +85,14 @@ const NEXT_STATUSES: Record<string, IncidentStatus[]> = {
 }
 
 export default function IncidentQueuePage() {
+  const navigate = useNavigate()
   const govtUser = useAuthStore(s => s.govtUser)
+  // GovtLayout already hides this page's nav link for ineligible roles, but
+  // that doesn't stop a direct URL visit -- same belt-and-braces pattern as
+  // CheckpointScanPage's own ALLOWED_CHECKPOINT_ROLES guard: real
+  // enforcement is server-side (govt.routes.js's INVESTIGATING_ROLES), this
+  // is just a clear explanation instead of a queue that 403s on every request.
+  const authorized = !!govtUser && ALLOWED_EFIR_ROLES.includes(govtUser.role)
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | 'ALL'>('ALL')
   const [assignedToMe, setAssignedToMe] = useState(false)
   const [selected, setSelected] = useState<IncidentEntry | null>(null)
@@ -106,12 +123,14 @@ export default function IncidentQueuePage() {
       page: 1, limit: 50,
     }).then(r => r.data),
     refetchInterval: 20_000,
+    enabled: authorized,
   })
 
   const { data: officers } = useQuery({
     queryKey: ['govt', 'incidents', 'officers'],
     queryFn: () => govtApi.getAssignableOfficers().then(r => r.data.data),
     staleTime: 5 * 60_000,
+    enabled: authorized,
   })
 
   const { mutate: assign, isPending: assigning } = useMutation({
@@ -139,6 +158,22 @@ export default function IncidentQueuePage() {
 
   const incidents = queueData?.data || []
   const filedCount = incidents.filter(i => i.status === 'FILED').length
+
+  if (!authorized) {
+    return (
+      <div className="p-4 sm:p-6 max-w-full flex flex-col items-center justify-center text-center gap-3 min-h-[60vh]">
+        <div className="w-14 h-14 rounded-2xl bg-surface-container flex items-center justify-center">
+          <Lock className="w-6 h-6 text-on-surface-variant" />
+        </div>
+        <h2 className="font-bold text-on-surface">Not available for your role</h2>
+        <p className="text-sm text-on-surface-variant max-w-xs">
+          E-FIR case records are limited to Police, District Admins, and Super Admins.
+          {govtUser ? ` Your role is ${govtUser.role.replace('_', ' ')}.` : ''}
+        </p>
+        <Button variant="outline" onClick={() => navigate('/')} className="mt-2 rounded-full">Back to Dashboard</Button>
+      </div>
+    )
+  }
 
   return (
     <div className="p-4 sm:p-6 max-w-full overflow-x-hidden">
