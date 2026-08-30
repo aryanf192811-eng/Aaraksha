@@ -1,17 +1,28 @@
 # 🛡️ Aaraksha — Smart Tourism, Safe Journey
 
-**A tourist-safety platform for Northeast India, built for Smart India Hackathon 2025.**
+**An integrated tourist-safety and rescue-coordination platform for Northeast India — built for
+Smart India Hackathon 2026, Student Innovation category, Travel & Tourism theme.**
 
 > *Aaraksha* (आराक्षा) — "protection." Not a translation exercise: it's the one-word summary of
 > what every screen in this system is trying to do.
 
+> **Submission title:** *Aaraksha — An Integrated, Offline-Resilient Tourist Safety, Verifiable
+> Digital Identity & Real-Time Rescue Coordination Platform for High-Risk Northeast Indian Terrain*
+>
+> Deliberately broader than a single feature demo, because that's what the system actually is:
+> trip-level risk scoring before a journey starts, emergency response that keeps working with zero
+> signal, a tamper-evident digital identity chain a third party can independently verify, and one
+> live coordination loop tying the tourist, their family, government dispatch, and the rescuer on
+> the ground together — not four separate claims stapled to one slide.
+
 [![Status](https://img.shields.io/badge/status-demo--ready-brightgreen)]()
 [![Portals](https://img.shields.io/badge/portals-4-blue)]()
-[![API](https://img.shields.io/badge/API%20endpoints-101-orange)]()
+[![API](https://img.shields.io/badge/API%20endpoints-109-orange)]()
 [![Tables](https://img.shields.io/badge/DB%20tables-24-orange)]()
 [![Offline SOS](https://img.shields.io/badge/offline%20SOS-2G%20capable-red)]()
 [![Digital ID](https://img.shields.io/badge/digital%20ID-hash--chained-9cf)]()
-[![Track](https://img.shields.io/badge/SIH%202025-Travel%20%26%20Tourism-purple)]()
+[![Category](https://img.shields.io/badge/SIH%202026-Student%20Innovation-purple)]()
+[![Theme](https://img.shields.io/badge/theme-Travel%20%26%20Tourism-blueviolet)]()
 
 ---
 
@@ -36,7 +47,7 @@ real-time data model instead of four disconnected apps.
 
 ## Table of contents
 
-- [Why this is better than last year's winners](#why-this-is-better-than-last-years-winners)
+- [Research & prior art — where Aaraksha sits](#research--prior-art--where-aaraksha-sits)
 - [Four portals, one system](#four-portals-one-system)
 - [Feature walkthrough](#feature-walkthrough)
 - [Verifiable Digital ID — the Journey Integrity Hash](#verifiable-digital-id--the-journey-integrity-hash)
@@ -57,27 +68,46 @@ real-time data model instead of four disconnected apps.
 
 ---
 
-## Why this is better than last year's winners
+## Research & prior art — where Aaraksha sits
 
-Every prior SIH Travel & Tourism cycle has rewarded the same recognizable shape of submission: a
-planning-and-itinerary app with a safety feature bolted on, a static "call police" button standing
-in for a real emergency pipeline, a single audience (the tourist) with no real government or
-rescuer-side counterpart, and a demo that only survives one happy-path click-through. That's the
-bar this comparison is written against — not a specific team's exact build, which none of us have
-access to, but the well-known shape of what clears a Travel & Tourism round: real breadth
-(planning *and* safety, not one or the other), a real second audience (the state actually has to
-operate this, not just admire it), and a security/reliability pass that goes further than "it
-didn't crash during rehearsal." Aaraksha is built to clear a higher version of that bar on every
-axis a judge is likely to probe:
+Aaraksha's origin point is real and worth stating plainly: it began as an answer to **SIH25002 —
+"Smart Tourist Safety Monitoring & Incident Response System using AI, Geo-Fencing, and
+Blockchain-based Digital ID,"** the Ministry of Development of North Eastern Region's problem
+statement from SIH 2025. This year the team is entering through the **Student Innovation
+category** under the **Travel & Tourism** theme — which means proposing and scoping the problem
+ourselves rather than answering a fixed departmental brief. We kept building on the same real
+problem (tourist safety in a genuinely hard, genuinely underserved terrain) because a year of
+iteration had already turned up gaps a fixed PS wouldn't have surfaced on its own — the Dead Man's
+Switch, the unified rescuer network, the handoff verification code, the anomaly detector, the
+E-FIR triage queue, and everything else below didn't come from a requirements doc, they came from
+asking "what would actually leave a family reassured and a rescuer accountable" and building
+until the answer held up.
 
-| The recognizable pattern that usually wins a round | What Aaraksha ships instead |
+**What already exists in this exact problem space**, checked directly rather than assumed:
+
+| Project | What it is | How Aaraksha differs |
+|---|---|---|
+| [RakshaSetu](https://github.com/ArindamTripathi619/smart-tourist-safety-system) | An open-source SIH25002 build — full-stack tourist safety monitoring, GPS tracking, digital ID | Single-audience (tourist + a dashboard); no offline/SMS path, no Dead Man's Switch, no live-tracked rescuer network with road routing, no anti-fraud handoff verification |
+| SafeVoyage (SIH25002 submission) | Shake-to-SOS, blockchain audit trail, geo-fence guidance, phone-first E-FIR filing | Closest in spirit to Aaraksha's panic-gesture SOS and E-FIR flow; no public evidence of an offline-SMS fallback, a trained risk model, or government-side rescue *dispatch* (vs. alerting) |
+| Multiple other SIH25002 repos (e.g. [SharandeepSingh295](https://github.com/SharandeepSingh295/smart-tourist-safety-system), [APC2005-dev](https://github.com/APC2005-dev/Smart-Tourist-Safety-Monitoring)) | The same brief, independently built dozens of times across SIH 2025 | Confirms the recognizable shape of a "PS25002-style" submission: mobile app + geo-fence + a blockchain-flavored ID. None found ship a second, distinct audience-side app for rescuers, nor a verification step that gates case closure |
+| [Meghalaya's GPS + OTP tourist-taxi app](https://www.thetraveler.org/meghalayas-tourist-taxi-app-sets-new-safety-benchmark/) *(real, in-development state government initiative, not a hackathon project)* | Verified driver/vehicle registration, SOS buttons, GPS tracking, OTP-based rides | Solves transport-leg safety specifically, for one state; not itinerary-wide, not connectivity-independent, no digital identity or rescue-coordination layer |
+| [Zone8](https://play.google.com/store/apps/details?id=com.kalyanmoyborah.zone8) *(real, live app, Android + iOS)* | A published NE India travel-planning and booking app, tagline "Travel Safe" | Genuinely live and used, but is a discovery/booking product — no SOS, no DMS, no government or rescuer-facing counterpart despite the safety-adjacent tagline |
+
+Nobody involved in this project has access to the actual winning SIH25002 submission from SIH
+2025 — that information isn't public, and this README won't pretend otherwise by naming a
+specific team's build. What *is* verifiable, from the search above, is the recognizable shape
+every public SIH25002 implementation and every real market alternative in this space shares: a
+single-audience mobile app, a safety feature that assumes signal, and no real second audience that
+has to *operate* the system, not just use it. That's the bar this comparison is written against:
+
+| The recognizable pattern this problem space keeps producing | What Aaraksha ships instead |
 |---|---|
 | A static "call police" button | A rule-based Travel Safety Index recalculated **hourly from live weather**, scored per destination |
 | Safety features that assume signal | **Offline SOS over raw SMS** — no data connection required, a Twilio webhook does the rest |
 | One app, one audience | **Four cooperating portals** — tourist, government, a no-login family tracking link, and a dedicated Rescuer app for volunteers and official teams — sharing one real-time data model |
 | A mocked/seeded demo that falls apart under a second click | A backend that went through **13 adversarial QA phases** after the first build was "done" — rate-limit bypass attempts, SQLi payloads, concurrent double-resolve races, forced transaction rollbacks, real-time session bugs — each one found, fixed, and re-verified live, not just tested once (full record: [`docs/testing/`](./docs/testing/)) |
 | Safety as an isolated feature | Safety **woven into planning** — every trip gets a TSI score before it's even booked, every destination card carries a live risk badge |
-| Rescue dispatch as a phone call | A **unified Rescuer network** — official teams and govt-verified citizen volunteers in one assignable pool, live GPS, real OSRM road routing, plus a **Rescue Verification Code** so a case can't be closed on a rescuer's word alone — they need the code from the tourist in person |
+| Rescue dispatch as a phone call | A **unified Rescuer network** — official teams and govt-verified citizen volunteers in one assignable pool, live GPS, real OSRM road routing, plus a **Rescue Handoff Verification Code**: a 6-digit, HMAC-hashed, 3-attempt-lockout code only the tourist holds, checked against a 250m GPS proximity gate — a rescuer has to actually be standing next to the tourist to close the case, not just claim it by radio |
 | "Blockchain-based Digital ID" as a marketing phrase over a static ID card image | A real **SHA-256 hash chain** over every trip's itinerary, check-ins, SOS events, *and* government checkpoint scans — tamper-evident, independently recomputable from platform records, verifiable live with one API call |
 | "AI" meaning an LLM call with a prompt attached | A **genuine trained model** for predictive risk — real gradient descent, a printed loss curve, held-out test accuracy, and per-prediction explainability — sitting *alongside* (not instead of) an honestly rule-based TSI, each clearly labeled as what it is |
 | Safety that only reacts once someone presses a button | A **rule-based anomaly detector** running every minute against every active trip — flags a tourist who's gone quiet or drifted off-route *before* anyone presses SOS, no opt-in required |
@@ -102,7 +132,7 @@ axis a judge is likely to probe:
                      ┌────────┴──────────┐
                      │  Express API       │  Route → Middleware → Controller
                      │  (backend/)        │  → Service → Repository
-                     │  JWT + RBAC        │  101 endpoints · 15 route groups
+                     │  JWT + RBAC        │  109 endpoints · 15 route groups
                      └─┬───────┬───────┬──┘
               Socket.IO│       │       │  REST (JSON)
               real-time│       │       │
@@ -176,7 +206,9 @@ axis a judge is likely to probe:
 - **Govt-side volunteer onboarding** — review a citizen's self-registration through an explicit identity-confirmation dialog, *or* provision a walk-in responder's account directly with a one-time password, generated and shown once
 - **Real OSRM road routing** — every rescuer-to-SOS line on every portal (Rescuer app, Guardian, tourist) is an actual road route, not a straight line, with a graceful straight-line fallback if the routing service is unreachable
 - **Live GPS streaming** — a rescuer's position updates over Socket.IO roughly every 9 seconds while en route, moving the marker on the tourist's, guardian's, and govt operator's map without a page refresh
+- **Anti-fraud handoff verification** — closing an SOS is blocked at the database level until the rescuer has the tourist's own 6-digit code (HMAC-SHA256 hashed, 3-attempt lockout, timing-safe comparison — the exact same primitive as password-reset OTPs, reused rather than reinvented) *and* their live GPS is within 250m of the tourist's last known position. A govt operator can still force-resolve a genuine edge case (tourist unconscious, phone dead) — but only with a required, logged reason stamped to the record, never silently
 - **Self-service status, govt-owned resolution** — a rescuer reports their own `EN_ROUTE`/`ARRIVED` progress; closing the incident stays an exclusive govt-operator action, matching how a real emergency response chain of custody works
+- **Honest decline/cancel, not silent ghosting** — a rescuer who can't take the job anymore exits with a required reason: `DECLINED` if they hadn't started moving yet, `CANCELLED` if they were already en route, each labeled honestly rather than collapsed into one vague status. The SOS immediately reverts to `ACTIVE` in govt's queue for reassignment (unless another rescuer is already on it), and tourist/guardian/govt all get a real-time explanation instead of a stale "still coming" marker. Locked once the handoff code is already verified — a rescuer can't back out after confirming they physically reached the tourist
 
 ### 🖥️ Government Operations
 - **Live ops map** (Leaflet + Socket.IO) — every active tourist, every open SOS, every rescuer currently en route with their real OSRM road route, and every open **anomaly flag** (gone-quiet / off-route), all updating in real time, no refresh — plus a toggleable **Risk Density layer**, weighted circles showing where active trips are concentrated per destination, colored by zone type
@@ -214,8 +246,10 @@ axis a judge is likely to probe:
 
 ## Verifiable Digital ID — the Journey Integrity Hash
 
-SIH25002 names "blockchain-based Digital ID" as an explicit requirement. Most implementations of
-that phrase turn out to be a QR code pointing at a static profile — nothing chained, nothing
+"Blockchain-based Digital ID" is where this project started — SIH25002's own phrasing — and it
+stayed in scope even after moving to the self-defined Student Innovation category, because the
+research above turned up the same pattern repeatedly: most public implementations of that exact
+phrase turn out to be a QR code pointing at a static profile — nothing chained, nothing
 tamper-evident, nothing a third party could actually verify without trusting the app's word for
 it. Aaraksha implements the actual primitive blockchain is built on — a cryptographic hash
 chain — over every fact that makes up a tourist's verified journey, without the operational
@@ -234,6 +268,19 @@ need one.
    any time from live platform records via `GET /journey-passport/:tripId/hash` — a bad actor
    would need to alter platform data itself and get every downstream hash to still match, not
    just edit a PDF.
+
+```mermaid
+flowchart LR
+    G["Genesis block\nSHA-256 of trip facts\n(destinations, dates, TSI@booking)"] --> H1
+    subgraph Chain["hash(n) = SHA256(hash(n-1) + event(n))"]
+        H1["hash 1\n+ check-in"] --> H2["hash 2\n+ SOS event"]
+        H2 --> H3["hash 3\n+ govt checkpoint scan"]
+        H3 --> H4["hash 4\n+ ..."]
+    end
+    H4 --> F["finalHash\nprinted on Passport PDF +\nGET /journey-passport/:id/hash"]
+    style G fill:#fffbeb,stroke:#f59e0b
+    style F fill:#ecfdf5,stroke:#059669
+```
 
 **Why the checkpoint-scan link matters most.** A government checkpoint scan is the one event in
 this chain that a citizen doesn't control — it's a police or ILP officer's own physical
@@ -298,7 +345,36 @@ Two kinds of rescuer used to be structurally separate systems: official rescue t
 phone number, manually dispatched by a govt operator) and citizen volunteers (individually
 logged in, only reachable by an automatic proximity broadcast — no manual assignment path
 existed, and no live location ever left their registered base). Neither had a real road route or
-a live position. This is the actual flow now, end to end, screenshotted from the running app:
+a live position. This is the actual flow now, end to end — every arrow below is a real Socket.IO
+event or API call, not an aspirational diagram:
+
+```mermaid
+sequenceDiagram
+    participant T as 🧭 Tourist
+    participant B as ⚙️ Backend
+    participant G as 🖥️ Govt Operator
+    participant R as 🚑 Rescuer
+    participant F as 👪 Guardian
+
+    T->>B: SOS (online API or offline SMS)
+    B-->>G: SOS_RECEIVED (live ops map)
+    B-->>F: GUARDIAN_SOS_ALERT
+    G->>B: Assign rescuer (team or volunteer)
+    B-->>R: VOLUNTEER_SOS_ALERT / VOLUNTEER_ASSIGNED
+    B-->>F: GUARDIAN_STATUS_CHANGE (help dispatched)
+    loop every ~9s while en route
+        R->>B: Live GPS position
+        B-->>T: RESCUER_LOCATION_UPDATE
+        B-->>F: GUARDIAN_LOCATION_UPDATE
+        B-->>G: live map marker moves
+    end
+    T->>T: Reveal handoff code (never leaves the device until shown)
+    R->>B: Verify handoff code + GPS proximity
+    B-->>T: HANDOFF_VERIFIED
+    B-->>F: "Help arrived and was verified"
+    G->>B: Resolve SOS (blocked until handoff verified)
+    B-->>T: SOS_RESOLVED
+```
 
 **1. A volunteer gets an account** — either they register themselves in the Rescuer app, or a
 district officer provisions one directly for a walk-in local responder, generating a one-time
@@ -432,7 +508,7 @@ in repositories, and every multi-table write that must be atomic goes through a 
 | | |
 |---|---|
 | **Portals** | 4 (Tourist PWA, Govt Command Center, Guardian Portal, Rescuer App) |
-| **API endpoints** | 101, across 15 route groups |
+| **API endpoints** | 109, across 15 route groups |
 | **Database tables** | 24 |
 | **Migrations** | 19, applied incrementally — every schema change is a reviewable, named diff, never a hand-edited table |
 | **Destinations seeded** | 10, across Assam, Meghalaya, Nagaland, Arunachal Pradesh, Sikkim, Manipur — each with real altitude, connectivity, ILP, and hospital data |
@@ -441,7 +517,7 @@ in repositories, and every multi-table write that must be atomic goes through a 
 | **Govt app screens** | 9 (login, dashboard, SOS management, E-FIR queue, volunteers, live map, risk overview, analytics, checkpoint scan) |
 | **Rescuer app screens** | 3 (auth, home, active job — live map) |
 | **Cron jobs** | 4 (Dead Man's Switch monitoring, anomaly detection, weather + TSI refresh, destination news rotation) |
-| **Real-time events** | 28 distinct Socket.IO event types |
+| **Real-time events** | 31 distinct Socket.IO event types |
 | **SOS incident categories** | 7 (medical, lost, trapped, disaster, missing, crime, other) |
 | **E-FIR incident categories** | 8 (theft, harassment, assault, fraud, lost document, vehicle accident, property damage, other) |
 | **Rescuer types** | 2 (official rescue teams, govt-verified citizen volunteers) — one assignable pool |
@@ -485,7 +561,7 @@ Aaraksha/
 │   │   ├── ml/                      logisticRegression.js (from-scratch trainer)
 │   │   │                             + features.js (shared train/serve encoding)
 │   │   ├── database/                connection pool, transaction helper
-│   │   └── migrations/              node-pg-migrate schema — 23 tables across 13 migrations
+│   │   └── migrations/              node-pg-migrate schema — 24 tables across 19 migrations
 │   ├── scripts/
 │   │   ├── preflight.js             env/DB connectivity check before setup
 │   │   ├── seed.js                  idempotent demo data (--reset flag available)
@@ -541,7 +617,7 @@ real random values even for local development. Twilio, Gemini, OpenWeatherMap, a
 ### 3. Set up the database
 ```bash
 npm run preflight     # verifies DATABASE_URL is reachable before anything else runs
-npm run migrate       # applies the 22-table schema
+npm run migrate       # applies the 24-table schema
 npm run seed          # idempotent demo data — safe to re-run
 ```
 Or all three in one shot: `npm run setup`.
@@ -616,7 +692,7 @@ page) into `/track/:token` on the guardian app.
 
 ## API surface
 
-101 REST endpoints across 15 route groups, all under `/api`:
+109 REST endpoints across 15 route groups, all under `/api`:
 
 | Prefix | Covers |
 |---|---|
@@ -771,16 +847,22 @@ otherwise.
 
 ## Roadmap
 
-Everything above is built and working end-to-end — including rule-based anomaly detection, the
-E-FIR triage queue, checkpoint scans chained into the Journey Integrity Hash, and the
+Everything described in this README is built, deployed, and working end-to-end on a live public
+backend — real Twilio/Gemini/OpenWeatherMap/VAPID credentials wired in, not stubbed for the
+demo — including rule-based anomaly detection, the E-FIR triage queue, checkpoint scans chained
+into the Journey Integrity Hash, the anti-fraud rescue handoff verification, and the
 authentication security hardening pass, all verified in a 12-phase adversarial QA pass (see
-[`docs/testing/README.md`](./docs/testing/README.md)). What's next:
+[`docs/testing/README.md`](./docs/testing/README.md)) plus a full API contract regression via
+Postman/Newman (see [Testing](#testing)). What's next, honestly scoped beyond the current build:
 
-- [ ] Real Twilio/Gemini/OpenWeatherMap/VAPID credentials wired in for the live demo environment
-- [ ] Postman collection coverage for the anomaly-detection, E-FIR queue, and Journey Integrity
-      Hash endpoints (currently verified live rather than via automated contract tests — see
-      [Testing](#testing))
+- [ ] **Official rescue team login and live GPS tracking** — teams are currently dispatched and
+      tracked the same way volunteers are through the unified rescuer pool, but don't yet have
+      their own standalone login/session the way volunteers do; a team-specific auth flow is the
+      next natural extension of the unified rescuer model
+- [ ] **In-app messaging** between tourist, guardian, and rescuer beyond the existing `tel:` call
+      links — deliberately scoped out of this build in favor of getting anti-fraud handoff
+      verification right first, not because it's out of reach next
 
 ---
 
-*Built for Smart India Hackathon 2025 — Travel & Tourism track.*
+*Built for Smart India Hackathon 2026 — Student Innovation category, Travel & Tourism theme.*
