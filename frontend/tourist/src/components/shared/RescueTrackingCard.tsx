@@ -171,7 +171,7 @@ export function RescueTrackingCard() {
   const rescuerMarkerRef = useRef<MapLibreMarker | null>(null)
   const sosMarkerRef = useRef<MapLibreMarker | null>(null)
 
-  const { data } = useQuery({
+  const { data, isError, refetch } = useQuery({
     queryKey: ['sos', 'active-rescue'],
     queryFn: () => sosApi.getActiveRescue().then(r => r.data.data),
     refetchInterval: 20_000,
@@ -333,6 +333,29 @@ export function RescueTrackingCard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [follow, rescuerPos?.[0], rescuerPos?.[1], sosPos?.[0], sosPos?.[1]])
+
+  // No rescuer assigned is the ordinary, common case (most visits to the
+  // Safety Center have no active rescue) and correctly renders nothing.
+  // A fetch failure is different -- if a rescue genuinely is in progress,
+  // silently showing nothing here is indistinguishable from "no rescue
+  // exists," which is the wrong thing to look like during an emergency.
+  // The backend this demo runs against has real, recurring outage windows
+  // (confirmed live, not hypothetical), so this is a real, not theoretical,
+  // case worth a retry affordance rather than staying silent.
+  if (isError) {
+    return (
+      <div className="bg-sos/5 border-2 border-sos/20 rounded-2xl p-4 flex items-center gap-3">
+        <ShieldAlert className="w-5 h-5 text-sos flex-shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-on-surface">Couldn't check your rescue status</p>
+          <p className="text-xs text-on-surface-variant">If a rescuer was assigned, this will catch up once reconnected.</p>
+        </div>
+        <button onClick={() => refetch()} className="flex-shrink-0 text-xs font-bold text-primary px-3 py-1.5 rounded-full hover:bg-primary/10 transition-colors">
+          Retry
+        </button>
+      </div>
+    )
+  }
 
   if (!rescuer || !sosPos) return null
 

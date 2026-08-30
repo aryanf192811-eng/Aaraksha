@@ -1,7 +1,7 @@
 // src/pages/ActiveJobPage.tsx — the Rapido "on a ride" screen. Shown whenever
 // the volunteer has a live rescue_assignments row (govt manually assigned them,
 // official or not — see rescue.repository.js#findActiveAssignmentByVolunteerId).
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -84,7 +84,7 @@ export default function ActiveJobPage() {
   const rescuerMarkerRef = useRef<MapLibreMarker | null>(null)
   const sosMarkerRef = useRef<MapLibreMarker | null>(null)
 
-  const { data: assignment, refetch } = useQuery({
+  const { data: assignment, isLoading, isError, refetch } = useQuery({
     queryKey: ['volunteer', 'active-assignment'],
     queryFn: () => volunteerApi.getActiveAssignment().then((r) => r.data.data),
     refetchInterval: 20_000,
@@ -138,9 +138,22 @@ export default function ActiveJobPage() {
     getRoute(rescuerPos[0], rescuerPos[1], sosPos[0], sosPos[1]).then(setRoute)
   }, [rescuerPos?.[0], rescuerPos?.[1], sosPos?.[0], sosPos?.[1]])
 
-  // Map instance: created once the page mounts (assignment already loaded —
-  // see the `if (!assignment) return null` guard below, which keeps this
-  // component, and its container div, unmounted until then).
+  // Map instance: intended to be created once, right after `assignment`
+  // loads (the `if (!assignment) return null` guard below keeps this
+  // component's JSX -- and its map container div -- from existing in the
+  // DOM before then). This used to depend on `[]`, which only gives React
+  // ONE chance ever to find a real `mapContainerRef.current`. That's fine
+  // when this page is reached by navigating from HomePage (which queries
+  // this same ['volunteer','active-assignment'] key first, so the cache is
+  // already warm and `assignment` is truthy on this component's very first
+  // render) -- but on a cold load straight into /active-job (a PWA re-open,
+  // a hard refresh, or the loading/error states added above), the first
+  // render has no assignment yet, the container div doesn't exist, the
+  // effect's guard correctly bails out finding a null ref -- and then,
+  // with `[]` deps, never runs again even once the container actually
+  // appears a moment later. Depending on `assignment` instead lets the
+  // effect retry the instant it becomes available; the `mapRef.current`
+  // check still guarantees the map is only actually created once.
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return
     const initialCenter = rescuerPos ?? sosPos ?? [26.15, 91.77]
@@ -157,8 +170,53 @@ export default function ActiveJobPage() {
       rescuerMarkerRef.current = null
       sosMarkerRef.current = null
     }
+    // Depends on !!assignment (truthy/falsy), not the object itself --
+    // this should retry once on the falsy-to-truthy transition, not tear
+    // down and rebuild the whole map (losing markers/camera state) on
+    // every 20s refetch just because the assignment object's reference
+    // changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [!!assignment])
+
+  // Shared by the manual Recenter button and the auto-fit effect below —
+  // frames both markers if we have two, or flies to whichever one we have.
+  const recenter = useCallback(() => {
+    const map = mapRef.current
+    if (!map) return
+    const pts: [number, number][] = [sosPos, rescuerPos].filter(Boolean) as [number, number][]
+    if (pts.length > 1) {
+      const lngs = pts.map((p) => p[1]), lats = pts.map((p) => p[0])
+      // maxZoom guards against fitBounds zooming in past the point where
+      // tiles render anything recognizable when the rescuer is essentially
+      // on top of the tourist (near-zero-distance bounding box) -- same
+      // fix as RescueTrackingCard.tsx on the tourist side.
+      map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 48, duration: 600, maxZoom: 16 })
+    } else if (pts.length === 1) {
+      map.flyTo({ center: [pts[0][1], pts[0][0]], zoom: 14 })
+    }
+  }, [sosPos, rescuerPos])
+
+  // Auto-fit, staged: the map is created (above) before either real
+  // position is usually known -- sosPos arrives from the assignment fetch,
+  // rescuerPos only once geolocation resolves, which can lag well behind.
+  // Previously the camera only ever moved on a manual "Recenter" tap, so a
+  // slow/failed geolocation fix left the view stuck at the hardcoded
+  // Assam fallback for the entire job. This auto-fits once when the first
+  // position becomes available, and again once both are known -- then
+  // stays out of the way, so it doesn't fight the volunteer panning around
+  // on every subsequent GPS tick.
+  const autoFitStageRef = useRef(0)
+  useEffect(() => {
+    if (!mapRef.current) return
+    const pts = [sosPos, rescuerPos].filter(Boolean)
+    if (pts.length >= 2 && autoFitStageRef.current < 2) {
+      autoFitStageRef.current = 2
+      recenter()
+    } else if (pts.length === 1 && autoFitStageRef.current < 1) {
+      autoFitStageRef.current = 1
+      recenter()
+    }
+  }, [sosPos?.[0], sosPos?.[1], rescuerPos?.[0], rescuerPos?.[1], recenter])
 
   // Markers, SOS radius, and route line — updated in place on every
   // position/route change so nothing flickers on each GPS tick.
@@ -260,6 +318,37 @@ export default function ActiveJobPage() {
     },
   })
 
+  // Previously this fell straight through to `if (!assignment) return null`
+  // for a loading OR a failed fetch, same as a genuine "no active job" --
+  // rendering nothing at all with zero explanation. Given the backend this
+  // demo runs against has real, recurring outage windows, a volunteer
+  // opening their one active job during a real rescue deserves to see
+  // "still loading" or "couldn't reach the server, retry" instead of a
+  // blank screen that looks identical to the app being broken.
+  if (isLoading) {
+    return (
+      <div className="h-[100dvh] w-full flex items-center justify-center bg-surface-container-high">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    )
+  }
+  if (isError) {
+    return (
+      <div className="h-[100dvh] w-full flex flex-col items-center justify-center gap-4 bg-surface-container-high px-8 text-center">
+        <XCircle className="w-10 h-10 text-sos" />
+        <div>
+          <p className="font-bold text-on-surface">Couldn't load your job</p>
+          <p className="text-sm text-on-surface-variant mt-1">Check your connection and try again.</p>
+        </div>
+        <button
+          onClick={() => refetch()}
+          className="h-11 px-6 rounded-full bg-primary text-primary-foreground font-bold active:scale-95 transition-transform"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
   if (!assignment) return null
 
   const category = CATEGORY_LABELS[assignment.category] || assignment.category
@@ -273,22 +362,14 @@ export default function ActiveJobPage() {
 
       {bounds.length > 0 && (
         <button
-          onClick={() => {
-            const map = mapRef.current
-            if (!map) return
-            if (bounds.length > 1) {
-              const lngs = bounds.map((b) => b[1]), lats = bounds.map((b) => b[0])
-              // maxZoom guards against fitBounds zooming in past the point where
-              // tiles render anything recognizable when the rescuer is
-              // essentially on top of the tourist (near-zero-distance bounding
-              // box) -- same fix as RescueTrackingCard.tsx on the tourist side.
-              map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 48, duration: 600, maxZoom: 16 })
-            } else {
-              map.flyTo({ center: [bounds[0][1], bounds[0][0]], zoom: 14 })
-            }
-          }}
+          onClick={recenter}
           title="Recenter" aria-label="Recenter"
-          className="absolute bottom-40 right-3 z-[1000] w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+          // z-[1001], one above the bottom sheet's z-[1000] -- the sheet's
+          // height grows with its content (handoff-code field, exit-reason
+          // textarea), and at equal z-index it painted over this button
+          // whenever that happened, making the manual recenter fallback
+          // physically unreachable on a real phone screen.
+          className="absolute bottom-40 right-3 z-[1001] w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-95 transition-transform"
         >
           <LocateFixed className="w-5 h-5 text-on-surface" />
         </button>
