@@ -53,6 +53,7 @@ real-time data model instead of four disconnected apps.
 - [🔗 Verifiable Digital ID — the Journey Integrity Hash](#-verifiable-digital-id--the-journey-integrity-hash)
 - [🤖 A real trained model — the Predictive Risk Score](#-a-real-trained-model--the-predictive-risk-score)
 - [🚑 The unified Rescuer network](#-the-unified-rescuer-network)
+- [🗺️ Routing Engine — OSRM & Contraction Hierarchies](#️-routing-engine--osrm--contraction-hierarchies)
 - [📸 Screenshots](#-screenshots)
 - [🏗️ Architecture at a glance](#️-architecture-at-a-glance)
 - [📈 By the numbers](#-by-the-numbers)
@@ -429,6 +430,55 @@ and road route, on the same no-login Guardian link they already had open.
 The rescuer's position streams over Socket.IO into three rooms at once — tourist, guardian, govt
 — so all three views move in near-real-time off the same GPS ticks, not three separate polling
 loops drifting out of sync.
+
+---
+
+## 🗺️ Routing Engine — OSRM & Contraction Hierarchies
+
+> **Named honestly, not oversold.** The road-routing algorithm is [OSRM](http://project-osrm.org/)'s
+> own — we call it, we don't reimplement it. What *is* ours is the resilience and honesty layer
+> wrapped around a free public service: throttled requests, a straight-line degrade path, and a
+> disclosed answer for the one thing OSRM's public instance genuinely can't see — live traffic.
+
+Every live map in this system — tourist, rescuer, guardian — calls the public OSRM demo server
+directly from the browser (`router.project-osrm.org/route/v1/driving/...`, no API key, nothing to
+configure) and asks for the `driving` profile. OSRM answers that query using **Contraction
+Hierarchies**: the road graph is pre-processed offline into a layered shortcut network, so a
+route that would take a naive Dijkstra search seconds to compute over the full OpenStreetMap graph
+resolves in single-digit milliseconds at query time. That's genuinely "the best possible path" for
+a static road network — this system calls a real, production-grade routing engine, not a
+from-scratch shortest-path implementation.
+
+```mermaid
+flowchart LR
+    A["📍 Rescuer GPS tick"] --> B{"Moved ≥30m or\n≥8s since last fetch?"}
+    B -- No --> C["Skip — reuse last route"]
+    B -- Yes --> D["OSRM: Contraction\nHierarchies query"]
+    D -- "route found" --> E["✅ Real road polyline\ndistance · ETA"]
+    D -- "unreachable / no route" --> F["↔️ Straight-line fallback\nmap never breaks"]
+    E --> G{"Elapsed time ≫\noriginal ETA?"}
+    F --> G
+    G -- Yes --> H["🧭 Delay nudge —\nsuggest Google Maps\nlive traffic"]
+    G -- No --> I["Keep navigating\nin-app"]
+```
+
+**What's disclosed, not hidden**: OSRM's public instance routes purely on road geometry — it has
+no live-traffic layer. Rather than silently present a possibly-stale ETA as gospel, the system
+tracks each assignment's *original* computed ETA as a baseline and compares it against real
+elapsed time. If a rescuer is still en route at 1.6× their original estimate — a deliberately
+generous margin for single-lane mountain terrain, not routine noise — every screen watching that
+assignment (rescuer, tourist, guardian) surfaces an honest, actionable nudge: *"Taking longer than
+expected — check for a detour, or open Google Maps for live traffic conditions,"* one tap into
+Google's own traffic-aware routing. The system never pretends to out-route Google on live
+conditions it structurally cannot see — it detects when that's likely happening and hands off.
+
+| Layer | What it does | Where |
+|---|---|---|
+| 🛣️ Route computation | Contraction Hierarchies over the OSM road graph | OSRM's own public server |
+| 🐢 Client-side throttle | Skip a refetch unless ≥30m moved *and* ≥8s elapsed | `lib/osrm.ts`, all 3 live-tracking portals |
+| ↔️ Resilience | Any failure (timeout, no route, malformed response) degrades to a straight line, never a crash | `lib/osrm.ts#getRoute` — verified live by blocking the endpoint entirely mid-session |
+| 🧭 Delay honesty | Elapsed time vs. original ETA, 1.6× margin, triggers a Google Maps handoff suggestion | `ActiveJobPage.tsx`, `RescueTrackingCard.tsx`, guardian `TrackingPage.tsx` |
+| 📡 Live cross-portal signal | Rescuer's "Navigate" toggle broadcasts a real-time pill to tourist + guardian | `RESCUER_NAVIGATING_STATE` socket event |
 
 ---
 

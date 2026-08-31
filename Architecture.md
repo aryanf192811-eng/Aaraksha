@@ -31,15 +31,26 @@ Gemini API       ·  PDFKit           ·  Multer
 dotenv           ·  pino             ·  pino-pretty
 ```
 
-### Frontend (`frontend/tourist` | `frontend/govt` | `frontend/guardian`)
+### Frontend (`frontend/tourist` | `frontend/govt` | `frontend/guardian` | `frontend/volunteer`)
 
 ```
 Vite >=5        ·  React >=18       ·  TypeScript >=5.0
 Tailwind 3.x    ·  shadcn/ui        ·  React Router v6
 Zustand         ·  TanStack Query v5·  React Hook Form
 axios           ·  Dexie.js         ·  react-leaflet
+MapLibre GL JS  ·  OSRM (public demo server, no key)
 Recharts        ·  vite-plugin-pwa
 ```
+
+`frontend/volunteer` (the Rescuer/delivery-partner-style app) has no Radix/shadcn dependency —
+its UI is hand-rolled Tailwind throughout, distinct from the other three portals.
+
+MapLibre GL JS powers the live rescue-tracking maps (tourist `RescueTrackingCard`, volunteer
+`ActiveJobPage`, govt `TerrainMap`'s 3D view) — `react-leaflet` remains the default for the
+simpler, non-rescue maps elsewhere (govt's live ops map, guardian's tracking map). Real road
+routing on every MapLibre rescue map comes from OSRM's public demo server, called directly from
+the browser with no backend involvement and no API key — see the README's "Routing Engine"
+section for the full algorithm/resilience writeup.
 
 ---
 
