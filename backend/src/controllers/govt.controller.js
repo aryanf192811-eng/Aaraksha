@@ -8,6 +8,8 @@ const anomalyService = require('../services/anomaly.service')
 const incidentService = require('../services/incident.service')
 const efirReportService = require('../services/efirReport.service')
 const handoffService = require('../services/handoff.service')
+const trustScoreService = require('../services/trustScore.service')
+const sosClusterService = require('../services/sosCluster.service')
 const { sendSuccess, sendPaginated } = require('../utils/response')
 const { parsePaginationParams } = require('../utils/pagination')
 const logger = require('../utils/logger')
@@ -75,6 +77,43 @@ const resolveSOS = async (req, res, next) => {
     const { resolutionNotes, overrideReason } = req.validatedBody
     const sos = await govtService.resolveSOS(req.params.id, resolutionNotes, req.govtUser.id, overrideReason)
     sendSuccess(res, sos, 'SOS resolved')
+  } catch (err) { next(err) }
+}
+
+const confirmFraudulentSOS = async (req, res, next) => {
+  try {
+    const result = await govtService.confirmFraudulentSOS(req.params.id, req.govtUser.id, req.validatedBody.reason)
+    sendSuccess(res, result, 'Confirmed fraudulent — trust score updated')
+  } catch (err) { next(err) }
+}
+
+const getPendingAppeals = async (req, res, next) => {
+  try {
+    const appeals = await trustScoreService.getPendingAppeals()
+    sendSuccess(res, appeals)
+  } catch (err) { next(err) }
+}
+
+const decideAppeal = async (req, res, next) => {
+  try {
+    const { decision, resolutionNotes } = req.validatedBody
+    const appeal = await trustScoreService.decideAppeal(req.params.id, decision, req.govtUser.id, resolutionNotes)
+    sendSuccess(res, appeal, `Appeal ${decision === 'APPROVE' ? 'approved' : 'rejected'}`)
+  } catch (err) { next(err) }
+}
+
+const getOpenClusters = async (req, res, next) => {
+  try {
+    const clusters = await sosClusterService.getOpenClusters()
+    sendSuccess(res, clusters)
+  } catch (err) { next(err) }
+}
+
+const resolveCluster = async (req, res, next) => {
+  try {
+    const { decision, resolutionNotes } = req.validatedBody
+    const cluster = await sosClusterService.resolveCluster(req.params.id, decision, req.govtUser.id, resolutionNotes)
+    sendSuccess(res, cluster, 'Cluster resolved')
   } catch (err) { next(err) }
 }
 
@@ -204,4 +243,5 @@ module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRiskModelI
   scanCheckpoint, getRecentCheckpointScans, postDestinationNews,
   getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer, rejectVolunteer,
   getAnomalies, resolveAnomaly,
-  getIncidentQueue, getIncident, getAssignableOfficers, assignIncident, updateIncidentStatus, downloadEfirReport }
+  getIncidentQueue, getIncident, getAssignableOfficers, assignIncident, updateIncidentStatus, downloadEfirReport,
+  confirmFraudulentSOS, getPendingAppeals, decideAppeal, getOpenClusters, resolveCluster }

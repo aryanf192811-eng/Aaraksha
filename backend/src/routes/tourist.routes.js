@@ -14,6 +14,10 @@ const { PhoneSchema } = require('../validators/common.validator')
 
 const messageLimiter = createMessageLimiter()
 
+const SubmitTrustAppealSchema = z.object({
+  message: z.string().trim().min(20, 'Explain your situation (at least 20 characters)').max(1000),
+})
+
 const UpdateProfileSchema = z.object({
   fullName:          z.string().min(2).max(255).optional(),
   email:             z.string().email().optional(),
@@ -54,5 +58,11 @@ router.get('/me/privacy-notice',     authenticateTourist, dataRightsCtrl.getPriv
 router.get('/me/data-export',        authenticateTourist, dataRightsCtrl.exportMyData)
 router.get('/me/deletion-requests',  authenticateTourist, dataRightsCtrl.getMyDeletionRequests)
 router.post('/me/deletion-request',  authenticateTourist, dataRightsCtrl.requestDeletion)
+
+// Trust score never gates this route's own existence -- a restricted
+// tourist can always see their status and submit an appeal, same as they
+// can always still trigger an SOS.
+router.get('/me/trust-status',  authenticateTourist, ctrl.getMyTrustStatus)
+router.post('/me/trust-appeal', authenticateTourist, validate(SubmitTrustAppealSchema), ctrl.submitTrustAppeal)
 
 module.exports = router

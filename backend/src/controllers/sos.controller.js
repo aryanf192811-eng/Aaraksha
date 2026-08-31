@@ -28,6 +28,13 @@ const markFalseAlarm = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+const amendCategory = async (req, res, next) => {
+  try {
+    const sos = await sosService.amendCategory(req.tourist.id, req.params.id, req.validatedBody.category)
+    sendSuccess(res, sos, 'Category added')
+  } catch (err) { next(err) }
+}
+
 const getActiveRescueInfo = async (req, res, next) => {
   try {
     const info = await sosService.getActiveRescueInfo(req.tourist.id)
@@ -49,4 +56,4 @@ const regenerateHandoffCode = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
-module.exports = { createSOS, getMySOSHistory, markFalseAlarm, getActiveRescueInfo, getHandoffCode, regenerateHandoffCode }
+module.exports = { createSOS, getMySOSHistory, markFalseAlarm, amendCategory, getActiveRescueInfo, getHandoffCode, regenerateHandoffCode }

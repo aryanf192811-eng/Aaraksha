@@ -170,6 +170,9 @@ export interface SOSEvent {
   handoff_verified_by_kind: 'VOLUNTEER' | 'TEAM' | null
   handoff_override_at: string | null
   handoff_override_reason: string | null
+  additional_categories: string[]
+  category_amended_at: string | null
+  low_trust_at_trigger: boolean
   // LEFT JOIN fields (findByTouristId / findActive) — SQL LEFT JOIN yields
   // null when unmatched, not undefined, so these are optional-and-nullable.
   assignment_status?: string | null

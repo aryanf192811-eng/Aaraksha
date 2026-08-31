@@ -1,7 +1,7 @@
 // src/pages/SOSManagementPage.tsx — real-time SOS feed with assignment modal
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Battery, CheckCircle2, Send, ShieldCheck, HeartHandshake, Navigation, Radio, Gauge, FileText, KeyRound, ShieldAlert, ChevronDown } from 'lucide-react'
+import { AlertTriangle, Loader2, X, Phone, Droplet, Clock, MapPin, UserCheck, Battery, CheckCircle2, Send, ShieldCheck, HeartHandshake, Navigation, Radio, Gauge, FileText, KeyRound, ShieldAlert, ChevronDown, Flame, Users, Ban } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
@@ -41,6 +41,8 @@ export default function SOSManagementPage() {
   const [handoffCode, setHandoffCode] = useState('')
   const [showOverride, setShowOverride] = useState(false)
   const [overrideReason, setOverrideReason] = useState('')
+  const [showFraudConfirm, setShowFraudConfirm] = useState(false)
+  const [fraudReason, setFraudReason] = useState('')
   const modalRef = useRef<HTMLDivElement>(null)
   useSOSSocket() // subscribes to real-time events; invalidates the queries below
 
@@ -69,6 +71,32 @@ export default function SOSManagementPage() {
     queryKey: ['govt', 'sos'],
     queryFn: () => govtApi.getActiveSOS({ page: 1, limit: 50 }).then(r => r.data),
     refetchInterval: 15_000,
+  })
+
+  // A priority signal, never an auto-verdict -- see govtApi.getOpenSOSClusters.
+  const { data: openClusters } = useQuery({
+    queryKey: ['govt', 'sos-clusters'],
+    queryFn: () => govtApi.getOpenSOSClusters().then(r => r.data.data),
+    refetchInterval: 15_000,
+  })
+  const clusterForSOS = (sosId: string) => openClusters?.find(c => c.sos_event_ids.includes(sosId))
+
+  const [showClusterResolve, setShowClusterResolve] = useState(false)
+  const [clusterNotes, setClusterNotes] = useState('')
+  const { mutate: resolveCluster, isPending: resolvingCluster } = useMutation({
+    mutationFn: ({ clusterId, decision }: { clusterId: string; decision: 'CONFIRMED_INCIDENT' | 'CONFIRMED_ABUSE' | 'DISMISS' }) =>
+      govtApi.resolveSOSCluster(clusterId, decision, clusterNotes.trim() || undefined),
+    onSuccess: (_res, { decision }) => {
+      toast.success(
+        decision === 'CONFIRMED_INCIDENT' ? 'Confirmed as a real incident — priority escalated'
+          : decision === 'CONFIRMED_ABUSE' ? 'Confirmed coordinated abuse — trust scores updated for everyone involved'
+          : 'Dismissed as unrelated coincidence'
+      )
+      queryClient.invalidateQueries({ queryKey: ['govt', 'sos-clusters'] })
+      setShowClusterResolve(false)
+      setClusterNotes('')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
   })
 
   // Distance-sorted list mixing official teams and govt-verified volunteers
@@ -124,6 +152,20 @@ export default function SOSManagementPage() {
     onError: (err) => toast.error(getErrorMessage(err)),
   })
 
+  // Deliberately independent of resolve/status -- govt may only realize an
+  // SOS was fraudulent well after the case is already closed, and the
+  // trust consequence should still land. Never touches the SOS's own
+  // status; this only affects the triggering tourist's trust score.
+  const { mutate: confirmFraudulent, isPending: confirmingFraud } = useMutation({
+    mutationFn: (sosId: string) => govtApi.confirmFraudulentSOS(sosId, fraudReason.trim()),
+    onSuccess: () => {
+      toast.success('Confirmed fraudulent — trust score updated')
+      setShowFraudConfirm(false)
+      setFraudReason('')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+
   // Relay entry — a govt operator typing in a code an official team radioed
   // in, since teams have no individual member login of their own to enter
   // it directly (see handoffService#verifyHandoffAsTeamRelay). Works for a
@@ -174,9 +216,35 @@ export default function SOSManagementPage() {
                     sos.status === 'ACTIVE' ? 'text-red-500' : sos.status === 'ASSIGNED' ? 'text-amber-500' : 'text-green-500'
                   )} />
                   <span className="font-bold text-on-surface">{sos.full_name}</span>
+                  {/* Never implies a verdict -- could be a real mass-
+                      incident just as easily as coordinated abuse. Sorts to
+                      the top visually via its own color, not auto-triaged. */}
+                  {clusterForSOS(sos.id) && (
+                    <span title={`${clusterForSOS(sos.id)!.tourist_count} tourists, ${clusterForSOS(sos.id)!.category_diversity} categories within 500m/15min — needs investigation`}
+                      className="flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
+                      <Flame className="w-3 h-3" /> Cluster ×{clusterForSOS(sos.id)!.tourist_count} — investigate
+                    </span>
+                  )}
+                  {/* Frozen at trigger time -- prompts scrutiny, never
+                      dismissal. This account was flagged WHEN this SOS was
+                      filed; it's not a verdict on the SOS itself. */}
+                  {sos.low_trust_at_trigger && (
+                    <span title="This account's trust score was already low when this SOS was triggered — verify carefully, don't dismiss"
+                      className="flex items-center gap-1 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
+                      <ShieldAlert className="w-3 h-3" /> Verify carefully
+                    </span>
+                  )}
                   <span className="text-xs bg-surface-container-high text-on-surface-variant px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
                     {sos.category}
                   </span>
+                  {/* A tourist-initiated, timestamped amendment -- distinct
+                      styling (amber, "+") from the primary category badge so
+                      an operator's eye catches "this changed" at a glance. */}
+                  {sos.additional_categories?.map((cat) => (
+                    <span key={cat} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold flex-shrink-0">
+                      + {cat}{sos.category_amended_at && ` · ${formatTimeAgo(sos.category_amended_at)}`}
+                    </span>
+                  ))}
                   {sos.tsi_label && (
                     <span className={cn('text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0', TSI_STYLE[sos.tsi_label] || TSI_STYLE['Moderate Risk'])}>
                       Trip: {sos.tsi_label}
@@ -245,7 +313,16 @@ export default function SOSManagementPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div><p className="text-xs font-bold text-on-surface-variant uppercase">Tourist</p><p className="font-bold">{selectedSOS.full_name}</p></div>
                 <div><p className="text-xs font-bold text-on-surface-variant uppercase">Phone</p><p className="font-bold">{selectedSOS.phone}</p></div>
-                <div><p className="text-xs font-bold text-on-surface-variant uppercase">Category</p><p className="font-bold text-red-600">{selectedSOS.category}</p></div>
+                <div>
+                  <p className="text-xs font-bold text-on-surface-variant uppercase">Category</p>
+                  <p className="font-bold text-red-600">{selectedSOS.category}</p>
+                  {selectedSOS.additional_categories?.length > 0 && (
+                    <p className="text-xs font-semibold text-amber-700 mt-0.5">
+                      + {selectedSOS.additional_categories.join(', ')}
+                      {selectedSOS.category_amended_at && ` (added ${formatTimeAgo(selectedSOS.category_amended_at)})`}
+                    </p>
+                  )}
+                </div>
                 <div><p className="text-xs font-bold text-on-surface-variant uppercase">Blood Group</p><p className="font-bold">{selectedSOS.blood_group || 'Unknown'}</p></div>
                 <div><p className="text-xs font-bold text-on-surface-variant uppercase">Trigger Type</p><p className="font-bold">{selectedSOS.trigger_type}</p></div>
                 <div><p className="text-xs font-bold text-on-surface-variant uppercase">Battery</p><p className="font-bold">{selectedSOS.last_battery !== null ? `${selectedSOS.last_battery}%` : '—'}</p></div>
@@ -486,6 +563,78 @@ export default function SOSManagementPage() {
                   )}
                 </div>
               )}
+
+              {/* Cluster triage -- three explicit, human decisions. Detection
+                  never resolves itself; a real mass-incident and coordinated
+                  abuse look identical to an algorithm at this stage, so this
+                  stays a judgment call every time. */}
+              {clusterForSOS(selectedSOS.id) && (
+                <div className="pt-3 border-t border-outline-variant">
+                  <button onClick={() => setShowClusterResolve(v => !v)}
+                    className="flex items-center gap-1 text-[11px] font-semibold text-red-600 mx-auto">
+                    <ChevronDown className={cn('w-3 h-3 transition-transform', showClusterResolve && 'rotate-180')} />
+                    <Flame className="w-3 h-3" /> Part of a flagged cluster — investigate
+                  </button>
+                  {showClusterResolve && (
+                    <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-2.5 space-y-2">
+                      <p className="text-[11px] text-red-700">
+                        {clusterForSOS(selectedSOS.id)!.tourist_count} tourists, {clusterForSOS(selectedSOS.id)!.category_diversity} distinct
+                        categories, within 500m and 15 minutes of each other.
+                      </p>
+                      <Textarea placeholder="Notes (optional)..." aria-label="Cluster resolution notes"
+                        value={clusterNotes} onChange={e => setClusterNotes(e.target.value)} rows={2}
+                        className="rounded-lg resize-none bg-white text-xs" />
+                      <div className="grid grid-cols-1 gap-1.5">
+                        <Button variant="outline" disabled={resolvingCluster}
+                          onClick={() => resolveCluster({ clusterId: clusterForSOS(selectedSOS.id)!.id, decision: 'CONFIRMED_INCIDENT' })}
+                          className="w-full h-9 rounded-full border-2 border-amber-400 text-amber-700 font-bold hover:bg-amber-100 disabled:opacity-40 text-xs flex items-center justify-center gap-1.5">
+                          <Users className="w-3.5 h-3.5" /> Confirmed real incident — escalate priority
+                        </Button>
+                        <Button variant="outline" disabled={resolvingCluster}
+                          onClick={() => resolveCluster({ clusterId: clusterForSOS(selectedSOS.id)!.id, decision: 'CONFIRMED_ABUSE' })}
+                          className="w-full h-9 rounded-full border-2 border-red-400 text-red-700 font-bold hover:bg-red-100 disabled:opacity-40 text-xs flex items-center justify-center gap-1.5">
+                          <Ban className="w-3.5 h-3.5" /> Confirmed coordinated false SOS
+                        </Button>
+                        <Button variant="outline" disabled={resolvingCluster}
+                          onClick={() => resolveCluster({ clusterId: clusterForSOS(selectedSOS.id)!.id, decision: 'DISMISS' })}
+                          className="w-full h-9 rounded-full border border-outline-variant text-on-surface-variant font-bold hover:bg-surface-container disabled:opacity-40 text-xs">
+                          {resolvingCluster ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Dismiss — unrelated coincidence'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Independent of the SOS's own status/resolve flow -- a
+                  deliberately hard-to-reach, always-reasoned, always-audited
+                  action, same posture as Force resolve above. Restricted to
+                  SUPER_ADMIN/DISTRICT_ADMIN server-side; this button is
+                  visible to any operator but the request itself is what
+                  actually gates it. */}
+              <div className="pt-3 border-t border-outline-variant">
+                <button onClick={() => setShowFraudConfirm(v => !v)}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-on-surface-variant hover:text-red-600 mx-auto">
+                  <ChevronDown className={cn('w-3 h-3 transition-transform', showFraudConfirm && 'rotate-180')} />
+                  Confirm this was a fraudulent SOS
+                </button>
+                {showFraudConfirm && (
+                  <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-2.5 space-y-2">
+                    <p className="flex items-start gap-1.5 text-[11px] text-red-700">
+                      <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                      Deducts trust score for the tourist who filed this — never affects their ability to trigger a real SOS, only adds scrutiny to future ones and pauses community features. Logged and audited.
+                    </p>
+                    <Textarea placeholder="What confirmed this was fraudulent? (required, min 10 characters)..." aria-label="Fraud confirmation reason"
+                      value={fraudReason} onChange={e => setFraudReason(e.target.value)} rows={2}
+                      className="rounded-lg resize-none bg-white text-xs" />
+                    <Button variant="outline" disabled={confirmingFraud || fraudReason.trim().length < 10}
+                      onClick={() => confirmFraudulent(selectedSOS.id)}
+                      className="w-full h-9 rounded-full border-2 border-red-400 text-red-700 font-bold hover:bg-red-100 disabled:opacity-40 text-xs">
+                      {confirmingFraud ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm fraudulent'}
+                    </Button>
+                  </div>
+                )}
+              </div>
 
               {(selectedSOS.status === 'RESOLVED' || selectedSOS.status === 'FALSE_ALARM') && (
                 <a href={govtApi.getIncidentReportUrl(selectedSOS.id)} target="_blank" rel="noopener noreferrer"

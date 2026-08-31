@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { PageSkeleton, MessageThread } from '../../components/shared'
 import { RescueReadinessChecklist } from '../../components/shared/RescueReadinessChecklist'
+import { TrustStatusBanner } from '../../components/shared/TrustStatusBanner'
 import { useAuthStore } from '../../store/auth.store'
 import { useDMS } from '../../hooks/useDMS'
 import { queryClient } from '../../lib/queryClient'
@@ -116,7 +117,11 @@ export default function ProfilePage() {
   const { mutate: sendGuardianMessage, isPending: sendingGuardianMessage } = useMutation({
     mutationFn: (body: string) => touristApi.sendGuardianMessage(body),
     onSuccess: (res) => {
-      queryClient.setQueryData(['messages', 'guardian'], (prev: typeof guardianMessages) => [...(prev ?? []), res.data.data])
+      // The MESSAGE_RECEIVED socket push for this same message can arrive
+      // before this mutation's own response does and trigger a refetch that
+      // already includes it — dedupe by id so this append doesn't double it.
+      queryClient.setQueryData(['messages', 'guardian'], (prev: typeof guardianMessages) =>
+        prev?.some((m) => m.id === res.data.data.id) ? prev : [...(prev ?? []), res.data.data])
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   })
@@ -187,6 +192,10 @@ export default function ProfilePage() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Only ever renders anything when actually restricted -- silent
+            otherwise. Placed first so it's impossible to miss if present. */}
+        <TrustStatusBanner />
 
         {/* Rescue readiness — same component and inputs as the Dashboard's,
             so this is the same number wherever a tourist sees it. */}

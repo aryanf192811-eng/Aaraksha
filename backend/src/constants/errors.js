@@ -81,6 +81,15 @@ const ERRORS = Object.freeze({
   INCIDENT_NOT_FOUND:      'Incident report not found or access denied',
   INCIDENT_ALREADY_CLOSED: 'This incident report is already resolved or closed',
 
+  // Trust score / appeals
+  TRUST_APPEAL_ALREADY_PENDING: 'You already have an appeal under review — you\'ll be notified once it\'s decided',
+  TRUST_APPEAL_COOLDOWN:  'You can submit a new appeal 7 days after a rejection',
+  TRUST_APPEAL_NOT_RESTRICTED: 'Your account isn\'t currently restricted',
+  TRUST_APPEAL_NOT_FOUND: 'Appeal not found or already decided',
+
+  // SOS clusters
+  CLUSTER_NOT_FOUND: 'Cluster flag not found or already resolved',
+
   // Generic
   NOT_FOUND:           'Resource not found',
   VALIDATION_FAILED:   'Validation failed',

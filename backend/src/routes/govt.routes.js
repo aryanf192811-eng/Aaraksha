@@ -32,6 +32,20 @@ const ResolveSOSSchema = z.object({
   // one-field form.
   overrideReason: z.string().min(10).max(1000).optional(),
 })
+// Deliberately requires a real reason, same posture as ResolveSOSSchema's
+// overrideReason -- this is an audited, hard-to-reach action, not a casual
+// tap-away option.
+const ConfirmFraudulentSchema = z.object({
+  reason: z.string().min(10, 'Explain the finding (at least 10 characters)').max(1000),
+})
+const DecideAppealSchema = z.object({
+  decision: z.enum(['APPROVE', 'REJECT']),
+  resolutionNotes: z.string().max(1000).optional(),
+})
+const ResolveClusterSchema = z.object({
+  decision: z.enum(['CONFIRMED_INCIDENT', 'CONFIRMED_ABUSE', 'DISMISS']),
+  resolutionNotes: z.string().max(1000).optional(),
+})
 const VerifyHandoffSchema = z.object({
   code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
 })
@@ -112,5 +126,22 @@ router.post('/volunteers',             requireGovtRole(...COMMAND_CENTER_ROLES),
 router.get('/volunteers/pending',      requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getPendingVolunteers)
 router.patch('/volunteers/:id/verify', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.verifyVolunteer)
 router.patch('/volunteers/:id/reject', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.rejectVolunteer)
+
+// Trust score / appeals -- scoped tighter than COMMAND_CENTER_ROLES.
+// Deciding someone's account restriction (or overturning it) is a
+// district-level judgment call, not something every operator role should
+// be able to unilaterally do.
+const TRUST_REVIEW_ROLES = [GOVT_ROLES.SUPER_ADMIN, GOVT_ROLES.DISTRICT_ADMIN]
+router.post('/sos/:id/confirm-fraudulent', requireGovtRole(...TRUST_REVIEW_ROLES), validate(ConfirmFraudulentSchema), ctrl.confirmFraudulentSOS)
+router.get('/trust-appeals',               requireGovtRole(...TRUST_REVIEW_ROLES), ctrl.getPendingAppeals)
+router.post('/trust-appeals/:id/decide',   requireGovtRole(...TRUST_REVIEW_ROLES), validate(DecideAppealSchema), ctrl.decideAppeal)
+
+// Any operator can SEE a flagged cluster (it's an SOS-priority signal,
+// belongs on the dashboard for everyone); only TRUST_REVIEW_ROLES can
+// resolve one, since a CONFIRMED_ABUSE decision applies a trust
+// consequence to real accounts -- same district-level judgment gate as
+// the trust-appeals review above.
+router.get('/sos-clusters',              requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getOpenClusters)
+router.post('/sos-clusters/:id/resolve', requireGovtRole(...TRUST_REVIEW_ROLES), validate(ResolveClusterSchema), ctrl.resolveCluster)
 
 module.exports = router

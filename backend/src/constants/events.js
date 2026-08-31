@@ -21,6 +21,11 @@ const SOCKET_EVENTS = Object.freeze({
   // The rescuer self-reported progress (EN_ROUTE/ARRIVED) — same 3-room
   // fan-out shape as RESCUER_LOCATION_UPDATE.
   RESCUER_STATUS_UPDATE: 'RESCUER_STATUS_UPDATE',
+  // The rescuer toggled in-app "Navigate" on/off — ephemeral, not persisted
+  // anywhere (no DB column), same 3-room fan-out shape as
+  // RESCUER_LOCATION_UPDATE. Purely a live reassurance signal: "your
+  // rescuer is actively navigating to you right now."
+  RESCUER_NAVIGATING_STATE: 'RESCUER_NAVIGATING_STATE',
   // The rescuer got the handoff code from the tourist in person and it
   // checked out — same 3-room fan-out (tourist/guardian/govt) as the two
   // above, plus the rescuer's own room so their app updates too.
@@ -35,6 +40,20 @@ const SOCKET_EVENTS = Object.freeze({
   // SOS, a softer "look into this" signal (see migration 011).
   TOURIST_ANOMALY_DETECTED: 'TOURIST_ANOMALY_DETECTED',
   TOURIST_ANOMALY_RESOLVED: 'TOURIST_ANOMALY_RESOLVED',
+  // A tourist added a category to an already-active SOS (see migration
+  // 021_sos_category_amendment) — fans out to govt dashboard + the
+  // assigned volunteer's room (see emitSOSCategoryAmended).
+  SOS_CATEGORY_AMENDED: 'SOS_CATEGORY_AMENDED',
+  // A tourist's trust score crossed below the restriction threshold (see
+  // migration 022_trust_score / trustScore.service.js) — govt-dashboard-
+  // only, never sent to the tourist's own room (the in-app banner they see
+  // comes from their own next fetch, not a push).
+  TOURIST_TRUST_RESTRICTED: 'TOURIST_TRUST_RESTRICTED',
+  // A new trust-appeal ("plea") landed in the govt review queue.
+  TOURIST_TRUST_APPEAL_FILED: 'TOURIST_TRUST_APPEAL_FILED',
+  // Govt flagged 3+ SOS as a proximity cluster needing triage (see
+  // migration 023_sos_cluster_flags / sosCluster.service.js).
+  SOS_CLUSTER_FLAGGED: 'SOS_CLUSTER_FLAGGED',
   // A tourist filed a new E-FIR — lands in the govt officer queue (see
   // migration 012_incident_reports).
   INCIDENT_FILED:          'INCIDENT_FILED',

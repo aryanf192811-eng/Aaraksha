@@ -185,6 +185,44 @@ function registerListeners(socket: ReturnType<typeof connectSocket>) {
     queryClient.invalidateQueries({ queryKey: ['govt', 'dashboard'] })
   }
 
+  // A tourist added a category to an already-active SOS -- a structured
+  // signal, not just something buried in chat, so it deserves the same
+  // "operator sees it live" treatment as a handoff verification.
+  const onCategoryAmended = (data: { sosId: string; category: string; additionalCategories: string[] }) => {
+    toast.info(`SOS updated — also flagged ${data.additionalCategories[data.additionalCategories.length - 1] ?? 'a new concern'}`, {
+      action: { label: 'View', onClick: () => { window.location.href = '/sos' } },
+    })
+    queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
+  }
+
+  // A tourist's trust score crossed the restriction threshold -- refresh
+  // the SOS list so any of their active/future SOS rows pick up the
+  // "Verify carefully" badge without waiting on the next poll.
+  const onTrustRestricted = (data: { touristName?: string }) => {
+    toast.warning(`${data.touristName ?? 'A tourist'}'s trust score dropped below the restriction threshold`, {
+      action: { label: 'View', onClick: () => { window.location.href = '/sos' } },
+    })
+    queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
+  }
+
+  // A new trust appeal landed in the review queue.
+  const onTrustAppealFiled = (data: { touristName?: string }) => {
+    toast.info(`${data.touristName ?? 'A tourist'} submitted a trust appeal`, {
+      action: { label: 'Review', onClick: () => { window.location.href = '/trust-appeals' } },
+    })
+    queryClient.invalidateQueries({ queryKey: ['govt', 'trust-appeals'] })
+  }
+
+  // 3+ SOS flagged as a proximity/time cluster -- refresh both the SOS
+  // list (for the row badge) and the cluster query itself.
+  const onClusterFlagged = (data: { touristCount: number }) => {
+    toast.warning(`${data.touristCount} SOS flagged as a nearby cluster — needs investigation`, {
+      action: { label: 'View', onClick: () => { window.location.href = '/sos' } },
+    })
+    queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
+    queryClient.invalidateQueries({ queryKey: ['govt', 'sos-clusters'] })
+  }
+
   // Hourly weather-driven TSI recalcs fire per-tourist and can arrive in a
   // burst -- no toast (would flood the operator), just keep the risk
   // overview current instead of waiting on its own poll interval.
@@ -214,11 +252,19 @@ function registerListeners(socket: ReturnType<typeof connectSocket>) {
   socket.on(SOCKET_EVENTS.INCIDENT_STATUS_UPDATED, onIncidentStatusUpdated)
   socket.on(SOCKET_EVENTS.RESCUER_ASSIGNMENT_CANCELLED, onAssignmentCancelled)
   socket.on(SOCKET_EVENTS.HANDOFF_VERIFIED, onHandoffVerified)
+  socket.on(SOCKET_EVENTS.SOS_CATEGORY_AMENDED, onCategoryAmended)
+  socket.on(SOCKET_EVENTS.TOURIST_TRUST_RESTRICTED, onTrustRestricted)
+  socket.on(SOCKET_EVENTS.TOURIST_TRUST_APPEAL_FILED, onTrustAppealFiled)
+  socket.on(SOCKET_EVENTS.SOS_CLUSTER_FLAGGED, onClusterFlagged)
   socket.on(SOCKET_EVENTS.TSI_BULK_UPDATE, onTsiBulkUpdate)
   socket.on(SOCKET_EVENTS.VOLUNTEER_ASSIGNMENT_UPDATED, onVolunteerAssignmentUpdated)
 
   return () => {
     socket.off(SOCKET_EVENTS.HANDOFF_VERIFIED, onHandoffVerified)
+    socket.off(SOCKET_EVENTS.SOS_CATEGORY_AMENDED, onCategoryAmended)
+    socket.off(SOCKET_EVENTS.TOURIST_TRUST_RESTRICTED, onTrustRestricted)
+    socket.off(SOCKET_EVENTS.TOURIST_TRUST_APPEAL_FILED, onTrustAppealFiled)
+    socket.off(SOCKET_EVENTS.SOS_CLUSTER_FLAGGED, onClusterFlagged)
     socket.off(SOCKET_EVENTS.TSI_BULK_UPDATE, onTsiBulkUpdate)
     socket.off(SOCKET_EVENTS.VOLUNTEER_ASSIGNMENT_UPDATED, onVolunteerAssignmentUpdated)
     socket.off(SOCKET_EVENTS.RESCUER_ASSIGNMENT_CANCELLED, onAssignmentCancelled)

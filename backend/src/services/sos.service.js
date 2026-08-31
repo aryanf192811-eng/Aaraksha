@@ -11,10 +11,12 @@ const { VolunteerRepository } = require('../repositories/volunteer.repository')
 const { VolunteerDispatchRepository } = require('../repositories/volunteerDispatch.repository')
 const { RescueRepository } = require('../repositories/rescue.repository')
 const { notifyOnSOS, notifyVolunteersOnSOS } = require('./notification/notification.service')
-const { emitSOSReceived, emitSOSResolved, emitGroupSOSAlert, emitGuardianSOSAlert, emitVolunteerSOSAlert } = require('../socket/emitters')
+const { emitSOSReceived, emitSOSResolved, emitGroupSOSAlert, emitGuardianSOSAlert, emitVolunteerSOSAlert, emitSOSCategoryAmended } = require('../socket/emitters')
 const { SOS_TRIGGER_TYPES, SOS_STATUSES, TEAM_STATUSES, VOLUNTEER_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const { estimateRescueEtaMinutes } = require('../utils/geo')
+const { applyTrustEvent } = require('./trustScore.service')
+const { checkForCluster } = require('./sosCluster.service')
 const logger = require('../utils/logger')
 
 // How far a verified volunteer can be and still get alerted. Wide enough to
@@ -44,6 +46,12 @@ async function createSOS(touristId, data) {
       return { sosEvent, tourist, isDuplicate: true }
     }
 
+    // A frozen-at-trigger-time snapshot for govt's "verify carefully"
+    // badge — looked up before create() so the SOS row carries whatever
+    // was true the moment it was filed, not whatever the score happens to
+    // be whenever someone later reads it (an approved appeal shouldn't
+    // silently rewrite what govt saw in the moment).
+    const triggeringTourist = await touristRepo.findById(touristId)
     const sosEvent = await sosRepo.create({
       touristId,
       tripId:            data.tripId || null,
@@ -55,6 +63,7 @@ async function createSOS(touristId, data) {
       message:           data.message || null,
       triggerType:       SOS_TRIGGER_TYPES.MANUAL,
       batteryPct:        data.batteryPct || null,
+      lowTrustAtTrigger: !!triggeringTourist?.trust_restricted_at,
     })
 
     // Always update last known location on SOS
@@ -77,6 +86,12 @@ async function createSOS(touristId, data) {
   // 2. Side effects AFTER transaction — failures here do not rollback SOS
   emitSOSReceived(sosEvent, tourist)
   emitGuardianSOSAlert(tourist.guardian_token, sosEvent, tourist)
+
+  // Proximity/time cluster check -- urgent the moment a cluster forms, so
+  // this runs immediately rather than on a cron cadence, but never blocks
+  // or can fail the tourist's own SOS confirmation.
+  checkForCluster(sosEvent)
+    .catch(err => logger.error({ err: { message: err.message }, sosId: sosEvent.id }, 'Cluster detection failed'))
 
   // Group SOS fan-out: alert co-travelers on the same trip, not just the
   // sender's own emergency contacts — they may be nearby and best placed to
@@ -145,6 +160,8 @@ async function getActiveRescueInfo(touristId) {
   return {
     sosId:      row.id,
     category:   row.category,
+    additionalCategories: row.additional_categories || [],
+    categoryAmendedAt:    row.category_amended_at,
     status:     row.status,
     createdAt:  row.created_at,
     latitude:   row.latitude,
@@ -214,7 +231,42 @@ async function markFalseAlarm(sosId, touristId) {
 
   emitSOSResolved(updated, 'Tourist confirmed false alarm')
   logger.info({ sosId, touristId }, 'SOS marked false alarm')
+
+  // Rewarded, never punished -- a tourist realizing it's not actually an
+  // emergency and immediately cancelling is exactly the honest behavior
+  // this system wants; only a govt-CONFIRMED fraudulent SOS costs points.
+  // Best-effort: a trust-score hiccup must never affect the SOS itself.
+  applyTrustEvent(touristId, 'HONEST_FALSE_ALARM', { relatedSosId: sosId })
+    .catch(err => logger.error({ err: { message: err.message }, sosId, touristId }, 'Trust event (honest false alarm) failed'))
+
   return updated
 }
 
-module.exports = { createSOS, getSOSHistory, markFalseAlarm, getActiveRescueInfo }
+// A structured "modify my request" path, not just chat: the tourist's
+// original category stays untouched (unchanged everywhere it's already
+// read) — this appends to a separate, timestamped, audited log instead, so
+// "actually this is also MEDICAL" becomes a real API call govt/the rescuer
+// see live, not something only provable by scrolling a chat transcript.
+async function amendCategory(touristId, sosId, category) {
+  const repo = new SOSRepository()
+  const sos = await repo.findById(sosId)
+
+  if (!sos) throw Object.assign(new Error(ERRORS.SOS_NOT_FOUND), { statusCode: 404 })
+  if (sos.tourist_id !== touristId) throw Object.assign(new Error(ERRORS.FORBIDDEN), { statusCode: 403 })
+  if ([SOS_STATUSES.RESOLVED, SOS_STATUSES.FALSE_ALARM].includes(sos.status)) {
+    throw Object.assign(new Error(ERRORS.SOS_ALREADY_CLOSED), { statusCode: 400 })
+  }
+
+  const updated = await repo.amendCategory(sosId, category)
+  // Same TOCTOU note as markFalseAlarm — the pre-check above can race a
+  // concurrent resolve; the WHERE guard inside amendCategory is the real
+  // source of truth.
+  if (!updated) throw Object.assign(new Error(ERRORS.SOS_ALREADY_CLOSED), { statusCode: 400 })
+
+  const assignment = await new RescueRepository().findActiveAssignmentBySOS(sosId)
+  emitSOSCategoryAmended(updated, assignment?.volunteer_id)
+  logger.info({ sosId, touristId, category }, 'SOS category amended')
+  return updated
+}
+
+module.exports = { createSOS, getSOSHistory, markFalseAlarm, getActiveRescueInfo, amendCategory }

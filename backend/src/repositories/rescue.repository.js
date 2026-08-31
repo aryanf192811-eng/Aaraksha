@@ -93,7 +93,8 @@ class RescueRepository extends BaseRepository {
   // update the same way assignRescue's own post-assignment push does.
   async findActiveAssignmentByVolunteerId(volunteerId) {
     return this.queryOne(`
-      SELECT ra.*, se.category, se.latitude AS sos_latitude, se.longitude AS sos_longitude,
+      SELECT ra.*, se.category, se.additional_categories, se.category_amended_at,
+        se.latitude AS sos_latitude, se.longitude AS sos_longitude,
         se.handoff_verified_at, se.tourist_id, t.full_name AS tourist_name,
         t.phone AS tourist_phone, t.guardian_token
       FROM rescue_assignments ra
@@ -216,4 +217,4 @@ class RescueRepository extends BaseRepository {
   }
 }
 
-module.exports = { RescueRepository }
+module.exports = { RescueRepository, ACTIVE_ASSIGNMENT_FILTER }

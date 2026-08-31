@@ -38,6 +38,10 @@ export interface ActiveRescuer {
 export interface ActiveRescueInfo {
   sosId: string
   category: string
+  // Additive amendment log — the tourist's original `category` never
+  // changes; this is what's been added since (e.g. LOST -> also MEDICAL).
+  additionalCategories: string[]
+  categoryAmendedAt: string | null
   status: string
   createdAt: string
   latitude: string
@@ -63,6 +67,11 @@ const sosApi = {
   // No request body — backend's FalseAlarmSchema is an empty object schema.
   markFalseAlarm: (id: string) =>
     api.patch<APIResponse<SOSEvent>>(`/sos/${id}/false-alarm`),
+
+  // Adds a category to an already-active SOS — a structured "modify my
+  // request" a govt/rescuer can see live, not just informal chat.
+  amendCategory: (id: string, category: string) =>
+    api.patch<APIResponse<SOSEvent>>(`/sos/${id}/amend-category`, { category }),
 
   getActiveRescue: () =>
     api.get<APIResponse<ActiveRescueInfo | null>>('/sos/active-rescue'),

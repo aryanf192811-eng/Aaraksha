@@ -28,7 +28,7 @@ import { queryClient } from '../../lib/queryClient'
 import { useSafetyStore } from '../../store/safety.store'
 import { tEnum } from '../../lib/i18nEnums'
 import type { SOSCategory } from '../../constants/enums'
-import { SOS_CATEGORY_CONFIG as CATEGORY_CONFIG } from '../../constants/sosCategories'
+import { SOS_SPECIFIC_CATEGORIES as CATEGORY_CONFIG } from '../../constants/sosCategories'
 import { cn } from '../../lib/utils'
 
 const DMS_INTERVALS = [

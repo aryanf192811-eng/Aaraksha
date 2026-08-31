@@ -41,6 +41,24 @@ function emitSOSReceived(sosEvent, tourist) {
   })
 }
 
+// Govt dashboard + the assigned rescuer's own room (volunteer only —
+// official teams have no login/room to reach) -- a tourist added a
+// category to an already-active SOS. Surfaces live rather than waiting on
+// the next poll, same "the person physically responding sees it without
+// checking chat" reasoning as the messaging feature.
+function emitSOSCategoryAmended(sosEvent, volunteerId) {
+  const payload = {
+    sosId: sosEvent.id,
+    category: sosEvent.category,
+    additionalCategories: sosEvent.additional_categories,
+    amendedAt: sosEvent.category_amended_at,
+  }
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.SOS_CATEGORY_AMENDED, payload)
+  if (volunteerId) {
+    safeEmit(SOCKET_ROOMS.volunteer(volunteerId), SOCKET_EVENTS.SOS_CATEGORY_AMENDED, payload)
+  }
+}
+
 // Govt dashboard + the reporting tourist's own room: SOS resolved or marked
 // false alarm. sosEvent is the post-update row (RETURNING *), so its status
 // reflects which of the two actually happened rather than assuming RESOLVED.
@@ -311,6 +329,22 @@ function emitRescuerStatusUpdate(sosEvent, guardianToken, status) {
   safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.RESCUER_STATUS_UPDATE, payload)
 }
 
+// Tourist room + Guardian room + Govt dashboard: the rescuer toggled their
+// in-app "Navigate" state on/off. Ephemeral by design — nothing is written
+// to the DB, so a client that reconnects mid-navigation just won't see the
+// pill until the rescuer's next toggle. Same 3-room shape as
+// emitRescuerLocationUpdate/emitRescuerStatusUpdate.
+function emitRescuerNavigatingState(sosEvent, guardianToken, navigating) {
+  const payload = { sosId: sosEvent.id, navigating, updatedAt: new Date().toISOString() }
+  if (sosEvent.tourist_id) {
+    safeEmit(SOCKET_ROOMS.tourist(sosEvent.tourist_id), SOCKET_EVENTS.RESCUER_NAVIGATING_STATE, payload)
+  }
+  if (guardianToken) {
+    safeEmit(SOCKET_ROOMS.guardian(guardianToken), SOCKET_EVENTS.RESCUER_NAVIGATING_STATE, payload)
+  }
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.RESCUER_NAVIGATING_STATE, payload)
+}
+
 // A volunteer declined (never left ASSIGNED) or cancelled (was EN_ROUTE/
 // ARRIVED) mid-response. Same 3-room fan-out as emitRescuerStatusUpdate —
 // the SOS has already reverted to ACTIVE by the time this fires, so govt's
@@ -380,6 +414,39 @@ function emitAnomalyResolved(anomaly) {
   })
 }
 
+// Govt dashboard only -- a tourist's trust score crossed below the
+// restriction threshold. Never reaches the tourist's own room; their app
+// picks this up on its own next fetch, not a push (a low-trust notice
+// pushed the instant it happens would read as punitive/alarming for what's
+// meant to be a quiet scrutiny signal, not a confrontation).
+function emitTouristTrustRestricted(tourist, reasonCode) {
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.TOURIST_TRUST_RESTRICTED, {
+    touristId: tourist.id, touristName: tourist.full_name, phone: tourist.phone,
+    trustScore: tourist.trust_score, reasonCode, restrictedAt: tourist.trust_restricted_at,
+  })
+}
+
+// Govt dashboard only -- a new appeal landed in the review queue.
+function emitTrustAppealFiled(appeal, tourist) {
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.TOURIST_TRUST_APPEAL_FILED, {
+    appealId: appeal.id, touristId: appeal.tourist_id, touristName: tourist?.full_name,
+    message: appeal.message, createdAt: appeal.created_at,
+  })
+}
+
+// Govt dashboard only -- 3+ SOS flagged as a proximity/time cluster.
+// Deliberately never implies a verdict in the payload itself (no "fraud"
+// language) -- OPEN means "needs human triage," could be a real
+// mass-incident just as easily as coordinated abuse.
+function emitSOSClusterFlagged(cluster) {
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.SOS_CLUSTER_FLAGGED, {
+    clusterId: cluster.id, sosEventIds: cluster.sos_event_ids,
+    touristCount: cluster.tourist_count, categoryDiversity: cluster.category_diversity,
+    centerLatitude: cluster.center_latitude, centerLongitude: cluster.center_longitude,
+    status: cluster.status, createdAt: cluster.created_at,
+  })
+}
+
 // Govt dashboard: a tourist filed a new E-FIR — lands in the officer queue.
 function emitIncidentFiled(incident) {
   safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.INCIDENT_FILED, {
@@ -423,8 +490,10 @@ module.exports = {
   emitWeatherRiskIncreased, emitGroupSOSAlert, emitDestinationNewsCritical,
   emitVolunteerSOSAlert, emitVolunteerAssignmentUpdated,
   emitVolunteerAssigned, emitRescuerLocationUpdate, emitRescuerStatusUpdate,
+  emitRescuerNavigatingState, emitSOSCategoryAmended,
   emitHandoffVerified, emitAssignmentCancelled,
   emitAnomalyDetected, emitAnomalyResolved,
+  emitTouristTrustRestricted, emitTrustAppealFiled, emitSOSClusterFlagged,
   emitIncidentFiled, emitIncidentStatusUpdated,
   emitMessageReceived,
 }

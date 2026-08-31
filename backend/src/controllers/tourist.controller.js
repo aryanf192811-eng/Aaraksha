@@ -4,6 +4,7 @@
 const touristService = require('../services/tourist.service')
 const otpService = require('../services/otp.service')
 const checkpointService = require('../services/checkpoint.service')
+const trustScoreService = require('../services/trustScore.service')
 const { sendSuccess } = require('../utils/response')
 
 const getMe = async (req, res, next) => {
@@ -50,7 +51,21 @@ const getCheckpointQR = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+const getMyTrustStatus = async (req, res, next) => {
+  try {
+    const status = await trustScoreService.getMyTrustStatus(req.tourist.id)
+    sendSuccess(res, status)
+  } catch (err) { next(err) }
+}
+
+const submitTrustAppeal = async (req, res, next) => {
+  try {
+    const appeal = await trustScoreService.submitAppeal(req.tourist.id, req.validatedBody.message)
+    sendSuccess(res, appeal, 'Appeal submitted — a district officer will review it')
+  } catch (err) { next(err) }
+}
+
 module.exports = {
   getMe, updateMe, getGuardianView, sendEmergencyContactOTP, verifyEmergencyContactOTP,
-  getCheckpointQR,
+  getCheckpointQR, getMyTrustStatus, submitTrustAppeal,
 }

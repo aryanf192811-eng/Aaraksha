@@ -2,14 +2,16 @@
 'use strict'
 
 const { BaseRepository } = require('./base.repository')
+const { ACTIVE_ASSIGNMENT_FILTER } = require('./rescue.repository')
 
 class SOSRepository extends BaseRepository {
   async create(data) {
     return this.queryOne(`
       INSERT INTO sos_events (
         tourist_id, trip_id, latitude, longitude, location_accuracy_m,
-        is_stale_location, category, message, trigger_type, battery_pct
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        is_stale_location, category, message, trigger_type, battery_pct,
+        low_trust_at_trigger
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
       RETURNING *`,
       [
         data.touristId, data.tripId ?? null,
@@ -18,6 +20,7 @@ class SOSRepository extends BaseRepository {
         data.isStaleLocation ?? false,
         data.category, data.message ?? null,
         data.triggerType, data.batteryPct ?? null,
+        data.lowTrustAtTrigger ?? false,
       ]
     )
   }
@@ -70,6 +73,7 @@ class SOSRepository extends BaseRepository {
     return this.queryOne(`
       SELECT se.id, se.category, se.status, se.latitude, se.longitude, se.created_at,
         se.handoff_verified_at, se.handoff_verified_by_kind,
+        se.additional_categories, se.category_amended_at,
         ra.id as assignment_id, ra.status as assignment_status, ra.assigned_at,
         ra.rescuer_latitude, ra.rescuer_longitude, ra.rescuer_location_updated_at,
         rt.id as team_id, rt.name as team_name, rt.type as team_type,
@@ -77,7 +81,7 @@ class SOSRepository extends BaseRepository {
         v.id as volunteer_id, v.full_name as volunteer_name, v.phone as volunteer_phone,
         v.latitude as volunteer_base_lat, v.longitude as volunteer_base_lng
       FROM sos_events se
-      LEFT JOIN rescue_assignments ra ON ra.sos_event_id = se.id AND ra.status != 'RESOLVED'
+      LEFT JOIN rescue_assignments ra ON ra.sos_event_id = se.id AND ra.${ACTIVE_ASSIGNMENT_FILTER}
       LEFT JOIN rescue_teams rt ON rt.id = ra.team_id
       LEFT JOIN volunteers v ON v.id = ra.volunteer_id
       WHERE se.tourist_id = $1 AND se.status IN ('ACTIVE', 'ASSIGNED')
@@ -183,6 +187,25 @@ class SOSRepository extends BaseRepository {
     return this.queryOne(
       `UPDATE sos_events SET ${setClauses.join(', ')} WHERE id = $1${guard} RETURNING *`,
       values
+    )
+  }
+
+  // Appends a category to the amendment log if not already present
+  // (idempotent — a repeated tap of "add MEDICAL" doesn't duplicate the
+  // entry or bump the timestamp pointlessly) and stamps when it happened.
+  // The WHERE guard reuses the same "can't amend a closed case" boundary
+  // updateStatus's closing transitions already enforce.
+  async amendCategory(id, category) {
+    return this.queryOne(
+      `UPDATE sos_events
+       SET additional_categories = CASE
+             WHEN additional_categories @> jsonb_build_array($2::text) THEN additional_categories
+             ELSE additional_categories || jsonb_build_array($2::text)
+           END,
+           category_amended_at = NOW()
+       WHERE id = $1 AND status NOT IN ('RESOLVED','FALSE_ALARM')
+       RETURNING *`,
+      [id, category]
     )
   }
 

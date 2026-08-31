@@ -332,6 +332,47 @@ const govtApi = {
 
   postDestinationNews: (destinationId: string, data: PostNewsPayload) =>
     api.post<APIResponse<unknown>>(`/govt/destinations/${destinationId}/news`, data),
+
+  // Trust score / appeals -- gated server-side to SUPER_ADMIN/DISTRICT_ADMIN.
+  confirmFraudulentSOS: (sosId: string, reason: string) =>
+    api.post<APIResponse<{ id: string; trust_score: number; trust_restricted_at: string | null }>>(
+      `/govt/sos/${sosId}/confirm-fraudulent`, { reason }
+    ),
+
+  getPendingTrustAppeals: () =>
+    api.get<APIResponse<TrustAppeal[]>>('/govt/trust-appeals'),
+
+  decideTrustAppeal: (id: string, decision: 'APPROVE' | 'REJECT', resolutionNotes?: string) =>
+    api.post<APIResponse<TrustAppeal>>(`/govt/trust-appeals/${id}/decide`, { decision, resolutionNotes }),
+
+  // SOS proximity/time clusters -- a priority signal, never an auto-verdict.
+  getOpenSOSClusters: () =>
+    api.get<APIResponse<SOSClusterFlag[]>>('/govt/sos-clusters'),
+
+  resolveSOSCluster: (id: string, decision: 'CONFIRMED_INCIDENT' | 'CONFIRMED_ABUSE' | 'DISMISS', resolutionNotes?: string) =>
+    api.post<APIResponse<SOSClusterFlag>>(`/govt/sos-clusters/${id}/resolve`, { decision, resolutionNotes }),
+}
+
+export interface SOSClusterFlag {
+  id: string
+  sos_event_ids: string[]
+  center_latitude: string
+  center_longitude: string
+  tourist_count: number
+  category_diversity: number
+  status: 'OPEN' | 'INVESTIGATING' | 'CONFIRMED_INCIDENT' | 'CONFIRMED_ABUSE' | 'DISMISSED'
+  created_at: string
+}
+
+export interface TrustAppeal {
+  id: string
+  tourist_id: string
+  full_name: string
+  phone: string
+  trust_score: number
+  message: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  created_at: string
 }
 
 export default govtApi

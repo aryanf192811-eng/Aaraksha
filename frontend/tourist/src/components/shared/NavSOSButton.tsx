@@ -13,7 +13,7 @@ import { SOSButton } from './SOSButton'
 import { SOSHoldOverlay } from './SOSHoldOverlay'
 import { useSafetyStore } from '../../store/safety.store'
 import { useSOS } from '../../hooks/useSOS'
-import { SOS_CATEGORY_CONFIG, DEFAULT_SOS_CATEGORY } from '../../constants/sosCategories'
+import { SOS_SPECIFIC_CATEGORIES, DEFAULT_SOS_CATEGORY } from '../../constants/sosCategories'
 import { tEnum } from '../../lib/i18nEnums'
 import { cn } from '../../lib/utils'
 
@@ -79,7 +79,7 @@ export function NavSOSButton() {
             </div>
             <p className="text-sm text-on-surface-variant mb-5">{t('dashboard.categoryPickerSubtitle')}</p>
             <div className="grid grid-cols-3 gap-2.5">
-              {SOS_CATEGORY_CONFIG.map(({ value, Icon, color }) => (
+              {SOS_SPECIFIC_CATEGORIES.map(({ value, Icon, color }) => (
                 <button key={value} type="button" onClick={() => handleCategoryPick(value)}
                   className="bg-surface-container rounded-2xl p-3.5 flex flex-col items-center gap-2 active:scale-95 transition-transform">
                   <div className={cn('w-10 h-10 rounded-full flex items-center justify-center', color)}>

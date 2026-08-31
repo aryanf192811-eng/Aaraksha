@@ -14,6 +14,7 @@ import RiskOverviewPage from './pages/RiskOverviewPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import CheckpointScanPage from './pages/CheckpointScanPage'
 import VolunteersPage from './pages/VolunteersPage'
+import TrustAppealsPage from './pages/TrustAppealsPage'
 import { useAuthStore } from './store/auth.store'
 import GovtLayout from './components/GovtLayout'
 
@@ -49,6 +50,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="sos" element={<SOSManagementPage />} />
             <Route path="incidents" element={<IncidentQueuePage />} />
             <Route path="volunteers" element={<VolunteersPage />} />
+            <Route path="trust-appeals" element={<TrustAppealsPage />} />
             <Route path="map" element={<LiveMapPage />} />
             <Route path="risk" element={<RiskOverviewPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />

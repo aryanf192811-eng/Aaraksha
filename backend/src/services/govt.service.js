@@ -17,6 +17,7 @@ const { ERRORS } = require('../constants/errors')
 const { hashPassword, hashGovtId, generateTempPassword, normalizePhone, extractSuffix } = require('../utils/crypto')
 const { estimateRescueEtaMinutes } = require('../utils/geo')
 const riskModelService = require('./riskModel.service')
+const { applyTrustEvent } = require('./trustScore.service')
 const logger = require('../utils/logger')
 
 async function getDashboard() {
@@ -201,6 +202,22 @@ async function resolveSOS(sosId, resolutionNotes, govtUserId, overrideReason) {
   return resolved
 }
 
+// Deliberately hard-to-reach, always requires a written reason, always a
+// human govt decision -- same "audited, never a casual tap-away option"
+// posture as the handoff override above. Independent of the SOS's own
+// status: govt may only realize this was fraudulent well after the case
+// closed, and the trust consequence should still land.
+async function confirmFraudulentSOS(sosId, govtUserId, reason) {
+  const sos = await new SOSRepository().findById(sosId)
+  if (!sos) throw Object.assign(new Error(ERRORS.SOS_NOT_FOUND), { statusCode: 404 })
+
+  const updated = await applyTrustEvent(sos.tourist_id, 'CONFIRMED_FRAUDULENT_SOS', {
+    relatedSosId: sosId, govtUserId, note: reason,
+  })
+  logger.warn({ sosId, touristId: sos.tourist_id, govtUserId }, 'SOS confirmed fraudulent — trust score deducted')
+  return updated
+}
+
 async function getLiveTourists() {
   return new LocationRepository().findLive()
 }
@@ -364,4 +381,5 @@ module.exports = {
   getDashboard, getActiveSOS, assignRescue, resolveSOS, getNearbyRescuers, getActiveRescuers,
   getLiveTourists, getRiskOverview, getRiskModelInfo, getRescueTeams, updateTeamStatus, getAnalytics,
   getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer, rejectVolunteer,
+  confirmFraudulentSOS,
 }

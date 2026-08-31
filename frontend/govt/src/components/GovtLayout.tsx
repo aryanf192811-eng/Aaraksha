@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Shield, Map, Bell, TrendingUp, AlertTriangle, LogOut, Activity, ScanLine, Smartphone, Menu, X, HeartHandshake, FileWarning } from 'lucide-react'
+import { Shield, Map, Bell, TrendingUp, AlertTriangle, LogOut, Activity, ScanLine, Smartphone, Menu, X, HeartHandshake, FileWarning, ShieldAlert } from 'lucide-react'
 import { useAuthStore } from '../store/auth.store'
 import { useSOSSocket } from '../hooks/useSOSSocket'
 import { ALLOWED_CHECKPOINT_ROLES } from '../pages/CheckpointScanPage'
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { to: '/sos', icon: Bell, label: 'SOS Management' },
   { to: '/incidents', icon: FileWarning, label: 'E-FIR Queue' },
   { to: '/volunteers', icon: HeartHandshake, label: 'Volunteers' },
+  { to: '/trust-appeals', icon: ShieldAlert, label: 'Trust Appeals' },
   { to: '/map', icon: Map, label: 'Live Map' },
   { to: '/risk', icon: AlertTriangle, label: 'Risk Overview' },
   { to: '/analytics', icon: TrendingUp, label: 'Analytics' },
@@ -23,11 +24,12 @@ const NAV_ITEMS = [
 // Shared between the always-visible desktop sidebar and the mobile slide-in
 // drawer so the two never drift out of sync — one source of nav truth,
 // two shells around it.
-function SidebarContent({ navItems, activeSosCount, pendingVolunteerCount, filedIncidentCount, canScanCheckpoints, onNavigate }: {
+function SidebarContent({ navItems, activeSosCount, pendingVolunteerCount, filedIncidentCount, pendingTrustAppealCount, canScanCheckpoints, onNavigate }: {
   navItems: typeof NAV_ITEMS
   activeSosCount: number
   pendingVolunteerCount: number
   filedIncidentCount: number
+  pendingTrustAppealCount: number
   canScanCheckpoints: boolean
   onNavigate?: () => void
 }) {
@@ -75,6 +77,11 @@ function SidebarContent({ navItems, activeSosCount, pendingVolunteerCount, filed
                 {filedIncidentCount}
               </span>
             )}
+            {label === 'Trust Appeals' && pendingTrustAppealCount > 0 && (
+              <span className="ml-auto bg-amber-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold flex-shrink-0">
+                {pendingTrustAppealCount}
+              </span>
+            )}
           </NavLink>
         ))}
 
@@ -118,7 +125,13 @@ export default function GovtLayout() {
   // TOURISM_OFFICER/MEDICAL/CHECKPOINT_OFFICER rather than showing a queue
   // link that would 403 on every request.
   const canViewEfirs = !!govtUser && ALLOWED_EFIR_ROLES.includes(govtUser.role)
-  const navItems = NAV_ITEMS.filter(n => n.label !== 'E-FIR Queue' || canViewEfirs)
+  // Deciding a trust restriction is a district-level judgment call, same
+  // TRUST_REVIEW_ROLES scoping the backend enforces server-side — hide the
+  // nav link entirely for roles that would just 403 on every request.
+  const canReviewTrustAppeals = !!govtUser && ['SUPER_ADMIN', 'DISTRICT_ADMIN'].includes(govtUser.role)
+  const navItems = NAV_ITEMS
+    .filter(n => n.label !== 'E-FIR Queue' || canViewEfirs)
+    .filter(n => n.label !== 'Trust Appeals' || canReviewTrustAppeals)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const location = useLocation()
   const activeLabel = navItems.find(n => (n.exact ? location.pathname === n.to : location.pathname.startsWith(n.to)))?.label ?? 'Dashboard'
@@ -152,11 +165,20 @@ export default function GovtLayout() {
   })
   const filedIncidentCount = filedIncidents?.pagination.total ?? 0
 
+  // Nav badge only — TrustAppealsPage runs its own query for the full queue.
+  const { data: pendingTrustAppeals } = useQuery({
+    queryKey: ['govt', 'trust-appeals'],
+    queryFn: () => govtApi.getPendingTrustAppeals().then(r => r.data.data),
+    refetchInterval: 30_000,
+    enabled: canReviewTrustAppeals,
+  })
+  const pendingTrustAppealCount = pendingTrustAppeals?.length ?? 0
+
   return (
     <div className="min-h-screen flex bg-surface font-sans">
       {/* Desktop sidebar — always visible from lg up, hidden below it */}
       <aside className="hidden lg:flex w-64 bg-surface-container-lowest border-r border-outline-variant flex-col shadow-sm flex-shrink-0">
-        <SidebarContent navItems={navItems} activeSosCount={activeSosCount} pendingVolunteerCount={pendingVolunteerCount} filedIncidentCount={filedIncidentCount} canScanCheckpoints={canScanCheckpoints} />
+        <SidebarContent navItems={navItems} activeSosCount={activeSosCount} pendingVolunteerCount={pendingVolunteerCount} filedIncidentCount={filedIncidentCount} pendingTrustAppealCount={pendingTrustAppealCount} canScanCheckpoints={canScanCheckpoints} />
       </aside>
 
       {/* Mobile slide-in drawer + backdrop */}
@@ -171,7 +193,7 @@ export default function GovtLayout() {
           className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container">
           <X className="w-5 h-5" />
         </button>
-        <SidebarContent navItems={navItems} activeSosCount={activeSosCount} pendingVolunteerCount={pendingVolunteerCount} filedIncidentCount={filedIncidentCount} canScanCheckpoints={canScanCheckpoints} onNavigate={() => setDrawerOpen(false)} />
+        <SidebarContent navItems={navItems} activeSosCount={activeSosCount} pendingVolunteerCount={pendingVolunteerCount} filedIncidentCount={filedIncidentCount} pendingTrustAppealCount={pendingTrustAppealCount} canScanCheckpoints={canScanCheckpoints} onNavigate={() => setDrawerOpen(false)} />
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">

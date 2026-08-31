@@ -3,11 +3,22 @@
 
 const { BaseRepository } = require('./base.repository')
 
+// trust_score/trust_restricted_at (migration 022) were added after this
+// allowlist and, until now, silently dropped out of every findById/
+// findByPhone/findByGuardianToken result across the whole codebase --
+// trustScore.service.js#getMyTrustStatus came back with an undefined
+// score, submitAppeal's own-restriction check always read as "not
+// restricted" (blocking every appeal), and sos.service.js's
+// low_trust_at_trigger snapshot was silently always false. Safe to expose
+// like rescue_readiness_score already is -- unlike password_hash/
+// govt_id_hash, there's no reason to hide a tourist's own trust status
+// from code paths reading their own record.
 const SAFE_COLS = `
   id, full_name, phone, email, blood_group, medical_info,
   emergency_contacts, govt_id_type, govt_id_suffix,
   guardian_token, guardian_token_expires,
   rescue_readiness_score, profile_photo_url,
+  trust_score, trust_restricted_at,
   is_active, created_at, updated_at`
 
 class TouristRepository extends BaseRepository {

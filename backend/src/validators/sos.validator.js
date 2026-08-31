@@ -18,4 +18,8 @@ const CreateSOSSchema = z.object({
 
 const FalseAlarmSchema = z.object({})  // No body needed
 
-module.exports = { CreateSOSSchema, FalseAlarmSchema }
+const AmendCategorySchema = z.object({
+  category: z.enum(Object.values(SOS_CATEGORIES)),
+})
+
+module.exports = { CreateSOSSchema, FalseAlarmSchema, AmendCategorySchema }

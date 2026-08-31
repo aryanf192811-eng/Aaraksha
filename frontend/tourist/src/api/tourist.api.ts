@@ -39,6 +39,19 @@ const touristApi = {
 
   sendGuardianMessage: (body: string) =>
     api.post<APIResponse<Message>>('/tourists/me/guardian-messages', { body }),
+
+  // Trust score never gates this -- always reachable, restricted or not.
+  getTrustStatus: () =>
+    api.get<APIResponse<TrustStatus>>('/tourists/me/trust-status'),
+
+  submitTrustAppeal: (message: string) =>
+    api.post<APIResponse<{ id: string; status: string }>>('/tourists/me/trust-appeal', { message }),
+}
+
+export interface TrustStatus {
+  trustScore: number
+  restricted: boolean
+  restrictedAt: string | null
 }
 
 export default touristApi
