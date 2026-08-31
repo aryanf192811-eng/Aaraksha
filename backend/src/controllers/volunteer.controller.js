@@ -70,6 +70,14 @@ const updateLocation = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+// PATCH /api/volunteers/me/assignment/navigating
+const updateNavigatingState = async (req, res, next) => {
+  try {
+    const result = await volunteerService.updateNavigatingState(req.volunteer.id, req.validatedBody.navigating)
+    sendSuccess(res, result)
+  } catch (err) { next(err) }
+}
+
 // PATCH /api/volunteers/me/assignment/status
 const updateAssignmentStatus = async (req, res, next) => {
   try {
@@ -97,5 +105,5 @@ const exitAssignment = async (req, res, next) => {
 
 module.exports = {
   register, login, getProfile, updateStatus, getMyDispatches, updateDispatchStatus,
-  getActiveAssignment, updateLocation, updateAssignmentStatus, verifyHandoff, exitAssignment,
+  getActiveAssignment, updateLocation, updateNavigatingState, updateAssignmentStatus, verifyHandoff, exitAssignment,
 }

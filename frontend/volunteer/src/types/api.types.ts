@@ -92,6 +92,8 @@ export interface ActiveAssignment {
   rescuer_longitude: number | null
   rescuer_location_updated_at: string | null
   category: string
+  additional_categories: string[]
+  category_amended_at: string | null
   sos_latitude: number
   sos_longitude: number
   handoff_verified_at: string | null

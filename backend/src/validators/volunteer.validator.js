@@ -98,6 +98,9 @@ const UpdateAssignmentStatusSchema = z.object({
 const VerifyHandoffSchema = z.object({
   code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
 })
+const UpdateNavigatingStateSchema = z.object({
+  navigating: z.boolean(),
+})
 // A reason is required, not optional — this both gives govt something
 // real to act on when reassigning and discourages a reflexive "never mind"
 // tap for what should be a considered decision.
@@ -108,5 +111,5 @@ const ExitAssignmentSchema = z.object({
 module.exports = {
   RegisterVolunteerSchema, LoginVolunteerSchema, CreateVolunteerByGovtSchema,
   UpdateVolunteerStatusSchema, UpdateDispatchStatusSchema, UpdateLocationSchema,
-  UpdateAssignmentStatusSchema, VerifyHandoffSchema, ExitAssignmentSchema,
+  UpdateAssignmentStatusSchema, VerifyHandoffSchema, ExitAssignmentSchema, UpdateNavigatingStateSchema,
 }

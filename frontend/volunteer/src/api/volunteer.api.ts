@@ -49,6 +49,11 @@ const volunteerApi = {
   updateAssignmentStatus: (status: 'EN_ROUTE' | 'ARRIVED') =>
     api.patch<APIResponse<ActiveAssignment>>('/volunteers/me/assignment/status', { status }),
 
+  // Ephemeral — broadcasts the "Navigate" toggle to the tourist/guardian
+  // watching, no persisted state on this end either.
+  updateNavigatingState: (navigating: boolean) =>
+    api.patch<APIResponse<{ navigating: boolean }>>('/volunteers/me/assignment/navigating', { navigating }),
+
   verifyHandoff: (code: string) =>
     api.post<APIResponse<{ handoff_verified_at: string }>>('/volunteers/me/assignment/verify-handoff', { code }),
 

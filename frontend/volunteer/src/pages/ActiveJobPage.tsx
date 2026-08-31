@@ -8,16 +8,17 @@ import { toast } from 'sonner'
 import { Siren, Navigation2, LocateFixed, User, Clock, CheckCircle2, MapPinned, UserCheck, Flag, Check, KeyRound, Phone, Loader2, XCircle, ChevronDown, MessageCircle, X } from 'lucide-react'
 import { getSocket } from '../lib/socket'
 import { MessageThread } from '../components/MessageThread'
+import { useDragSheet } from '../hooks/useDragSheet'
 // MapLibre GL over free vector tiles (OpenFreeMap, no API key) instead of
 // Leaflet + raster OSM — same swap as the tourist app's RescueTrackingCard,
 // so both sides of the live rescue view now share one rendering engine and
 // one premium look, not just the same status-stepper language.
-import { Map as MapLibreMap, Marker as MapLibreMarker, type GeoJSONSource } from 'maplibre-gl'
+import { Map as MapLibreMap, Marker as MapLibreMarker, NavigationControl, type GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { Feature, LineString, Polygon } from 'geojson'
 import volunteerApi from '../api/volunteer.api'
-import { getRoute, type Route } from '../lib/osrm'
-import { cn } from '../lib/utils'
+import { getRoute, haversineMeters, ROUTE_REFETCH_MIN_INTERVAL_MS, ROUTE_REFETCH_MIN_DISTANCE_M, type Route } from '../lib/osrm'
+import { cn, formatTimeAgo } from '../lib/utils'
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 
@@ -79,8 +80,20 @@ export default function ActiveJobPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [showChat, setShowChat] = useState(false)
+  const { handleProps: dragHandleProps, sheetStyle: dragSheetStyle } = useDragSheet({ onClose: () => setShowChat(false) })
   const [rescuerPos, setRescuerPos] = useState<[number, number] | null>(null)
   const [route, setRoute] = useState<Route | null>(null)
+  // "Navigate" is a deliberate tap, not just the route line that's always
+  // passively drawn once both positions are known -- emphasizes it on the
+  // map and recenters, same "start" moment a delivery-partner app gives you.
+  const [navigating, setNavigating] = useState(false)
+  // Delay-aware nudge: captures the FIRST resolved ETA once per assignment
+  // as the honest baseline, then compares it against actual elapsed time.
+  // OSRM's public instance has no live-traffic layer, so this is the
+  // system's disclosed answer to "what if the real path is slower than the
+  // computed one" -- a measured signal, not a guess.
+  const [delayed, setDelayed] = useState(false)
+  const originalEtaMinRef = useRef<number | null>(null)
   const lastPushRef = useRef(0)
   const watchIdRef = useRef<number | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
@@ -105,7 +118,11 @@ export default function ActiveJobPage() {
   const { mutate: sendMessage, isPending: sendingMessage } = useMutation({
     mutationFn: (body: string) => volunteerApi.sendAssignmentMessage(body),
     onSuccess: (res) => {
-      queryClient.setQueryData(['volunteer', 'assignment-messages'], (prev: typeof messages) => [...(prev ?? []), res.data.data])
+      // The MESSAGE_RECEIVED socket push for this same message can arrive
+      // before this mutation's own response does and trigger a refetch that
+      // already includes it — dedupe by id so this append doesn't double it.
+      queryClient.setQueryData(['volunteer', 'assignment-messages'], (prev: typeof messages) =>
+        prev?.some((m) => m.id === res.data.data.id) ? prev : [...(prev ?? []), res.data.data])
     },
     onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to send'),
   })
@@ -118,7 +135,15 @@ export default function ActiveJobPage() {
       }
     }
     socket.on('MESSAGE_RECEIVED', onMessage)
-    return () => { socket.off('MESSAGE_RECEIVED', onMessage) }
+    // The tourist added a category to this SOS -- refetch so the person
+    // physically responding sees it right away instead of waiting on the
+    // next 20s poll or having to check chat.
+    const onCategoryAmended = () => queryClient.invalidateQueries({ queryKey: ['volunteer', 'active-assignment'] })
+    socket.on('SOS_CATEGORY_AMENDED', onCategoryAmended)
+    return () => {
+      socket.off('MESSAGE_RECEIVED', onMessage)
+      socket.off('SOS_CATEGORY_AMENDED', onCategoryAmended)
+    }
   }, [queryClient])
 
   const sosPos = useMemo<[number, number] | null>(() => {
@@ -135,6 +160,18 @@ export default function ActiveJobPage() {
   useEffect(() => {
     if (assignment === null) navigate('/', { replace: true })
   }, [assignment, navigate])
+
+  // "Navigating" stops making sense once you've arrived -- clear it (and
+  // let the tourist/guardian pill clear too) rather than leaving a stale
+  // "actively navigating" signal up after the trip is already over.
+  useEffect(() => {
+    if (assignment?.status === 'ARRIVED') {
+      setNavigating((v) => {
+        if (v) volunteerApi.updateNavigatingState(false).catch(() => {})
+        return false
+      })
+    }
+  }, [assignment?.status])
 
   const { mutate: pushLocation } = useMutation({
     mutationFn: (coords: { lat: number; lng: number }) => volunteerApi.updateLocation(coords.lat, coords.lng),
@@ -164,10 +201,46 @@ export default function ActiveJobPage() {
   // Real road route — refetched whenever the rescuer's position moves
   // meaningfully. Falls back to the straight dashed line (route stays null)
   // if OSRM is unreachable, matching every other portal's fallback pattern.
+  // Throttled independently of the GPS tick rate: watchPosition can fire far
+  // more often than the route meaningfully changes, and hammering the free
+  // public OSRM server on every jitter isn't "more live," just wasteful —
+  // skip refetching unless enough time AND distance have passed since the
+  // last successful fetch.
+  const lastRouteFetchRef = useRef<{ time: number; lat: number; lng: number } | null>(null)
   useEffect(() => {
     if (!rescuerPos || !sosPos) return
+    const now = Date.now()
+    const last = lastRouteFetchRef.current
+    if (last
+      && now - last.time < ROUTE_REFETCH_MIN_INTERVAL_MS
+      && haversineMeters(last.lat, last.lng, rescuerPos[0], rescuerPos[1]) < ROUTE_REFETCH_MIN_DISTANCE_M) {
+      return
+    }
+    lastRouteFetchRef.current = { time: now, lat: rescuerPos[0], lng: rescuerPos[1] }
     getRoute(rescuerPos[0], rescuerPos[1], sosPos[0], sosPos[1]).then(setRoute)
   }, [rescuerPos?.[0], rescuerPos?.[1], sosPos?.[0], sosPos?.[1]])
+
+  // Capture the first real ETA as this assignment's baseline, once.
+  useEffect(() => {
+    if (route && originalEtaMinRef.current === null) originalEtaMinRef.current = route.durationMin
+  }, [route])
+
+  // Re-check every 30s whether actual elapsed time has blown well past that
+  // baseline -- 1.6x is a deliberately generous margin (real terrain here
+  // is mountainous/single-lane, not highway) so this only fires for a
+  // genuine, meaningful delay, not routine GPS/ETA noise.
+  useEffect(() => {
+    if (!assignment || assignment.status === 'ARRIVED') { setDelayed(false); return }
+    const check = () => {
+      const originalEta = originalEtaMinRef.current
+      if (!originalEta) return
+      const elapsedMin = (Date.now() - new Date(assignment.assigned_at).getTime()) / 60000
+      setDelayed(elapsedMin > originalEta * 1.6)
+    }
+    check()
+    const interval = setInterval(check, 30_000)
+    return () => clearInterval(interval)
+  }, [assignment?.assigned_at, assignment?.status])
 
   // Map instance: intended to be created once, right after `assignment`
   // loads (the `if (!assignment) return null` guard below keeps this
@@ -194,6 +267,12 @@ export default function ActiveJobPage() {
       center: [initialCenter[1], initialCenter[0]],
       zoom: 13,
     })
+    // Zoom + compass/pitch reset — this map had zero controls before,
+    // matching govt's TerrainMap.tsx (the fuller of the two existing
+    // MapLibre usages in this codebase) rather than tourist's zoom-only
+    // variant, which deliberately drops the compass for its embedded-card
+    // layout — this is a full-screen map with no such constraint.
+    map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right')
     mapRef.current = map
     return () => {
       map.remove()
@@ -287,11 +366,23 @@ export default function ActiveJobPage() {
       }
 
       if (sosPos && rescuerPos) {
+        // Before OSRM resolves, the only thing we actually know is straight-
+        // line displacement between the two points -- not a route. Drawing
+        // that in the same teal as the real route (just thinner/dashed) read
+        // as "the route, still loading" rather than what it actually is, so
+        // distance/ETA looked like they were reporting road distance the
+        // moment a straight line appeared. Pending state now gets its own
+        // unmistakable style -- neutral grey, fine dots, no width bump from
+        // "Navigate" -- so it can never be mistaken for a resolved route.
         const lineCoords = (route?.coordinates ?? [rescuerPos, sosPos]).map(([lat, lng]) => [lng, lat])
         const geojson: Feature<LineString> = {
           type: 'Feature', properties: {},
           geometry: { type: 'LineString', coordinates: lineCoords },
         }
+        const routeWidth = route ? (navigating ? 7 : 5) : 3
+        const routeOpacity = route ? (navigating ? 1 : 0.9) : 0.5
+        const routeColor = route ? '#0f766e' : '#94a3b8'
+        const routeDash: [number, number] = route ? [1, 0] : [0.5, 2]
         const existingRoute = map.getSource('job-route') as GeoJSONSource | undefined
         if (existingRoute) {
           existingRoute.setData(geojson)
@@ -300,20 +391,21 @@ export default function ActiveJobPage() {
           map.addLayer({
             id: 'job-route', type: 'line', source: 'job-route',
             layout: { 'line-cap': 'round', 'line-join': 'round' },
-            paint: { 'line-color': '#0f766e', 'line-width': route ? 5 : 4, 'line-opacity': route ? 0.9 : 0.7, 'line-dasharray': route ? [1, 0] : [2, 2] },
+            paint: { 'line-color': routeColor, 'line-width': routeWidth, 'line-opacity': routeOpacity, 'line-dasharray': routeDash },
           })
         }
         if (map.getLayer('job-route')) {
-          map.setPaintProperty('job-route', 'line-width', route ? 5 : 4)
-          map.setPaintProperty('job-route', 'line-opacity', route ? 0.9 : 0.7)
-          map.setPaintProperty('job-route', 'line-dasharray', route ? [1, 0] : [2, 2])
+          map.setPaintProperty('job-route', 'line-color', routeColor)
+          map.setPaintProperty('job-route', 'line-width', routeWidth)
+          map.setPaintProperty('job-route', 'line-opacity', routeOpacity)
+          map.setPaintProperty('job-route', 'line-dasharray', routeDash)
         }
       }
     }
 
     if (map.isStyleLoaded()) apply()
     else map.once('load', apply)
-  }, [sosPos?.[0], sosPos?.[1], rescuerPos?.[0], rescuerPos?.[1], route])
+  }, [sosPos?.[0], sosPos?.[1], rescuerPos?.[0], rescuerPos?.[1], route, navigating])
 
   const { mutate: updateStatus, isPending: updatingStatus } = useMutation({
     mutationFn: (status: 'EN_ROUTE' | 'ARRIVED') => volunteerApi.updateAssignmentStatus(status),
@@ -388,6 +480,14 @@ export default function ActiveJobPage() {
 
   return (
     <div className="h-[100dvh] w-full relative bg-surface-container-high overflow-hidden">
+      {/* MapLibre's default top-right anchor sits directly under the job-
+          summary card (z-[1000], full-width, starts at the very top) --
+          nudge the native zoom/compass control down below it instead of
+          fighting for the same corner, and lift its z-index so the card
+          doesn't just paint over it. */}
+      <style>{`
+        .maplibregl-ctrl-top-right { top: 168px; z-index: 1002; }
+      `}</style>
       {/* ── Live map, full screen ─────────────────────────────── */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
@@ -410,16 +510,51 @@ export default function ActiveJobPage() {
       <div className="absolute top-0 left-0 right-0 z-[1000] px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-4 bg-gradient-to-b from-black/60 to-transparent">
         <div className="bg-white/95 backdrop-blur rounded-2xl px-4 py-3.5 shadow-lg">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-9 h-9 rounded-full bg-sos flex items-center justify-center flex-shrink-0">
-              <Siren className="w-4.5 h-4.5 text-white" />
+            <div className="relative w-9 h-9 rounded-full bg-sos flex items-center justify-center flex-shrink-0">
+              {/* Same pulse language as the ARRIVED status node below and
+                  the tourist app's own SOS pin -- ties this whole screen's
+                  urgency cues to one visual vocabulary instead of a static
+                  badge. */}
+              <span className="absolute inset-0 rounded-full bg-sos/40 animate-ping" />
+              <Siren className="w-4.5 h-4.5 text-white relative" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-black text-on-surface truncate">{category}{assignment.tourist_name ? ` · ${assignment.tourist_name}` : ''}</p>
               <p className="text-xs text-on-surface-variant flex items-center gap-1">
-                <User className="w-3 h-3" /> Assigned to you
+                <User className="w-3 h-3" /> Assigned to you · {formatTimeAgo(assignment.assigned_at)}
               </p>
+              {/* The tourist can add a category after the fact -- this is
+                  the structured signal, surfaced right where the person
+                  physically responding will actually see it, not buried in
+                  chat. */}
+              {assignment.additional_categories?.length > 0 && (
+                <p className="text-xs font-bold text-amber-700 mt-0.5">
+                  + {assignment.additional_categories.join(', ')} added
+                </p>
+              )}
             </div>
+            {/* Contact actions -- always reachable for the whole job, not
+                just once ARRIVED (that used to hide these entirely for the
+                ASSIGNED/EN_ROUTE stages, which is most of a rescue's
+                duration). Same persistent placement the tourist app's own
+                RescueTrackingCard already gives its rescuer. */}
+            <button onClick={() => setShowChat(true)} title="Message tourist" aria-label="Message tourist"
+              className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <MessageCircle className="w-4.5 h-4.5 text-primary" />
+            </button>
+            {assignment.tourist_phone && (
+              <a href={`tel:${assignment.tourist_phone}`} title="Call tourist" aria-label="Call tourist"
+                className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Phone className="w-4.5 h-4.5 text-primary" />
+              </a>
+            )}
           </div>
+
+          {!rescuerPos && (
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-primary mb-2">
+              <Loader2 className="w-3 h-3 animate-spin" /> Getting your live location…
+            </p>
+          )}
 
           {/* Same node+connecting-line progress language as the tourist
               app's RescueTrackingCard — both sides of one real-time event
@@ -458,8 +593,12 @@ export default function ActiveJobPage() {
       <div className="absolute bottom-0 left-0 right-0 z-[1000] bg-white rounded-t-3xl shadow-[0_-4px_24px_rgba(0,0,0,0.12)] px-5 pt-4 pb-[calc(env(safe-area-inset-bottom)+20px)]">
         <div className="w-10 h-1 bg-outline-variant rounded-full mx-auto mb-4" />
 
-        <div className="grid grid-cols-2 gap-2.5 mb-4">
-          <div className="bg-surface-container rounded-2xl p-3 flex items-center gap-2.5">
+        {/* One connected trip-stats strip, not two separate cards -- the
+            same "single glanceable summary" language Rapido/Swiggy give a
+            live delivery, with a center divider instead of a gap so it
+            reads as one fact (this trip) rather than two unrelated ones. */}
+        <div className="bg-surface-container rounded-2xl p-3 mb-4 flex items-center">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
               <MapPinned className="w-4 h-4 text-primary" />
             </div>
@@ -470,27 +609,77 @@ export default function ActiveJobPage() {
               <p className="text-[10px] text-on-surface-variant uppercase tracking-wide">Distance</p>
             </div>
           </div>
-          <div className="bg-surface-container rounded-2xl p-3 flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Clock className="w-4 h-4 text-primary" />
-            </div>
+          <div className="w-px h-8 bg-outline-variant flex-shrink-0" />
+          <div className="flex items-center gap-2.5 flex-1 min-w-0 justify-end text-right">
             <div className="min-w-0">
               <p className="text-sm font-black text-on-surface leading-tight">
                 {route ? formatEta(route.durationMin) : 'Calculating…'}
               </p>
               <p className="text-[10px] text-on-surface-variant uppercase tracking-wide">ETA</p>
             </div>
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Clock className="w-4 h-4 text-primary" />
+            </div>
           </div>
         </div>
 
         {sosPos && (
-          <a
-            href={`https://www.google.com/maps/dir/?api=1&destination=${sosPos[0]},${sosPos[1]}`}
-            target="_blank" rel="noreferrer"
-            className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-bold flex items-center justify-center gap-2 mb-3 active:scale-[0.98] transition-transform"
-          >
-            <Navigation2 className="w-4.5 h-4.5" /> Start navigation
-          </a>
+          <div className="grid grid-cols-2 gap-2.5 mb-3">
+            {/* In-app: emphasizes the real OSRM route already drawn on this
+                same screen and fits the camera to it -- a deliberate "start"
+                moment, not just the passive line that was always there. A
+                real toggle, not a one-way switch: tapping again while
+                navigating turns it back off (undo), and it can be tapped on
+                again after that (redo) -- previously this only ever set
+                true, so once tapped it stayed "Navigating" for the rest of
+                the job with no way back. Only fit the camera to the route on
+                the way IN; turning navigation off shouldn't yank the map. */}
+            <button
+              onClick={() => setNavigating((v) => {
+                const next = !v
+                if (next) recenter()
+                // Fire-and-forget -- the tourist/guardian pill reflecting
+                // this is a nice-to-have reassurance signal, not something
+                // this button's own responsiveness should ever wait on.
+                volunteerApi.updateNavigatingState(next).catch(() => {})
+                return next
+              })}
+              className={cn('h-12 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform',
+                navigating ? 'bg-primary/15 text-primary border-2 border-primary' : 'bg-primary text-primary-foreground')}
+            >
+              <Navigation2 className="w-4.5 h-4.5" /> {navigating ? 'Navigating' : 'Navigate'}
+            </button>
+            {/* External handoff -- same rescuer/tourist coordinates the map
+                already has, with an explicit origin so Google Maps routes
+                from this app's own GPS fix, not whatever the device's last
+                cached location happened to be. */}
+            <a
+              href={`https://www.google.com/maps/dir/?api=1${rescuerPos ? `&origin=${rescuerPos[0]},${rescuerPos[1]}` : ''}&destination=${sosPos[0]},${sosPos[1]}`}
+              target="_blank" rel="noreferrer"
+              className="h-12 rounded-2xl bg-surface-container border border-outline-variant text-on-surface font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            >
+              <MapPinned className="w-4.5 h-4.5" /> Google Maps
+            </a>
+          </div>
+        )}
+
+        {/* OSRM's public instance has no live-traffic layer -- this is the
+            honest, measured fallback when actual elapsed time has blown
+            well past the originally-computed ETA: a real detour or traffic
+            jam is more likely than the route being simply wrong. */}
+        {delayed && sosPos && (
+          <div className="mb-3 bg-amber-50 border border-amber-200 rounded-2xl px-3.5 py-2.5 flex items-start gap-2">
+            <Clock className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 leading-snug">
+              Taking longer than expected — check for a detour, or{' '}
+              <a
+                href={`https://www.google.com/maps/dir/?api=1${rescuerPos ? `&origin=${rescuerPos[0]},${rescuerPos[1]}` : ''}&destination=${sosPos[0]},${sosPos[1]}`}
+                target="_blank" rel="noreferrer" className="font-bold underline"
+              >
+                open Google Maps for live traffic conditions
+              </a>.
+            </p>
+          </div>
         )}
 
         {assignment.handoff_verified_at ? (
@@ -502,24 +691,14 @@ export default function ActiveJobPage() {
             <p className="flex items-center gap-1.5 text-xs font-bold text-on-surface mb-2">
               <KeyRound className="w-3.5 h-3.5 text-primary" /> Ask {assignment.tourist_name ?? 'them'} for their Rescue Verification Code
             </p>
-            <div className="flex items-center gap-2">
-              <input
-                inputMode="numeric" maxLength={6} placeholder="6-digit code"
-                value={handoffCode}
-                onChange={(e) => setHandoffCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className="flex-1 h-11 rounded-xl border border-outline-variant px-3 text-center text-lg font-black tracking-[0.3em] tabular-nums focus:outline-none focus:border-primary"
-              />
-              <button onClick={() => setShowChat(true)} title="Message them"
-                className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center flex-shrink-0">
-                <MessageCircle className="w-4.5 h-4.5 text-on-surface-variant" />
-              </button>
-              {assignment.tourist_phone && (
-                <a href={`tel:${assignment.tourist_phone}`} title="Call them"
-                  className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center flex-shrink-0">
-                  <Phone className="w-4.5 h-4.5 text-on-surface-variant" />
-                </a>
-              )}
-            </div>
+            {/* Message/call live in the persistent contact row up top now --
+                no need to duplicate them here. */}
+            <input
+              inputMode="numeric" maxLength={6} placeholder="6-digit code"
+              value={handoffCode}
+              onChange={(e) => setHandoffCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              className="w-full h-11 rounded-xl border border-outline-variant px-3 text-center text-lg font-black tracking-[0.3em] tabular-nums focus:outline-none focus:border-primary"
+            />
             <p className="text-[11px] text-on-surface-variant mt-1.5 mb-2.5">
               This confirms you actually reached them — govt can't close the case without it.
             </p>
@@ -538,6 +717,8 @@ export default function ActiveJobPage() {
             disabled={updatingStatus}
             className="w-full h-12 rounded-2xl bg-on-surface text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-transform"
           >
+            {updatingStatus ? <Loader2 className="w-4.5 h-4.5 animate-spin" />
+              : assignment.status === 'ASSIGNED' ? <Navigation2 className="w-4.5 h-4.5" /> : <Flag className="w-4.5 h-4.5" />}
             {assignment.status === 'ASSIGNED' ? "I'm on my way" : 'Mark arrived'}
           </button>
         )}
@@ -584,14 +765,20 @@ export default function ActiveJobPage() {
       {/* ── Message thread — custom overlay, this app has no Dialog
           primitive (everything here is hand-rolled Tailwind, see the
           bottom sheet above), so this matches that same fixed-overlay
-          pattern rather than pulling in a new component library. */}
+          pattern rather than pulling in a new component library. Pullable:
+          drag the handle down (or flick it) to dismiss, same as a native
+          sheet -- the handle bar below used to be purely decorative. */}
       {showChat && (
         <div className="fixed inset-0 z-[1100] flex items-end sm:items-center sm:justify-center bg-black/40" onClick={() => setShowChat(false)}>
-          <div onClick={(e) => e.stopPropagation()}
+          <div onClick={(e) => e.stopPropagation()} style={dragSheetStyle}
             className="w-full sm:w-[420px] sm:rounded-3xl bg-white rounded-t-3xl shadow-2xl h-[70vh] max-h-[560px] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-outline-variant flex-shrink-0">
+            <div {...dragHandleProps} className="flex-shrink-0 pt-2.5 pb-1 flex justify-center">
+              <div className="w-10 h-1 bg-outline-variant rounded-full" />
+            </div>
+            <div className="flex items-center justify-between px-4 pb-3 border-b border-outline-variant flex-shrink-0">
               <p className="flex items-center gap-2 font-bold text-on-surface">
-                <MessageCircle className="w-4.5 h-4.5 text-primary" /> {assignment.tourist_name ?? 'Tourist'}
+                <span className="w-2 h-2 rounded-full bg-safe flex-shrink-0" />
+                {assignment.tourist_name ?? 'Tourist'}
               </p>
               <button onClick={() => setShowChat(false)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container">
                 <X className="w-4 h-4 text-on-surface-variant" />

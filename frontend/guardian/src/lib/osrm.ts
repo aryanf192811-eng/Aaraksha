@@ -9,6 +9,24 @@
 // [lat,lng] for Leaflet.
 const OSRM_BASE = 'https://router.project-osrm.org/route/v1/driving'
 
+// Throttle knobs for callers driving a live-refetch effect off a fast-ticking
+// watchPosition callback — GPS jitter alone shouldn't trigger a fresh public-
+// server request on every tick. A caller re-fetches only once ≥8s have
+// passed AND the position moved ≥30m since the last successful fetch.
+export const ROUTE_REFETCH_MIN_INTERVAL_MS = 8000
+export const ROUTE_REFETCH_MIN_DISTANCE_M = 30
+
+// Great-circle distance in meters — good enough at this scale (deciding
+// "did the rescuer move far enough to bother re-routing"), not meant for
+// anything precision-sensitive.
+export function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 export interface Route {
   coordinates: [number, number][] // [lat, lng] pairs, ready for a Leaflet Polyline
   distanceKm: number

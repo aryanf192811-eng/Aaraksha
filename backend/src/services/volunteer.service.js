@@ -7,7 +7,7 @@ const { RescueRepository } = require('../repositories/rescue.repository')
 const { SOSRepository } = require('../repositories/sos.repository')
 const { hashPassword, verifyPassword, hashGovtId, normalizePhone, extractSuffix } = require('../utils/crypto')
 const { generateJWT } = require('./auth.service')
-const { emitVolunteerAssignmentUpdated, emitRescuerLocationUpdate, emitRescuerStatusUpdate, emitAssignmentCancelled } = require('../socket/emitters')
+const { emitVolunteerAssignmentUpdated, emitRescuerLocationUpdate, emitRescuerStatusUpdate, emitRescuerNavigatingState, emitAssignmentCancelled } = require('../socket/emitters')
 const { VOLUNTEER_DISPATCH_STATUSES, ASSIGNMENT_STATUSES, SOS_STATUSES, VOLUNTEER_STATUSES } = require('../constants/enums')
 const { ERRORS } = require('../constants/errors')
 const logger = require('../utils/logger')
@@ -126,6 +126,22 @@ async function updateRescuerLocation(volunteerId, latitude, longitude) {
   return { assignmentId: assignment.id, latitude, longitude }
 }
 
+// Ephemeral — no DB write, purely a live reassurance broadcast for
+// whoever's watching (tourist/guardian). Reuses the same "find the current
+// assignment or 404" shape as updateRescuerLocation/updateAssignmentStatus.
+async function updateNavigatingState(volunteerId, navigating) {
+  const rescueRepo = new RescueRepository()
+  const assignment = await rescueRepo.findActiveAssignmentByVolunteerId(volunteerId)
+  if (!assignment) throw Object.assign(new Error(ERRORS.ASSIGNMENT_NOT_FOUND), { statusCode: 404 })
+
+  emitRescuerNavigatingState(
+    { id: assignment.sos_event_id, tourist_id: assignment.tourist_id },
+    assignment.guardian_token,
+    navigating
+  )
+  return { navigating }
+}
+
 async function updateAssignmentStatus(volunteerId, status) {
   const rescueRepo = new RescueRepository()
   const current = await rescueRepo.findActiveAssignmentByVolunteerId(volunteerId)
@@ -200,5 +216,5 @@ async function exitAssignment(volunteerId, reason) {
 
 module.exports = {
   registerVolunteer, loginVolunteer, updateStatus, getMyDispatches, updateDispatchStatus,
-  getActiveAssignment, updateRescuerLocation, updateAssignmentStatus, exitAssignment,
+  getActiveAssignment, updateRescuerLocation, updateNavigatingState, updateAssignmentStatus, exitAssignment,
 }

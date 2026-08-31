@@ -15,15 +15,15 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { Map as MapLibreMap, Marker as MapLibreMarker, NavigationControl, type GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { Feature, LineString } from 'geojson'
-import { ShieldCheck, Phone, Navigation, LocateFixed, UserCheck, Navigation2, Flag, Check, KeyRound, ShieldAlert, RotateCw, Loader2, MessageCircle } from 'lucide-react'
+import { ShieldCheck, Phone, Navigation, LocateFixed, UserCheck, Navigation2, Flag, Check, KeyRound, ShieldAlert, RotateCw, Loader2, MessageCircle, Clock, X } from 'lucide-react'
 import { toast } from 'sonner'
 import sosApi from '../../api/sos.api'
 import { getSocket } from '../../lib/socket'
 import { SOCKET_EVENTS } from '../../constants/enums'
-import { getRoute, type Route } from '../../lib/osrm'
+import { getRoute, haversineMeters, ROUTE_REFETCH_MIN_INTERVAL_MS, ROUTE_REFETCH_MIN_DISTANCE_M, type Route } from '../../lib/osrm'
 import { getErrorMessage } from '../../api/client'
 import { cn } from '../../lib/utils'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
+import { useDragSheet } from '../../hooks/useDragSheet'
 import { MessageThread } from './MessageThread'
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
@@ -169,6 +169,10 @@ export function RescueTrackingCard() {
   const [route, setRoute] = useState<Route | null>(null)
   const [follow, setFollow] = useState(false)
   const [showChat, setShowChat] = useState(false)
+  const { handleProps: dragHandleProps, sheetStyle: dragSheetStyle } = useDragSheet({ onClose: () => setShowChat(false) })
+  const [rescuerNavigating, setRescuerNavigating] = useState(false)
+  const [delayed, setDelayed] = useState(false)
+  const originalEtaMinRef = useRef<number | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const rescuerMarkerRef = useRef<MapLibreMarker | null>(null)
@@ -191,14 +195,19 @@ export function RescueTrackingCard() {
     const onLocation = (payload: { latitude: number; longitude: number }) => {
       setLivePos([payload.latitude, payload.longitude])
     }
+    // Ephemeral, not part of the polled/refetched SOS payload — a direct
+    // reflection of the rescuer's own "Navigate" toggle, live.
+    const onNavigatingState = (payload: { navigating: boolean }) => setRescuerNavigating(payload.navigating)
     socket.on(SOCKET_EVENTS.SOS_STATUS_UPDATED, onUpdate)
     socket.on(SOCKET_EVENTS.RESCUER_STATUS_UPDATE, onUpdate)
     socket.on(SOCKET_EVENTS.RESCUER_LOCATION_UPDATE, onLocation)
+    socket.on(SOCKET_EVENTS.RESCUER_NAVIGATING_STATE, onNavigatingState)
     socket.on(SOCKET_EVENTS.HANDOFF_VERIFIED, onUpdate)
     return () => {
       socket.off(SOCKET_EVENTS.SOS_STATUS_UPDATED, onUpdate)
       socket.off(SOCKET_EVENTS.RESCUER_STATUS_UPDATE, onUpdate)
       socket.off(SOCKET_EVENTS.RESCUER_LOCATION_UPDATE, onLocation)
+      socket.off(SOCKET_EVENTS.RESCUER_NAVIGATING_STATE, onNavigatingState)
       socket.off(SOCKET_EVENTS.HANDOFF_VERIFIED, onUpdate)
     }
   }, [queryClient])
@@ -216,7 +225,11 @@ export function RescueTrackingCard() {
   const { mutate: sendRescueMessage, isPending: sendingRescueMessage } = useMutation({
     mutationFn: (body: string) => sosApi.sendRescueMessage(sosId!, body),
     onSuccess: (res) => {
-      queryClient.setQueryData(['messages', 'rescue', sosId], (prev: typeof rescueMessages) => [...(prev ?? []), res.data.data])
+      // The MESSAGE_RECEIVED socket push for this same message can arrive
+      // before this mutation's own response does and trigger a refetch that
+      // already includes it — dedupe by id so this append doesn't double it.
+      queryClient.setQueryData(['messages', 'rescue', sosId], (prev: typeof rescueMessages) =>
+        prev?.some((m) => m.id === res.data.data.id) ? prev : [...(prev ?? []), res.data.data])
     },
     onError: (err) => toast.error(getErrorMessage(err)),
   })
@@ -244,15 +257,54 @@ export function RescueTrackingCard() {
   // malformed record shows a text-only card instead of a crash.
   const hasValidCoords = rescuerPos && sosPos
     && [...rescuerPos, ...sosPos].every((n) => Number.isFinite(n))
+  // Split checks so the map can mount and show the tourist's own (always
+  // known) location the instant a rescuer is assigned, instead of hiding
+  // the whole card until the rescuer's position has ALSO resolved — a
+  // volunteer's very first location push, or a team whose base coords are
+  // still loading, used to mean "no map at all" rather than "map, with the
+  // rescuer marker following shortly."
+  const hasValidSosPos = !!sosPos && sosPos.every((n) => Number.isFinite(n))
+  const hasValidRescuerPos = !!rescuerPos && rescuerPos.every((n) => Number.isFinite(n))
 
   // Real road route, refetched whenever the rescuer's position changes.
   // Falls back to the straight dashed line (route stays null) if OSRM is
-  // unreachable — the map degrades instead of breaking.
+  // unreachable — the map degrades instead of breaking. Throttled so a
+  // burst of RESCUER_LOCATION_UPDATE pushes doesn't hammer the free public
+  // OSRM server faster than the route could meaningfully change.
+  const lastRouteFetchRef = useRef<{ time: number; lat: number; lng: number } | null>(null)
   useEffect(() => {
     if (!hasValidCoords || !rescuerPos || !sosPos) return
+    const now = Date.now()
+    const last = lastRouteFetchRef.current
+    if (last
+      && now - last.time < ROUTE_REFETCH_MIN_INTERVAL_MS
+      && haversineMeters(last.lat, last.lng, rescuerPos[0], rescuerPos[1]) < ROUTE_REFETCH_MIN_DISTANCE_M) {
+      return
+    }
+    lastRouteFetchRef.current = { time: now, lat: rescuerPos[0], lng: rescuerPos[1] }
     getRoute(rescuerPos[0], rescuerPos[1], sosPos[0], sosPos[1]).then(setRoute)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rescuerPos?.[0], rescuerPos?.[1], sosPos?.[0], sosPos?.[1], hasValidCoords])
+
+  // Delay-aware reassurance: captures the first real ETA as a baseline once,
+  // then re-checks every 30s whether actual elapsed time has blown well
+  // past it. 1.6x is a deliberately generous margin for mountainous/
+  // single-lane terrain, so this only fires for a genuine delay.
+  useEffect(() => {
+    if (route && originalEtaMinRef.current === null) originalEtaMinRef.current = route.durationMin
+  }, [route])
+  useEffect(() => {
+    if (!rescuer || rescuer.status === 'ARRIVED') { setDelayed(false); return }
+    const check = () => {
+      const originalEta = originalEtaMinRef.current
+      if (!originalEta) return
+      const elapsedMin = (Date.now() - new Date(rescuer.assignedAt).getTime()) / 60000
+      setDelayed(elapsedMin > originalEta * 1.6)
+    }
+    check()
+    const interval = setInterval(check, 30_000)
+    return () => clearInterval(interval)
+  }, [rescuer?.assignedAt, rescuer?.status])
 
   // Map instance: created once the box mounts (hasValidCoords flips true).
   // Pannable and pinch-zoomable — a genuinely dynamic map, not a locked
@@ -260,11 +312,15 @@ export function RescueTrackingCard() {
   // doesn't get trapped by the map underneath it; a NavigationControl
   // supplies the desktop +/- zoom scrollZoom would otherwise have given.
   useEffect(() => {
-    if (!hasValidCoords || !rescuerPos || !mapContainerRef.current || mapRef.current) return
+    if (!hasValidSosPos || !sosPos || !mapContainerRef.current || mapRef.current) return
+    // Center on the rescuer if we already have their position, otherwise on
+    // the SOS location itself — always known the moment a rescuer's
+    // assigned, so the map never waits on a live GPS fix just to appear.
+    const initialCenter = hasValidRescuerPos && rescuerPos ? rescuerPos : sosPos
     const map = new MapLibreMap({
       container: mapContainerRef.current,
       style: MAP_STYLE,
-      center: [rescuerPos[1], rescuerPos[0]],
+      center: [initialCenter[1], initialCenter[0]],
       zoom: 14,
       dragPan: true,
       dragRotate: false,
@@ -283,58 +339,71 @@ export function RescueTrackingCard() {
       sosMarkerRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasValidCoords])
+  }, [hasValidSosPos])
 
   // Markers + route line: updated in place on every position/route change
   // rather than recreated, so the marker doesn't flicker on each GPS tick.
+  // The SOS marker draws as soon as we have it (always, once a rescuer's
+  // assigned); the rescuer marker and route line are added the moment
+  // their position resolves, instead of both being withheld together.
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !hasValidCoords || !rescuerPos || !sosPos) return
+    if (!map || !hasValidSosPos || !sosPos) return
 
     const apply = () => {
-      const rescuerLngLat: [number, number] = [rescuerPos[1], rescuerPos[0]]
       const sosLngLat: [number, number] = [sosPos[1], sosPos[0]]
-
-      if (!rescuerMarkerRef.current) {
-        rescuerMarkerRef.current = new MapLibreMarker({ element: pinMarkerEl('#10b981', RESCUER_PIN_ICON), anchor: 'bottom' })
-          .setLngLat(rescuerLngLat).addTo(map)
-      } else {
-        rescuerMarkerRef.current.setLngLat(rescuerLngLat)
-      }
       if (!sosMarkerRef.current) {
         sosMarkerRef.current = new MapLibreMarker({ element: pinMarkerEl('#ef4444', SOS_PIN_ICON, true), anchor: 'bottom' })
           .setLngLat(sosLngLat).addTo(map)
       }
 
-      const lineCoords = (route?.coordinates ?? [rescuerPos, sosPos]).map(([lat, lng]) => [lng, lat])
-      const geojson: Feature<LineString> = {
-        type: 'Feature', properties: {},
-        geometry: { type: 'LineString', coordinates: lineCoords },
-      }
-      const existingSource = map.getSource('rescue-route') as GeoJSONSource | undefined
-      if (existingSource) {
-        existingSource.setData(geojson)
-      } else {
-        map.addSource('rescue-route', { type: 'geojson', data: geojson })
-        map.addLayer({
-          id: 'rescue-route', type: 'line', source: 'rescue-route',
-          layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': '#10b981', 'line-width': 3, 'line-dasharray': route ? [1, 0] : [1, 1.5] },
-        })
-      }
-      if (map.getLayer('rescue-route')) {
-        map.setPaintProperty('rescue-route', 'line-dasharray', route ? [1, 0] : [1, 1.5])
+      if (hasValidRescuerPos && rescuerPos) {
+        const rescuerLngLat: [number, number] = [rescuerPos[1], rescuerPos[0]]
+        if (!rescuerMarkerRef.current) {
+          rescuerMarkerRef.current = new MapLibreMarker({ element: pinMarkerEl('#10b981', RESCUER_PIN_ICON), anchor: 'bottom' })
+            .setLngLat(rescuerLngLat).addTo(map)
+        } else {
+          rescuerMarkerRef.current.setLngLat(rescuerLngLat)
+        }
+
+        // Before OSRM resolves, this is straight-line displacement, not a
+        // route — drawing it in the same green as the real route (just
+        // dashed) read as "the route, still loading" rather than what it
+        // actually is. Pending state gets its own unmistakable neutral-grey,
+        // fine-dot style so it can never be mistaken for a resolved route.
+        const lineCoords = (route?.coordinates ?? [rescuerPos, sosPos]).map(([lat, lng]) => [lng, lat])
+        const geojson: Feature<LineString> = {
+          type: 'Feature', properties: {},
+          geometry: { type: 'LineString', coordinates: lineCoords },
+        }
+        const routeColor = route ? '#10b981' : '#94a3b8'
+        const routeDash: [number, number] = route ? [1, 0] : [0.5, 2]
+        const existingSource = map.getSource('rescue-route') as GeoJSONSource | undefined
+        if (existingSource) {
+          existingSource.setData(geojson)
+        } else {
+          map.addSource('rescue-route', { type: 'geojson', data: geojson })
+          map.addLayer({
+            id: 'rescue-route', type: 'line', source: 'rescue-route',
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: { 'line-color': routeColor, 'line-width': 3, 'line-dasharray': routeDash },
+          })
+        }
+        if (map.getLayer('rescue-route')) {
+          map.setPaintProperty('rescue-route', 'line-color', routeColor)
+          map.setPaintProperty('rescue-route', 'line-dasharray', routeDash)
+        }
       }
     }
 
     if (map.isStyleLoaded()) apply()
     else map.once('load', apply)
-  }, [rescuerPos?.[0], rescuerPos?.[1], sosPos?.[0], sosPos?.[1], route, hasValidCoords])
+  }, [rescuerPos?.[0], rescuerPos?.[1], sosPos?.[0], sosPos?.[1], route, hasValidSosPos, hasValidRescuerPos])
 
   // Follow toggle: center-lock on the rescuer, or fit both points in frame.
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !rescuerPos) return
+    if (!map || !hasValidRescuerPos || !rescuerPos) return
     if (follow) {
       map.easeTo({ center: [rescuerPos[1], rescuerPos[0]], zoom: Math.max(map.getZoom(), 15), duration: 600 })
     } else if (sosPos) {
@@ -461,9 +530,24 @@ export function RescueTrackingCard() {
         </div>
       </div>
 
+      {/* Calm, never-alarming — response times genuinely vary in this
+          terrain, and the point is reassurance plus a real next step
+          (message them), not anxiety. */}
+      {delayed && (
+        <div className="mx-4 mb-3 bg-surface-container rounded-xl p-3 flex items-start gap-2">
+          <Clock className="w-4 h-4 text-on-surface-variant flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-on-surface-variant leading-snug">
+            Your rescuer is still on the way — response times can vary in this terrain.{' '}
+            <button onClick={() => setShowChat(true)} className="font-bold text-tsi-low underline">
+              Message them if you need an update.
+            </button>
+          </p>
+        </div>
+      )}
+
       <HandoffCodeCard sosId={data.sosId} verifiedAt={data.handoffVerifiedAt} rescuerName={rescuer.name} />
 
-      {hasValidCoords && rescuerPos && (
+      {hasValidSosPos && (
         <div className="h-80 relative">
           <style>{`
             @keyframes rescue-pin-pulse {
@@ -479,7 +563,9 @@ export function RescueTrackingCard() {
           <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-surface-container-lowest/95 backdrop-blur-sm rounded-full pl-2 pr-2.5 py-1 shadow-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-tsi-low animate-pulse" />
             <span className="text-[10px] font-bold text-on-surface-variant">
-              {rescuer.isLive ? 'Live road route' : 'Dispatched from base'}
+              {!hasValidRescuerPos ? 'Locating rescuer…'
+                : rescuerNavigating ? '🧭 Actively navigating to you'
+                : rescuer.isLive ? 'Live road route' : 'Dispatched from base'}
             </span>
           </div>
 
@@ -499,26 +585,43 @@ export function RescueTrackingCard() {
         </div>
       )}
 
-      <Dialog open={showChat} onOpenChange={setShowChat}>
-        <DialogContent className="p-0 gap-0 h-[70vh] max-h-[560px] flex flex-col overflow-hidden">
-          <DialogHeader className="px-4 pt-4 pb-3 border-b border-outline-variant flex-shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <MessageCircle className="w-4.5 h-4.5 text-tsi-low" /> {rescuer.name}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 min-h-0">
-            <MessageThread
-              messages={rescueMessages}
-              isLoading={loadingRescueMessages}
-              mine="TOURIST"
-              onSend={sendRescueMessage}
-              sending={sendingRescueMessage}
-              disabledReason={rescuer.kind === 'TEAM' ? "Official rescue teams don't have in-app messaging yet — use the call button instead." : null}
-              emptyHint="No messages yet — let your rescuer know anything they should see on arrival."
-            />
+      {/* Pullable bottom sheet — matches the volunteer/guardian message
+          threads' fixed-overlay pattern instead of the centered shadcn
+          Dialog this used before, so all three portals' rescue-thread chat
+          now shares one drag-to-dismiss feel. Deliberately not routed
+          through dialog.tsx -- that primitive has no bottom-sheet/drag
+          variant, and changing it would affect every other Dialog usage in
+          this app, not just this one. */}
+      {showChat && (
+        <div className="fixed inset-0 z-[1100] flex items-end sm:items-center sm:justify-center bg-black/40" onClick={() => setShowChat(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={dragSheetStyle}
+            className="w-full sm:w-[420px] sm:rounded-3xl bg-surface-container-lowest rounded-t-3xl shadow-2xl h-[70vh] max-h-[560px] flex flex-col overflow-hidden">
+            <div {...dragHandleProps} className="flex-shrink-0 pt-2.5 pb-1 flex justify-center">
+              <div className="w-10 h-1 bg-outline-variant rounded-full" />
+            </div>
+            <div className="flex items-center justify-between px-4 pb-3 border-b border-outline-variant flex-shrink-0">
+              <p className="flex items-center gap-2 font-bold text-on-surface">
+                <span className={cn('w-2 h-2 rounded-full flex-shrink-0', rescuer.isLive ? 'bg-tsi-low' : 'bg-outline-variant')} />
+                {rescuer.name}
+              </p>
+              <button onClick={() => setShowChat(false)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container">
+                <X className="w-4 h-4 text-on-surface-variant" />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0">
+              <MessageThread
+                messages={rescueMessages}
+                isLoading={loadingRescueMessages}
+                mine="TOURIST"
+                onSend={sendRescueMessage}
+                sending={sendingRescueMessage}
+                disabledReason={rescuer.kind === 'TEAM' ? "Official rescue teams don't have in-app messaging yet — use the call button instead." : null}
+                emptyHint="No messages yet — let your rescuer know anything they should see on arrival."
+              />
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   )
 }

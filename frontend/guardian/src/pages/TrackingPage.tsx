@@ -1,6 +1,6 @@
 // src/pages/TrackingPage.tsx — Guardian Portal's only screen.
 // Shows: status banner (safe/warning/SOS) -> map -> last checkin time -> TSI -> medical info
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off, LocateFixed, Truck, MessageCircle, X } from 'lucide-react'
@@ -10,8 +10,9 @@ import L from 'leaflet'
 import touristApi from '../api/tourist.api'
 import { connectSocket, disconnectSocket } from '../lib/socket'
 import { getErrorMessage } from '../api/client'
-import { getRoute, type Route } from '../lib/osrm'
+import { getRoute, haversineMeters, ROUTE_REFETCH_MIN_INTERVAL_MS, ROUTE_REFETCH_MIN_DISTANCE_M, type Route } from '../lib/osrm'
 import { MessageThread } from '../components/MessageThread'
+import { useDragSheet } from '../hooks/useDragSheet'
 import type { GuardianView, Message } from '../types/api.types'
 
 // Fix Leaflet's default marker icon — its bundled asset paths break under
@@ -124,7 +125,11 @@ export default function TrackingPage() {
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [rescuerLivePos, setRescuerLivePos] = useState<[number, number] | null>(null)
   const [route, setRoute] = useState<Route | null>(null)
+  const [rescuerNavigating, setRescuerNavigating] = useState(false)
+  const [delayed, setDelayed] = useState(false)
+  const originalEtaMinRef = useRef<number | null>(null)
   const [showChat, setShowChat] = useState(false)
+  const { handleProps: dragHandleProps, sheetStyle: dragSheetStyle } = useDragSheet({ onClose: () => setShowChat(false) })
   const [messages, setMessages] = useState<Message[] | null>(null)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [sendingMessage, setSendingMessage] = useState(false)
@@ -168,7 +173,15 @@ export default function TrackingPage() {
     setSendingMessage(true)
     try {
       const res = await touristApi.sendGuardianMessage(token, body)
-      setMessages((prev) => [...(prev ?? []), res.data.data])
+      // The MESSAGE_RECEIVED socket push for this same message can win the
+      // race and arrive before this HTTP response does (the backend emits
+      // over the socket before the POST's response finishes sending) — dedupe
+      // here too, not just in the socket handler, or that ordering still
+      // appends the message twice.
+      setMessages((prev) => {
+        const next = prev ?? []
+        return next.some((m) => m.id === res.data.data.id) ? next : [...next, res.data.data]
+      })
     } catch (err) {
       toast.error(getErrorMessage(err))
     } finally {
@@ -214,6 +227,12 @@ export default function TrackingPage() {
     socket.on('RESCUER_LOCATION_UPDATE', (data: { latitude: number; longitude: number }) => {
       setRescuerLivePos([data.latitude, data.longitude])
     })
+    // Ephemeral — a direct reflection of the rescuer's own "Navigate"
+    // toggle, live. Nothing is persisted, so this just won't be set until
+    // the next toggle on a fresh page load.
+    socket.on('RESCUER_NAVIGATING_STATE', (data: { navigating: boolean }) => {
+      setRescuerNavigating(data.navigating)
+    })
     // The rescuer has confirmed reaching the tourist in person (code +
     // proximity check passed) — surface it the instant it happens rather
     // than waiting on the 30s poll, since this is the reassuring moment a
@@ -247,8 +266,12 @@ export default function TrackingPage() {
     // filtering to TOURIST_GUARDIAN keeps it from appending someone else's
     // conversation here.
     socket.on('MESSAGE_RECEIVED', (data: Message) => {
+      // The backend echoes a sent message back to the sender's own room too
+      // (see emitMessageReceived), and sendMessage() below already appends
+      // locally on HTTP success -- dedupe by id so the sender doesn't see
+      // their own message twice.
       if (data.conversation_type === 'TOURIST_GUARDIAN') {
-        setMessages((prev) => (prev ? [...prev, data] : prev))
+        setMessages((prev) => (prev && !prev.some((m) => m.id === data.id) ? [...prev, data] : prev))
       }
     })
     return () => { disconnectSocket() }
@@ -265,11 +288,46 @@ export default function TrackingPage() {
   // Real road route — refetched whenever the rescuer's position moves.
   // Falls back to no route line (still shows both markers) if OSRM is
   // unreachable, matching every other portal's degrade-not-break pattern.
+  // Throttled so a burst of RESCUER_LOCATION_UPDATE pushes doesn't hammer
+  // the free public OSRM server faster than the route could meaningfully
+  // change.
+  const lastRouteFetchRef = useRef<{ time: number; lat: number; lng: number } | null>(null)
   useEffect(() => {
     if (!rescuerPos || !touristPos) { setRoute(null); return }
+    const now = Date.now()
+    const last = lastRouteFetchRef.current
+    if (last
+      && now - last.time < ROUTE_REFETCH_MIN_INTERVAL_MS
+      && haversineMeters(last.lat, last.lng, rescuerPos[0], rescuerPos[1]) < ROUTE_REFETCH_MIN_DISTANCE_M) {
+      return
+    }
+    lastRouteFetchRef.current = { time: now, lat: rescuerPos[0], lng: rescuerPos[1] }
     getRoute(rescuerPos[0], rescuerPos[1], touristPos[0], touristPos[1]).then(setRoute)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rescuerPos?.[0], rescuerPos?.[1], touristPos?.[0], touristPos?.[1]])
+
+  // Delay-aware reassurance, calm and never alarming. This portal has no
+  // access to the real rescue_assignments.assigned_at (GuardianView doesn't
+  // carry it), so createdAt is used as the baseline instead — it biases the
+  // elapsed-time comparison to run a little longer than the rescuer's own
+  // more precise check, which is the safe direction for a reassurance
+  // message (better to under-trigger than nag a worried family early).
+  useEffect(() => {
+    if (route && originalEtaMinRef.current === null) originalEtaMinRef.current = route.durationMin
+  }, [route])
+  useEffect(() => {
+    const sos = view?.activeSOS
+    if (!sos || sos.handoffVerifiedAt) { setDelayed(false); return }
+    const check = () => {
+      const originalEta = originalEtaMinRef.current
+      if (!originalEta) return
+      const elapsedMin = (Date.now() - new Date(sos.createdAt).getTime()) / 60000
+      setDelayed(elapsedMin > originalEta * 1.6)
+    }
+    check()
+    const interval = setInterval(check, 30_000)
+    return () => clearInterval(interval)
+  }, [view?.activeSOS?.createdAt, view?.activeSOS?.handoffVerifiedAt])
 
   const status = getStatus(view)
   const statusConfig = STATUS_CONFIG[status]
@@ -353,6 +411,19 @@ export default function TrackingPage() {
                 ? (view.activeSOS.handoffVerifiedAt ? `Confirmed at ${new Date(view.activeSOS.handoffVerifiedAt).toLocaleTimeString('en-IN')}` : 'Confirmed')
                 : route ? `ETA ~${formatEta(Math.round(route.durationMin))}`
                 : view.activeSOS.rescueTeam?.etaMinutes != null ? `ETA ~${formatEta(view.activeSOS.rescueTeam.etaMinutes)}` : 'On the way'}
+              {!isVerified && rescuerNavigating && ' · 🧭 Navigating to them'}
+            </p>
+          </div>
+        )}
+        {/* Calm, never alarming — response times genuinely vary in this
+            terrain; the point is reassurance plus a real next step. */}
+        {isAssigned && !isVerified && delayed && (
+          <div className="mt-2 bg-white/15 rounded-xl px-4 py-2">
+            <p className="text-white text-xs leading-snug">
+              Response times can vary in this terrain — help is still on the way.{' '}
+              <button onClick={() => setShowChat(true)} className="font-bold underline">
+                Message them if you need an update.
+              </button>
             </p>
           </div>
         )}
@@ -392,9 +463,12 @@ export default function TrackingPage() {
             </Marker>
             {isAssigned && rescuerPos && (
               <>
+                {/* Before OSRM resolves this is straight-line displacement,
+                    not a route — a neutral grey/fine-dot style keeps it from
+                    reading as "the route, still loading" once it appears. */}
                 <Polyline
                   positions={route?.coordinates ?? [rescuerPos, [view.location.latitude, view.location.longitude]]}
-                  pathOptions={route ? { color: '#0f766e', weight: 4, opacity: 0.9 } : { color: '#0f766e', weight: 3, opacity: 0.7, dashArray: '8 8' }}
+                  pathOptions={route ? { color: '#0f766e', weight: 4, opacity: 0.9 } : { color: '#94a3b8', weight: 3, opacity: 0.6, dashArray: '2 6' }}
                 />
                 <Marker position={rescuerPos} icon={RESCUER_ICON}>
                   <Popup>
@@ -516,11 +590,15 @@ export default function TrackingPage() {
 
       {showChat && (
         <div className="fixed inset-0 z-[1100] flex items-end sm:items-center sm:justify-center bg-black/40" onClick={() => setShowChat(false)}>
-          <div onClick={(e) => e.stopPropagation()}
+          <div onClick={(e) => e.stopPropagation()} style={dragSheetStyle}
             className="w-full sm:w-[420px] sm:rounded-3xl bg-white rounded-t-3xl shadow-2xl h-[70vh] max-h-[560px] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-outline-variant flex-shrink-0">
+            <div {...dragHandleProps} className="flex-shrink-0 pt-2.5 pb-1 flex justify-center">
+              <div className="w-10 h-1 bg-outline-variant rounded-full" />
+            </div>
+            <div className="flex items-center justify-between px-4 pb-3 border-b border-outline-variant flex-shrink-0">
               <p className="flex items-center gap-2 font-bold text-on-surface">
-                <MessageCircle className="w-4.5 h-4.5 text-primary" /> {name}
+                <span className="w-2 h-2 rounded-full bg-safe flex-shrink-0" />
+                {name}
               </p>
               <button onClick={() => setShowChat(false)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container">
                 <X className="w-4 h-4 text-on-surface-variant" />

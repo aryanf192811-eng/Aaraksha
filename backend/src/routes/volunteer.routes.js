@@ -12,7 +12,7 @@ const { SendMessageSchema } = require('../validators/message.validator')
 const {
   RegisterVolunteerSchema, LoginVolunteerSchema,
   UpdateVolunteerStatusSchema, UpdateDispatchStatusSchema, UpdateLocationSchema,
-  UpdateAssignmentStatusSchema, VerifyHandoffSchema, ExitAssignmentSchema,
+  UpdateAssignmentStatusSchema, VerifyHandoffSchema, ExitAssignmentSchema, UpdateNavigatingStateSchema,
 } = require('../validators/volunteer.validator')
 
 const registerLimiter = createAuthLimiter(20)
@@ -29,6 +29,7 @@ router.get('/me/dispatches',       ctrl.getMyDispatches)
 router.get('/me/active-assignment',ctrl.getActiveAssignment)
 router.patch('/me/location',       validate(UpdateLocationSchema), ctrl.updateLocation)
 router.patch('/me/assignment/status', validate(UpdateAssignmentStatusSchema), ctrl.updateAssignmentStatus)
+router.patch('/me/assignment/navigating', validate(UpdateNavigatingStateSchema), ctrl.updateNavigatingState)
 router.post('/me/assignment/verify-handoff', validate(VerifyHandoffSchema), ctrl.verifyHandoff)
 router.post('/me/assignment/exit', validate(ExitAssignmentSchema), ctrl.exitAssignment)
 router.get('/me/assignment/messages',  messageCtrl.getRescueThreadAsVolunteer)
