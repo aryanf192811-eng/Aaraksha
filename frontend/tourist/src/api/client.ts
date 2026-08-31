@@ -22,12 +22,16 @@ api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError<APIError>) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid — clear auth state
+      // Token expired or invalid — clear auth state. PrivateRoute (main.tsx)
+      // already reacts to isAuthenticated and redirects declaratively, so no
+      // navigation is done here. A hard `window.location.href` reload used
+      // to race the auth store's async IndexedDB persist write: if the
+      // reload landed before that write flushed, rehydration read back the
+      // stale (still-authenticated, still-invalid-token) state, instantly
+      // re-firing the same request, the same 401, and the same reload — an
+      // infinite dashboard<->auth bounce loop, worse the more requests were
+      // in flight when the token went stale.
       useAuthStore.getState().logout()
-      // Redirect to login if not already there
-      if (!window.location.pathname.includes('/auth')) {
-        window.location.href = '/auth'
-      }
     }
     return Promise.reject(error)
   }

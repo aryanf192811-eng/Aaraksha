@@ -20,10 +20,12 @@ api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError<APIError>) => {
     if (error.response?.status === 401) {
+      // PrivateRoute (main.tsx) already reacts to isAuthenticated and
+      // redirects declaratively — no navigation needed here. A hard
+      // `window.location.href` reload used to race the auth store's async
+      // persist write, which could bounce home<->auth forever on a stale
+      // token (see tourist app's client.ts for the full failure mode).
       useAuthStore.getState().logout()
-      if (!window.location.pathname.includes('/auth')) {
-        window.location.href = '/auth'
-      }
     }
     return Promise.reject(error)
   }

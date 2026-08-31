@@ -22,12 +22,13 @@ api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError<APIError>) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid — clear auth state
+      // Token expired or invalid — clear auth state. PrivateRoute (main.tsx)
+      // already reacts to isAuthenticated and redirects declaratively, so no
+      // navigation is done here — a hard `window.location.href` reload used
+      // to race the auth store's async persist write (see tourist app's
+      // client.ts for the full failure mode: a stale-state reload can bounce
+      // login<->dashboard forever).
       useAuthStore.getState().logout()
-      // Redirect to login if not already there
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login'
-      }
     }
     return Promise.reject(error)
   }
