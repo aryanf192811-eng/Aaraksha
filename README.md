@@ -17,8 +17,8 @@ Smart India Hackathon 2026, Student Innovation category, Travel & Tourism theme.
 
 [![Status](https://img.shields.io/badge/status-demo--ready-brightgreen)]()
 [![Portals](https://img.shields.io/badge/portals-4-blue)]()
-[![API](https://img.shields.io/badge/API%20endpoints-109-orange)]()
-[![Tables](https://img.shields.io/badge/DB%20tables-24-orange)]()
+[![API](https://img.shields.io/badge/API%20endpoints-136-orange)]()
+[![Tables](https://img.shields.io/badge/DB%20tables-30-orange)]()
 [![Offline SOS](https://img.shields.io/badge/offline%20SOS-2G%20capable-red)]()
 [![Digital ID](https://img.shields.io/badge/digital%20ID-hash--chained-9cf)]()
 [![Category](https://img.shields.io/badge/SIH%202026-Student%20Innovation-purple)]()
@@ -52,6 +52,7 @@ real-time data model instead of four disconnected apps.
 - [⭐ Feature walkthrough](#-feature-walkthrough)
 - [🔗 Verifiable Digital ID — the Journey Integrity Hash](#-verifiable-digital-id--the-journey-integrity-hash)
 - [🤖 A real trained model — the Predictive Risk Score](#-a-real-trained-model--the-predictive-risk-score)
+- [🧭 AI Travel Assistant — plan, adjust, and track a journey](#-ai-travel-assistant--plan-adjust-and-track-a-journey)
 - [🚑 The unified Rescuer network](#-the-unified-rescuer-network)
 - [🗺️ Routing Engine — OSRM & Contraction Hierarchies](#️-routing-engine--osrm--contraction-hierarchies)
 - [🛰️ NTN — a satellite fallback transport](#️-ntn--a-satellite-fallback-transport)
@@ -126,7 +127,7 @@ has to *operate* the system, not just use it. That's the bar this comparison is 
 
 ```
                      ┌──────────────────┐
-                     │   PostgreSQL      │  24 tables — raw pg, no ORM
+                     │   PostgreSQL      │  30 tables — raw pg, no ORM
                      │   parameterized   │  see DB_GUIDE.md
                      │   SQL only        │
                      └────────▲──────────┘
@@ -134,7 +135,7 @@ has to *operate* the system, not just use it. That's the bar this comparison is 
                      ┌────────┴──────────┐
                      │  Express API       │  Route → Middleware → Controller
                      │  (backend/)        │  → Service → Repository
-                     │  JWT + RBAC        │  109 endpoints · 15 route groups
+                     │  JWT + RBAC        │  136 endpoints · 17 route groups
                      └─┬───────┬───────┬──┘
               Socket.IO│       │       │  REST (JSON)
               real-time│       │       │
@@ -178,9 +179,12 @@ has to *operate* the system, not just use it. That's the bar this comparison is 
 ## ⭐ Feature walkthrough
 
 ### 🧭 Planning
-- **Multi-stop itineraries** built from a real destination catalog (10 Northeast India destinations, each with live weather, altitude, connectivity rating, ILP requirements, and nearest-hospital data)
+- **Multi-stop itineraries** built from a real destination catalog (19 Northeast India destinations across all 8 NE states, each with live weather, altitude, connectivity rating, ILP requirements, and nearest-hospital data)
+- **AI Travel Assistant — "Build My Journey"** — describe a trip in plain language (or fill a structured form), get back a real, costed, safety-scored itinerary from a deterministic scorer over curated destinations/routes/reviews, with Gemini only narrating the already-computed numbers — see [AI Travel Assistant](#-ai-travel-assistant--plan-adjust-and-track-a-journey) below
+- **AI-assisted trip adjustment** — tell an already-committed trip what changed ("I have ₹4,000 less", "remove Cherrapunji") and review a full before/after proposal before anything is saved; the server recomputes cost itself on apply, never trusts a client-supplied number
+- **Per-stop detail, mark-as-visited, and a progress timeline** — tap a stop for its full destination info and every curated way to reach it (train/bus/shared-taxi), mark it visited with an editable spend estimate, and watch a real "what's done, what's next" timeline as the trip progresses
 - **AI-generated packing lists** via Google Gemini, with a static offline fallback so the feature never hard-fails
-- **Budget tracking** per trip, category breakdowns
+- **Budget tracking** per trip, category breakdowns, plus a running "spent so far" total from visited stops
 - **Group trips** — invite codes, join-by-code, shared itinerary, member roster
 - **Digital Journey Passport** — a PDFKit-generated trip summary (itinerary, safety events, check-in history) a tourist can download or share, with a tamper-evident **SHA-256 integrity hash chain** printed on the last page — see [Verifiable Digital ID](#verifiable-digital-id--the-journey-integrity-hash) below
 
@@ -349,6 +353,81 @@ and `difficulty_EXTREME` are the three largest positive contributors, `difficult
 risk-grounded labels should produce, not a random or overfit result. Every prediction shown in
 the govt Risk Overview page is explainable down to its top four contributing features, live, not
 just a bare percentage — reproduce the whole run yourself with `npm run train:risk-model`.
+
+---
+
+## 🧭 AI Travel Assistant — plan, adjust, and track a journey
+
+> **The same honesty boundary the Predictive Risk Score is built on, applied to trip planning: AI
+> explains, it never decides.** Every cost, duration, and safety number a tourist sees came out of
+> a deterministic scorer this team wrote — Gemini's only job is to narrate a number that already
+> exists, in plain language, never to invent or adjust one itself.
+
+A floating assistant (bottom-right, every tourist screen) turns "plan a Northeast India trip" from
+a multi-hour research task — the actual problem this feature targets — into a single conversation,
+without ever hiding the real numbers behind the AI's prose.
+
+**1. Describe a trip, or fill the form** — free text ("6 days in Meghalaya from Delhi, under
+₹20,000, mostly nature") pre-fills origin/region/days/budget/interests via Gemini intent
+extraction, but **never skips the confirmation step**: the tourist always sees and can edit the
+extracted form before anything is built.
+
+**2. A deterministic scorer builds the itinerary** — `travelScoring.service.js` is pure,
+synchronous, and network-free: it greedily orders candidate destinations by geographic proximity,
+then scores the whole itinerary on budget fit, duration fit, interest-keyword match, and a
+backtracking-distance penalty, plus a real Travel Safety Index pass (`tsi.service.js`) per stop.
+Real curated `typical_routes` legs are used where they exist; an uncurated pair falls back to a
+haversine-distance estimate, **always flagged `estimated: true`** in the response, never presented
+as a measured fact.
+
+**3. Gemini narrates the result** — `generateJourneyNarrative` receives the already-computed
+itinerary and writes the "why this route" bullets and journey story; it cannot alter the stops,
+cost, or score it's describing. If the Gemini call fails, a templated fallback narrative takes
+over and says so (`narrativeSource: 'TEMPLATED_FALLBACK'`) — the number underneath never changes
+either way.
+
+**4. Adjusting an already-committed trip is propose-then-apply, never direct** — a natural-language
+edit ("remove Cherrapunji", "I have less budget now") returns a full before/after comparison the
+tourist reviews first. Applying it sends only destination **identity** (stop IDs + day count) back
+to the server, which recomputes `totalCostInr` itself via the same deterministic scorer — a
+client-supplied cost number is never trusted or persisted, closing the exact kind of gap that lets
+a tampered request silently under-report a trip's real cost.
+
+**5. Once committed, a stop becomes a real place to explore** — tapping it opens full destination
+info (description, best season, government advisory, nearest hospital) plus every curated route to
+reach it from the previous stop, train/bus/shared-taxi options included where the dataset has them.
+Marking a stop visited pre-fills an honest, editable spend estimate (an even share of the trip's
+planned budget — there's no bank/UPI integration behind this, so it's disclosed as an estimate, not
+a claim of a known real number) and updates a real progress timeline and a running "spent so far"
+total, not a static itinerary that never changes once booked.
+
+```mermaid
+flowchart LR
+    A["🗣️ Free text or\nstructured form"] --> B["Gemini: intent\nextraction only"]
+    B --> C["Tourist confirms /\nedits the form"]
+    C --> D["travelScoring.service.js\n(pure, deterministic)"]
+    D --> E["Gemini: narrate the\nALREADY-COMPUTED result"]
+    E --> F["Interactive journey card\n— real cost, real routes"]
+    F -- "commit" --> G["Real trip — stop detail,\nmark-visited, timeline"]
+    F -- "later: adjust" --> H["Propose full before/after"]
+    H -- "apply" --> I["Server recomputes cost\nfrom stop IDENTITY only —\nnever trusts client cost"]
+```
+
+**The dataset behind it is curated, not scraped or invented.** `typical_routes` and
+`destination_reviews` grow through a supervised multi-agent process documented in
+[`chatbot.md`](./chatbot.md) — every route requires a `source` (a named government/OSM reference,
+a cited article, or `destination_reviews` real traveller data; proprietary booking platforms are
+explicitly off-limits), reviewed before insertion, with every session logged. All 8 Northeast
+states currently have 2–3 sourced destinations and at least one sourced intra-state route.
+
+| Layer | What it does | Where |
+|---|---|---|
+| 🧮 Deterministic scorer | Budget/duration/interest fit, backtracking penalty, per-stop TSI — pure function, unit-tested, no network | `travelScoring.service.js` |
+| 🗣️ Intent extraction | Free text → structured form fields; never bypasses tourist confirmation | `gemini.service.js#extractPlanningIntent` / `#extractTripIntent` |
+| ✍️ Result narration | Explains numbers already computed; offline-fallback narrative if the AI call fails | `gemini.service.js#generateJourneyNarrative` |
+| 🔁 Propose-then-apply | Adjustment is scored and shown before any write; apply recomputes cost server-side from stop identity only | `travelPlanner.service.js#adjustTrip` / `#applyTripAdjustment` |
+| 🛣️ Route data | Curated legs between destinations, multiple modes per pair where sourced; uncurated pairs get a flagged haversine estimate | `typical_routes`, `travelPlanner.repository.js#findRoutesBetween`/`#findRoutesAmong` |
+| 📚 Dataset provenance | Multi-agent curation spec, Tier A/B/C source policy, required `source` column | [`chatbot.md`](./chatbot.md), migration `026_travel_data_provenance` |
 
 ---
 
@@ -625,16 +704,17 @@ in repositories, and every multi-table write that must be atomic goes through a 
 | | |
 |---|---|
 | **Portals** | 4 (Tourist PWA, Govt Command Center, Guardian Portal, Rescuer App) |
-| **API endpoints** | 109, across 15 route groups |
-| **Database tables** | 24 |
-| **Migrations** | 19, applied incrementally — every schema change is a reviewable, named diff, never a hand-edited table |
-| **Destinations seeded** | 10, across Assam, Meghalaya, Nagaland, Arunachal Pradesh, Sikkim, Manipur — each with real altitude, connectivity, ILP, and hospital data |
+| **API endpoints** | 136, across 17 route groups |
+| **Database tables** | 30 |
+| **Migrations** | 26, applied incrementally — every schema change is a reviewable, named diff, never a hand-edited table |
+| **Destinations seeded** | 19, across all 8 Northeast Indian states (Assam, Meghalaya, Nagaland, Arunachal Pradesh, Sikkim, Manipur, Mizoram, Tripura) — each with real altitude, connectivity, ILP, and hospital data |
+| **Curated `typical_routes` legs** | 18, each with a required, reviewed `source` — see [AI Travel Assistant](#-ai-travel-assistant--plan-adjust-and-track-a-journey) |
 | **Curated news items** | ~45, hand-written per destination, auto-rotating |
 | **Tourist app screens** | 15 (landing, auth, dashboard, trip planning + detail with 6 tabs, check-in, SOS, incident reporting, community, advisory, profile) |
 | **Govt app screens** | 9 (login, dashboard, SOS management, E-FIR queue, volunteers, live map, risk overview, analytics, checkpoint scan) |
 | **Rescuer app screens** | 3 (auth, home, active job — live map) |
 | **Cron jobs** | 4 (Dead Man's Switch monitoring, anomaly detection, weather + TSI refresh, destination news rotation) |
-| **Real-time events** | 31 distinct Socket.IO event types |
+| **Real-time events** | 37 distinct Socket.IO event types |
 | **SOS incident categories** | 7 (medical, lost, trapped, disaster, missing, crime, other) |
 | **E-FIR incident categories** | 8 (theft, harassment, assault, fraud, lost document, vehicle accident, property damage, other) |
 | **Rescuer types** | 2 (official rescue teams, govt-verified citizen volunteers) — one assignable pool |
@@ -652,6 +732,8 @@ Aaraksha/
 ├── API_GUIDE.md                     HTTP verbs, error codes, response envelope
 ├── DB_GUIDE.md                      table definitions, relationships, query rules
 ├── UI_GUIDE.md                      design tokens, components, offline strategy
+├── chatbot.md                       supervised multi-agent dataset-curation spec — see
+│                                     AI Travel Assistant above
 ├── docs/testing/                    12-phase adversarial QA pass — see docs/testing/README.md
 │
 ├── backend/
@@ -660,12 +742,14 @@ Aaraksha/
 │   │   ├── server.js                HTTP server, Socket.IO init, graceful shutdown
 │   │   ├── config/                  env validation, CORS, Gemini/Twilio/push clients
 │   │   ├── constants/                enums, error messages, socket event names
-│   │   ├── routes/                  15 route modules → controllers (incl. incident.routes.js)
+│   │   ├── routes/                  17 route modules → controllers (incl. travelPlanner.routes.js,
+│   │   │                             ntn.routes.js, incident.routes.js)
 │   │   ├── controllers/             thin HTTP handlers
 │   │   ├── services/                business logic, transaction boundaries — incl.
 │   │   │                             anomaly.service.js, incident.service.js,
 │   │   │                             efirReport.service.js, passport.service.js
-│   │   │                             (Journey Integrity Hash chain)
+│   │   │                             (Journey Integrity Hash chain), travelPlanner.service.js
+│   │   │                             + travelScoring.service.js (deterministic itinerary scorer)
 │   │   ├── repositories/            all SQL, parameterized, one per table cluster
 │   │   ├── middleware/              auth (JWT, algorithm-pinned), validate (Zod),
 │   │   │                             rate limiting, errors
@@ -678,23 +762,28 @@ Aaraksha/
 │   │   ├── ml/                      logisticRegression.js (from-scratch trainer)
 │   │   │                             + features.js (shared train/serve encoding)
 │   │   ├── database/                connection pool, transaction helper
-│   │   └── migrations/              node-pg-migrate schema — 24 tables across 19 migrations
+│   │   └── migrations/              node-pg-migrate schema — 30 tables across 26 migrations
 │   ├── scripts/
 │   │   ├── preflight.js             env/DB connectivity check before setup
 │   │   ├── seed.js                  idempotent demo data (--reset flag available)
 │   │   ├── seedDemoContent.js       trips/reviews/scam reports across every demo account
 │   │   ├── seedAnalyticsHistory.js  30-day realistic incident history for the analytics dashboard
 │   │   └── trainRiskModel.js        trains the Predictive Risk Model, writes riskModel.weights.json
-│   ├── tests/                       vitest unit + integration suite
+│   ├── tests/
+│   │   ├── unit/, integration/      vitest unit + integration suite
+│   │   └── eval/                    travelPlanner.benchmark.js — 6 fixed queries against the
+│   │                                 real dev DB, checked for sane scores/safety/backtracking
 │   ├── postman/                     Postman collection + environment
 │   ├── .env.example                 every required env var, documented
 │   └── package.json
 │
 └── frontend/
     ├── tourist/                     Tourist PWA — :5173
-    │   └── src/pages/               landing, auth, dashboard, trips (create/detail/list),
-    │                                 safety (SOS/check-in/checkpoint pass/E-FIR filing),
-    │                                 community, advisory, profile
+    │   ├── src/pages/               landing, auth, dashboard, trips (create/detail/list),
+    │   │                             safety (SOS/check-in/checkpoint pass/E-FIR filing),
+    │   │                             community, advisory, profile
+    │   └── src/components/shared/   TravelAssistantFAB.tsx (Build My Journey / adjust),
+    │                                 StopDetailSheet.tsx (per-stop detail + routes)
     ├── govt/                        Government Command Center — :5174
     │   └── src/pages/               login, dashboard, SOS management, E-FIR queue,
     │                                 volunteers, live map (incl. anomaly markers),
@@ -809,15 +898,17 @@ page) into `/track/:token` on the guardian app.
 
 ## 🔌 API surface
 
-109 REST endpoints across 15 route groups, all under `/api`:
+136 REST endpoints across 17 route groups, all under `/api`:
 
 | Prefix | Covers |
 |---|---|
 | `/auth` | Tourist + govt registration/login, forgot-password OTP flow (with a visible in-app fallback if Twilio delivery fails), phone verification — govt registration is role-gated, no self-service SUPER\_ADMIN |
 | `/tourists` | Profile, emergency-contact OTP verification, checkpoint QR code, public guardian view, DPDP data rights (privacy notice, data export, deletion request + history) |
-| `/trips` | Itinerary CRUD, stops, group trips (join/invite/members/leave), per-trip news, TSI, AI safety-advisory briefing |
+| `/trips` | Itinerary CRUD, stops (incl. mark-visited status/spend), group trips (join/invite/members/leave), per-trip news, TSI, AI safety-advisory briefing |
 | `/sos` | Create SOS, history, active rescue info, mark false alarm |
 | `/dms` | Dead Man's Switch create/reset/status |
+| `/ntn` | Simulated satellite (NTN) SOS uplink attempt — see [NTN](#-ntn--a-satellite-fallback-transport) |
+| `/travel-planner` | Build My Journey, natural-language intake, ask-a-follow-up, commit, propose/apply trip adjustment, routes between two stops — see [AI Travel Assistant](#-ai-travel-assistant--plan-adjust-and-track-a-journey) |
 | `/checkins` | Manual check-ins |
 | `/destinations` | Catalog, weather cache, risk overview, per-destination news, reviews |
 | `/scam-reports` | Community-reported safety incidents, 90-day hotspot summary |
@@ -857,12 +948,24 @@ trips, SOS, DMS, govt ops, security guards, validation, edge cases, and the full
 flow (volunteer self-registration and govt provisioning, identity verification, combined
 team-or-volunteer SOS assignment, live location/status updates, the govt-only resolve boundary).
 The community reviews, news rotation, group trips, push-notification, incident-report,
-risk-density, anomaly-detection, E-FIR queue, and checkpoint-hash-chain endpoints were added
-after this collection and have instead been verified through live, real-network end-to-end
-testing across all four running portals (Playwright-driven — real logins, real form submissions,
-real network requests inspected, real DB rows confirmed, real PDF output checked with
-`pdftotext`, and for the integrity hash specifically, a real checkpoint QR scan confirmed to
-change `finalHash` deterministically) rather than through Postman assertions yet.
+risk-density, anomaly-detection, E-FIR queue, checkpoint-hash-chain, and AI Travel Assistant
+endpoints were added after this collection and have instead been verified through live,
+real-network end-to-end testing across all four running portals (Playwright-driven — real logins,
+real form submissions, real network requests inspected, real DB rows confirmed, real PDF output
+checked with `pdftotext`, and for the integrity hash specifically, a real checkpoint QR scan
+confirmed to change `finalHash` deterministically) rather than through Postman assertions yet.
+
+**Scoring-quality benchmark (`tests/eval/travelPlanner.benchmark.js`)**
+```bash
+cd backend
+node tests/eval/travelPlanner.benchmark.js   # needs a running backend + real dev DB
+```
+A fixed set of 6 real queries (different origin cities, budgets, interests, states, including one
+deliberately unseeded region to confirm a clean `422` rather than a silent empty result) run
+against the live scorer and assert on sane output — budget/duration scores, no restricted-zone
+stops without a flag, a real worst-safety stop identified — the kind of check a unit test can't
+express because the "right answer" depends on whatever's actually seeded in the destinations
+table, not a fixed fixture.
 
 ---
 
