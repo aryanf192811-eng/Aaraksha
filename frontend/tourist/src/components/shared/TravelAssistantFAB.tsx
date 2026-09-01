@@ -6,14 +6,23 @@
 // the dataset this reasons over and travelPlanner.service.js's header
 // comment for the "AI explains, doesn't decide" boundary this whole
 // feature is built around.
+//
+// Two modes: "Plan a journey" (build a fresh itinerary, optionally kicked
+// off with a natural-language description that pre-fills the form below --
+// never skips it) and "Adjust my journey" (propose/apply a change to a
+// trip already committed -- only offered when the current route is that
+// trip's own page). See travelPlanner.service.js#adjustTrip/
+// applyTripAdjustment for the "propose, never mutate directly" invariant
+// the adjust mode is built around.
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Compass, X, Loader2, Send, Sparkles, IndianRupee, CalendarDays, MapPinned, Rocket } from 'lucide-react'
+import { Compass, X, Loader2, Send, Sparkles, IndianRupee, CalendarDays, MapPinned, Rocket, Wand2, ArrowRight } from 'lucide-react'
 import { useDragSheet } from '../../hooks/useDragSheet'
 import { cn } from '../../lib/utils'
 import { getErrorMessage } from '../../api/client'
+import tripApi from '../../api/trip.api'
 import travelPlannerApi, { type BuildJourneyPayload, type BuildJourneyResult, type Interest, type TransportMode } from '../../api/travelPlanner.api'
 import { JourneyResultCard } from './travelAssistant/JourneyResultCard'
 
@@ -28,11 +37,26 @@ const TRANSPORT_OPTIONS: { value: TransportMode; label: string }[] = [
 ]
 const ORIGIN_QUICK_PICKS = ['Delhi', 'Mumbai', 'Kolkata', 'Bangalore', 'Chennai']
 
+function fmtInr(n: number) { return `₹${n.toLocaleString('en-IN')}` }
+
 export function TravelAssistantFAB() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [open, setOpen] = useState(false)
   const { handleProps, sheetStyle } = useDragSheet({ onClose: () => setOpen(false) })
 
+  const tripPageMatch = location.pathname.match(/^\/trips\/([0-9a-f-]{36})$/i)
+  const contextTripId = tripPageMatch?.[1] ?? null
+  const [mode, setMode] = useState<'build' | 'adjust'>(contextTripId ? 'adjust' : 'build')
+
+  const { data: contextTrip } = useQuery({
+    queryKey: ['trip', contextTripId, 'for-assistant'],
+    queryFn: () => tripApi.getTripById(contextTripId!).then((r) => r.data.data),
+    enabled: open && !!contextTripId,
+  })
+
+  // ── Part 1: natural-language pre-fill ────────────────────────────────
+  const [nlText, setNlText] = useState('')
   const [fromCity, setFromCity] = useState('Delhi')
   const [region, setRegion] = useState('Meghalaya')
   const [days, setDays] = useState(5)
@@ -41,6 +65,21 @@ export function TravelAssistantFAB() {
   const [transportPref, setTransportPref] = useState<TransportMode[]>([])
   const [followUp, setFollowUp] = useState('')
   const [result, setResult] = useState<BuildJourneyResult | null>(null)
+
+  const { mutate: extractIntent, isPending: extracting } = useMutation({
+    mutationFn: () => travelPlannerApi.extractIntent(nlText).then((r) => r.data.data),
+    onSuccess: (data) => {
+      if (data.fromCity) setFromCity(data.fromCity)
+      if (data.region) setRegion(data.region)
+      if (data.days) setDays(data.days)
+      if (data.budgetInr) setBudgetInr(data.budgetInr)
+      if (data.interests?.length) setInterests(data.interests)
+      if (data.transportPref?.length) setTransportPref(data.transportPref)
+      if (!data.understood) toast.message("Couldn't pick up much from that — fill in what's missing below.")
+      else toast.success('Filled in from your description — review and adjust before building.')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
 
   const context: BuildJourneyPayload = { fromCity, region, days, budgetInr, interests, transportPref }
 
@@ -84,6 +123,45 @@ export function TravelAssistantFAB() {
     onError: (err) => toast.error(getErrorMessage(err)),
   })
 
+  // ── Part 2: adjust an already-committed trip ─────────────────────────
+  const [adjustText, setAdjustText] = useState('')
+  const [proposal, setProposal] = useState<{
+    before: { totalCostInr: number; days: number; stopNames: string[]; tsiScore: number | null }
+    after: Omit<BuildJourneyResult, 'externalLegs'> & { daysUsedForScoring: number }
+  } | null>(null)
+
+  const { mutate: proposeAdjustment, isPending: proposing } = useMutation({
+    mutationFn: () => {
+      if (!contextTripId) throw new Error('No trip selected')
+      return travelPlannerApi.adjustTrip(contextTripId, adjustText).then((r) => r.data.data)
+    },
+    onSuccess: (data) => {
+      if (!data.understood) { toast.message(data.message); return }
+      setProposal(data)
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+
+  const { mutate: applyAdjustment, isPending: applying } = useMutation({
+    mutationFn: () => {
+      if (!contextTripId || !proposal) throw new Error('Nothing to apply')
+      const ids = proposal.after.itinerary.orderedStops.map((s) => s.id)
+      return travelPlannerApi.applyTripAdjustment(contextTripId, ids, proposal.after.daysUsedForScoring)
+    },
+    onSuccess: () => {
+      toast.success('Trip updated.')
+      setProposal(null)
+      setAdjustText('')
+      setOpen(false)
+      // Full reload of the trip detail page's own query -- simplest way
+      // to guarantee every tab (itinerary/budget/map) reflects the change
+      // immediately, matching how committing a fresh journey already
+      // navigates to a freshly-loaded trip page.
+      navigate(0)
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+
   const toggleInterest = (tag: Interest) =>
     setInterests((cur) => (cur.includes(tag) ? cur.filter((t) => t !== tag) : cur.length < 5 ? [...cur, tag] : cur))
   const toggleTransport = (mode: TransportMode) =>
@@ -118,96 +196,175 @@ export function TravelAssistantFAB() {
               </button>
             </div>
 
+            {contextTripId && !result && !proposal && (
+              <div className="flex-shrink-0 px-4 pt-3 grid grid-cols-2 gap-1.5">
+                <button onClick={() => setMode('adjust')}
+                  className={cn('text-xs font-bold py-2 rounded-full border text-center', mode === 'adjust' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
+                  Adjust my journey
+                </button>
+                <button onClick={() => setMode('build')}
+                  className={cn('text-xs font-bold py-2 rounded-full border text-center', mode === 'build' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
+                  Plan a journey
+                </button>
+              </div>
+            )}
+
             <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
-              {!result ? (
+              {mode === 'adjust' && contextTripId ? (
                 <>
-                  <p className="text-xs text-on-surface-variant leading-relaxed">
-                    Tell me where you're starting from and what you're after — I'll build a real, costed itinerary from Aaraksha's Northeast India data, not a guess.
-                  </p>
-
-                  <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 block">Starting from</label>
-                    <input value={fromCity} onChange={(e) => setFromCity(e.target.value)}
-                      className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {ORIGIN_QUICK_PICKS.map((c) => (
-                        <button key={c} onClick={() => setFromCity(c)}
-                          className={cn('text-[11px] font-bold px-2.5 py-1 rounded-full border', fromCity === c ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
-                          {c}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 flex items-center gap-1"><MapPinned className="w-3 h-3" /> Where in the Northeast</label>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {NE_STATES.map((s) => (
-                        <button key={s} onClick={() => setRegion(s)}
-                          className={cn('text-xs font-bold px-2 py-2 rounded-xl border text-center', region === s ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 flex items-center gap-1"><CalendarDays className="w-3 h-3" /> Days</label>
-                      <input type="number" min={1} max={30} value={days} onChange={(e) => setDays(Number(e.target.value) || 1)}
-                        className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 flex items-center gap-1"><IndianRupee className="w-3 h-3" /> Budget</label>
-                      <input type="number" min={0} step={500} value={budgetInr} onChange={(e) => setBudgetInr(Number(e.target.value) || 0)}
-                        className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 block">Interests</label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {INTEREST_OPTIONS.map(({ value, label }) => (
-                        <button key={value} onClick={() => toggleInterest(value)}
-                          className={cn('text-xs font-bold px-3 py-1.5 rounded-full border', interests.includes(value) ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 block">Prefer (optional)</label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {TRANSPORT_OPTIONS.map(({ value, label }) => (
-                        <button key={value} onClick={() => toggleTransport(value)}
-                          className={cn('text-xs font-bold px-3 py-1.5 rounded-full border', transportPref.includes(value) ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {!proposal ? (
+                    <>
+                      <p className="text-xs text-on-surface-variant leading-relaxed">
+                        Adjusting <span className="font-bold text-on-surface">{contextTrip?.title || 'this trip'}</span>. Tell me what to change — I'll show you exactly what it does before anything is saved.
+                      </p>
+                      <textarea value={adjustText} onChange={(e) => setAdjustText(e.target.value)} rows={3}
+                        placeholder='e.g. "I have ₹4,000 less now" or "remove Cherrapunji"'
+                        className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                    </>
+                  ) : (
+                    <>
+                      <div className="rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-sm p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">What changes</p>
+                        <div className="grid grid-cols-2 gap-3 text-center">
+                          <div>
+                            <p className="text-[10px] font-bold text-on-surface-variant uppercase">Before</p>
+                            <p className="font-black text-on-surface">{fmtInr(proposal.before.totalCostInr)}</p>
+                            <p className="text-[11px] text-on-surface-variant">{proposal.before.stopNames.join(', ')}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-primary uppercase flex items-center justify-center gap-1"><ArrowRight className="w-3 h-3" /> After</p>
+                            <p className="font-black text-primary">{fmtInr(proposal.after.totalCostInr)}</p>
+                            <p className="text-[11px] text-on-surface-variant">{proposal.after.itinerary.orderedStops.map((s) => s.name).join(', ')}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <JourneyResultCard result={proposal.after} />
+                      <button onClick={() => setProposal(null)}
+                        className="w-full text-xs font-bold text-on-surface-variant hover:text-primary py-1">
+                        ← Never mind, try a different change
+                      </button>
+                    </>
+                  )}
                 </>
               ) : (
                 <>
-                  <JourneyResultCard result={result} />
-                  <button onClick={() => setResult(null)}
-                    className="w-full text-xs font-bold text-on-surface-variant hover:text-primary py-1">
-                    ← Start over with a new request
-                  </button>
-                </>
-              )}
+                  {!result ? (
+                    <>
+                      <p className="text-xs text-on-surface-variant leading-relaxed">
+                        Tell me where you're starting from and what you're after — I'll build a real, costed itinerary from Aaraksha's Northeast India data, not a guess.
+                      </p>
 
-              {building && (
-                <div className="flex flex-col items-center gap-2 py-8 text-on-surface-variant">
-                  <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
-                  <p className="text-xs font-semibold">Scoring routes across Northeast India…</p>
-                </div>
+                      <div>
+                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 flex items-center gap-1"><Wand2 className="w-3 h-3" /> Describe your trip (optional)</label>
+                        <textarea value={nlText} onChange={(e) => setNlText(e.target.value)} rows={2}
+                          placeholder='e.g. "6 days in Meghalaya from Delhi, under ₹20,000, mostly nature"'
+                          className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                        <button onClick={() => extractIntent()} disabled={extracting || !nlText.trim()}
+                          className="mt-1.5 w-full h-9 rounded-full border-2 border-dashed border-primary/50 text-primary text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50">
+                          {extracting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                          Fill in the details
+                        </button>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 block">Starting from</label>
+                        <input value={fromCity} onChange={(e) => setFromCity(e.target.value)}
+                          className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {ORIGIN_QUICK_PICKS.map((c) => (
+                            <button key={c} onClick={() => setFromCity(c)}
+                              className={cn('text-[11px] font-bold px-2.5 py-1 rounded-full border', fromCity === c ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
+                              {c}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 flex items-center gap-1"><MapPinned className="w-3 h-3" /> Where in the Northeast</label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {NE_STATES.map((s) => (
+                            <button key={s} onClick={() => setRegion(s)}
+                              className={cn('text-xs font-bold px-2 py-2 rounded-xl border text-center', region === s ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 flex items-center gap-1"><CalendarDays className="w-3 h-3" /> Days</label>
+                          <input type="number" min={1} max={30} value={days} onChange={(e) => setDays(Number(e.target.value) || 1)}
+                            className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 flex items-center gap-1"><IndianRupee className="w-3 h-3" /> Budget</label>
+                          <input type="number" min={0} step={500} value={budgetInr} onChange={(e) => setBudgetInr(Number(e.target.value) || 0)}
+                            className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 block">Interests</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {INTEREST_OPTIONS.map(({ value, label }) => (
+                            <button key={value} onClick={() => toggleInterest(value)}
+                              className={cn('text-xs font-bold px-3 py-1.5 rounded-full border', interests.includes(value) ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 block">Prefer (optional)</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {TRANSPORT_OPTIONS.map(({ value, label }) => (
+                            <button key={value} onClick={() => toggleTransport(value)}
+                              className={cn('text-xs font-bold px-3 py-1.5 rounded-full border', transportPref.includes(value) ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <JourneyResultCard result={result} />
+                      <button onClick={() => setResult(null)}
+                        className="w-full text-xs font-bold text-on-surface-variant hover:text-primary py-1">
+                        ← Start over with a new request
+                      </button>
+                    </>
+                  )}
+
+                  {building && (
+                    <div className="flex flex-col items-center gap-2 py-8 text-on-surface-variant">
+                      <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+                      <p className="text-xs font-semibold">Scoring routes across Northeast India…</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
             <div className="flex-shrink-0 border-t border-outline-variant p-3 bg-surface">
-              {!result ? (
+              {mode === 'adjust' && contextTripId ? (
+                !proposal ? (
+                  <button onClick={() => proposeAdjustment()} disabled={proposing || !adjustText.trim()}
+                    className="w-full h-12 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60">
+                    {proposing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    Propose adjustment
+                  </button>
+                ) : (
+                  <button onClick={() => applyAdjustment()} disabled={applying}
+                    className="w-full h-12 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60">
+                    {applying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+                    Apply this change
+                  </button>
+                )
+              ) : !result ? (
                 <button onClick={() => build()} disabled={building}
                   className="w-full h-12 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60">
                   {building ? <Loader2 className="w-4 h-4 animate-spin" /> : <Compass className="w-4 h-4" />}

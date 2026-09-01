@@ -69,7 +69,13 @@ function LegRow({ leg, index }: { leg: JourneyLeg; index: number }) {
   )
 }
 
-export function JourneyResultCard({ result }: { result: BuildJourneyResult }) {
+// externalLegs is optional: a fresh build-journey result has it (the
+// Delhi->Guwahati-style gateway hop), but an AI-proposed adjustment to an
+// ALREADY-COMMITTED trip doesn't -- there's no fresh "how you got to
+// Guwahati" leg to show when only the NE-internal stops changed. Found by
+// live-testing the adjust flow: this component originally assumed
+// externalLegs always existed and crashed rendering a proposal.
+export function JourneyResultCard({ result }: { result: Omit<BuildJourneyResult, 'externalLegs'> & { externalLegs?: BuildJourneyResult['externalLegs'] } }) {
   const [showWhy, setShowWhy] = useState(true)
   const { itinerary } = result
   const worst = itinerary.safety.worstStop
@@ -91,9 +97,9 @@ export function JourneyResultCard({ result }: { result: BuildJourneyResult }) {
       </div>
 
       <div className="px-4 py-3 divide-y divide-outline-variant/60">
-        <LegRow leg={result.externalLegs.outbound} index={0} />
+        {result.externalLegs && <LegRow leg={result.externalLegs.outbound} index={0} />}
         {itinerary.legs.map((leg, i) => <LegRow key={i} leg={leg} index={i + 1} />)}
-        <LegRow leg={result.externalLegs.return} index={itinerary.legs.length + 1} />
+        {result.externalLegs && <LegRow leg={result.externalLegs.return} index={itinerary.legs.length + 1} />}
       </div>
 
       {itinerary.orderedStops.some((s) => s.reviewSummary) && (

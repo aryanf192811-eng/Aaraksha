@@ -3,6 +3,15 @@
 
 const { BaseRepository } = require('./base.repository')
 
+// Named explicitly (no SELECT *, per this project's own DB rule -- these
+// two queries predate the rule being enforced here; fixed while adding
+// findDestinationsByIds below rather than repeating the same mistake).
+const DESTINATION_COLUMNS = `
+  id, name, state, latitude, longitude, connectivity, difficulty, altitude_m,
+  zone_type, ilp_required, nearest_hospital_name, nearest_hospital_km,
+  nearest_hospital_phone, nearest_police_km, govt_advisory, popularity_index,
+  description, best_months, source, created_at`
+
 class TravelPlannerRepository extends BaseRepository {
   // Candidates for a journey: same shape DestinationRepository.findAll
   // already queries (state filter), kept separate rather than imported
@@ -21,8 +30,20 @@ class TravelPlannerRepository extends BaseRepository {
       idx++
     }
     return this.query(
-      `SELECT * FROM destinations WHERE ${conditions.join(' AND ')} ORDER BY popularity_index DESC`,
+      `SELECT ${DESTINATION_COLUMNS} FROM destinations WHERE ${conditions.join(' AND ')} ORDER BY popularity_index DESC`,
       params
+    )
+  }
+
+  // Pulls a trip's already-committed stops back out as real destination
+  // rows, so an AI-proposed adjustment can be re-scored against the same
+  // deterministic pipeline a fresh journey uses -- see
+  // travelPlanner.service.js#adjustTrip.
+  async findDestinationsByIds(ids) {
+    if (!ids || ids.length === 0) return []
+    return this.query(
+      `SELECT ${DESTINATION_COLUMNS} FROM destinations WHERE id = ANY($1::uuid[])`,
+      [ids]
     )
   }
 
@@ -32,7 +53,9 @@ class TravelPlannerRepository extends BaseRepository {
   async findRoutesAmong(destinationIds) {
     if (!destinationIds || destinationIds.length === 0) return new Map()
     const rows = await this.query(
-      `SELECT * FROM typical_routes
+      `SELECT id, from_destination_id, to_destination_id, mode, duration_minutes,
+              cost_min_inr, cost_max_inr, notes, source, created_at
+       FROM typical_routes
        WHERE from_destination_id = ANY($1::uuid[]) AND to_destination_id = ANY($1::uuid[])`,
       [destinationIds]
     )

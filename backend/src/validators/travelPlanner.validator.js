@@ -45,4 +45,26 @@ const CommitJourneySchema = z.object({
   }).passthrough(),
 })
 
-module.exports = { BuildJourneySchema, AskFollowUpSchema, CommitJourneySchema, INTEREST_TAGS, TRANSPORT_MODES }
+const ExtractIntentSchema = z.object({
+  text: z.string().min(1).max(500),
+})
+
+const AdjustTripSchema = z.object({
+  freeText: z.string().min(1).max(500),
+})
+
+// Deliberately NOT { itinerary, totalCostInr } -- see
+// travelPlanner.service.js#applyTripAdjustment's own header comment for
+// why this endpoint only ever accepts destination IDENTITY from the
+// client and recomputes everything else (cost, TSI, readiness)
+// server-side, never trusting a client-supplied number for any of them.
+const ApplyTripAdjustmentSchema = z.object({
+  orderedStopIds: z.array(z.string().uuid()).min(1),
+  days: z.number().int().min(1).max(30),
+})
+
+module.exports = {
+  BuildJourneySchema, AskFollowUpSchema, CommitJourneySchema,
+  ExtractIntentSchema, AdjustTripSchema, ApplyTripAdjustmentSchema,
+  INTEREST_TAGS, TRANSPORT_MODES,
+}

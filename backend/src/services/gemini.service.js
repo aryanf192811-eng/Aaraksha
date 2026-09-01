@@ -318,7 +318,11 @@ stops: ${(currentContext.stopNames || []).join(', ') || 'none yet'}, interests: 
 Return ONLY a valid JSON object (no markdown, no code blocks) with any of
 these keys that changed, omitting keys that didn't:
 {"budgetInr": number, "days": number, "dropStopNames": ["string"], "addInterests": ["NATURE"|"ADVENTURE"|"CULTURE"|"WILDLIFE"|"RELAXATION"], "understood": boolean}
-Set "understood" to false if the message isn't a planning adjustment at all.`
+Set "understood" to false if the message isn't a planning adjustment at all.
+You may interpret intent and explain results in plain language. You must
+never invent a specific cost, distance, or safety figure, override a
+safety score, or assume authorization you weren't given — those are
+computed and enforced by the system, not you.`
 
   try {
     const result = await generateContentWithTimeout(model, prompt)
@@ -333,4 +337,49 @@ Set "understood" to false if the message isn't a planning adjustment at all.`
   }
 }
 
-module.exports = { generatePackingList, generateSafetyAdvisory, generateJourneyNarrative, extractPlanningIntent }
+// Free-text -> a FRESH set of planning constraints (no existing context to
+// merge against, unlike extractPlanningIntent above). Backs the natural-
+// language "tell Aaraksha what you're planning" entry point -- the
+// extracted values only ever pre-fill the existing structured form, which
+// the tourist reviews and can edit before anything is built. `region` is
+// constrained in-prompt to this project's actual seeded NE states, so
+// Gemini is never in a position to invent a region that doesn't exist in
+// the dataset; an unclear request just means fields are left blank for
+// the tourist to fill in themselves, never a guessed destination.
+async function extractTripIntent(freeText, availableRegions) {
+  const model = getGeminiModel()
+  if (!model) {
+    logger.info('Gemini not available — cannot parse free-text trip intent')
+    return { understood: false, source: 'OFFLINE_FALLBACK' }
+  }
+
+  const prompt = `A traveller describes a trip they want to plan in Northeast India:
+"${freeText}"
+
+Available regions (pick exactly one of these, or null if unclear — never invent
+a region not in this list): ${availableRegions.join(', ')}.
+
+Return ONLY a valid JSON object (no markdown, no code blocks):
+{"fromCity": string|null, "region": string|null, "days": number|null, "budgetInr": number|null, "interests": ["NATURE"|"ADVENTURE"|"CULTURE"|"WILDLIFE"|"RELAXATION"], "transportPref": ["TRAIN"|"FLIGHT"], "understood": boolean}
+Only include an interest/transport tag if it's clearly implied. Set
+"understood" to false if the message doesn't describe a trip at all.
+You may interpret intent and explain results in plain language. You must
+never invent a specific cost, distance, or safety figure, override a
+safety score, or assume authorization you weren't given — those are
+computed and enforced by the system, not you.`
+
+  try {
+    const result = await generateContentWithTimeout(model, prompt)
+    const text = result.response.text()
+    const clean = text.replace(/```json|```/g, '').trim()
+    const parsed = JSON.parse(clean)
+    if (parsed.region && !availableRegions.includes(parsed.region)) parsed.region = null
+    logger.info({ freeText, parsed }, 'Gemini trip intent extracted')
+    return { ...parsed, understood: parsed.understood !== false, source: 'GEMINI_AI' }
+  } catch (err) {
+    logger.error({ err: { message: err.message } }, 'Gemini trip-intent extraction failed')
+    return { understood: false, source: 'OFFLINE_FALLBACK' }
+  }
+}
+
+module.exports = { generatePackingList, generateSafetyAdvisory, generateJourneyNarrative, extractPlanningIntent, extractTripIntent }

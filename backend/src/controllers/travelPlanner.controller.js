@@ -32,4 +32,35 @@ const commitJourney = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
-module.exports = { buildJourney, askFollowUp, commitJourney }
+const extractIntent = async (req, res, next) => {
+  try {
+    const result = await travelPlannerService.extractIntent(req.validatedBody.text)
+    sendSuccess(res, result)
+  } catch (err) { next(err) }
+}
+
+const adjustTrip = async (req, res, next) => {
+  try {
+    const result = await travelPlannerService.adjustTrip({
+      touristId: req.tourist.id,
+      tripId: req.params.tripId,
+      freeText: req.validatedBody.freeText,
+    })
+    sendSuccess(res, result, result.understood ? 'Adjustment proposed' : "Didn't understand that")
+  } catch (err) { next(err) }
+}
+
+const applyTripAdjustment = async (req, res, next) => {
+  try {
+    const trip = await travelPlannerService.applyTripAdjustment({
+      touristId: req.tourist.id,
+      tourist: req.tourist,
+      tripId: req.params.tripId,
+      orderedStopIds: req.validatedBody.orderedStopIds,
+      days: req.validatedBody.days,
+    })
+    sendSuccess(res, trip, 'Trip updated')
+  } catch (err) { next(err) }
+}
+
+module.exports = { buildJourney, askFollowUp, commitJourney, extractIntent, adjustTrip, applyTripAdjustment }

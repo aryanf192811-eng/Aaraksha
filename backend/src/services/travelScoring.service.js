@@ -194,4 +194,33 @@ function scoreCandidateItinerary({ origin, destinations, legsByPair, reviewSumma
   }
 }
 
-module.exports = { scoreCandidateItinerary, orderStopsGreedy, backtrackingRatio, budgetFitScore, durationFitScore, interestMatchScore, INTEREST_TAGS }
+// Applies an extracted follow-up intent (see gemini.service.js#extractPlanningIntent)
+// to a trip's CURRENT destination set. Pure, no DB, no Gemini -- this is
+// the actual decidable logic behind "AI-assisted trip adjustment" in
+// travelPlanner.service.js#adjustTrip, and deliberately treats
+// `intent.dropStopNames` as untrusted plain strings, never as an
+// authoritative destination reference: a name with no match among the
+// CURRENT stops is silently a no-op, never an invented removal. Adding a
+// stop (via intent.addInterests) only ever pulls from `candidatePool`,
+// which the caller sources from the SAME region the trip's existing stops
+// already belong to -- cross-region mixing is structurally impossible
+// here, not something this function has to guard against.
+function applyIntentToStops(currentDestinations, intent, candidatePool = []) {
+  const dropNames = new Set((intent?.dropStopNames || []).map((n) => n.trim().toLowerCase()))
+  let stops = currentDestinations.filter((d) => !dropNames.has((d.name || '').trim().toLowerCase()))
+
+  const addTags = (intent?.addInterests || []).filter((tag) => INTEREST_TAGS.includes(tag))
+  if (addTags.length > 0) {
+    const existingIds = new Set(stops.map((d) => d.id))
+    const match = candidatePool.find((d) => {
+      if (existingIds.has(d.id)) return false // dedup by id, not name
+      const haystack = `${d.description || ''} ${d.name || ''}`.toLowerCase()
+      return addTags.some((tag) => matchesInterest(d, tag) || haystack.includes(tag.toLowerCase()))
+    })
+    if (match) stops = [...stops, match]
+  }
+
+  return stops
+}
+
+module.exports = { scoreCandidateItinerary, orderStopsGreedy, backtrackingRatio, budgetFitScore, durationFitScore, interestMatchScore, applyIntentToStops, INTEREST_TAGS }

@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   scoreCandidateItinerary, orderStopsGreedy, backtrackingRatio,
-  budgetFitScore, durationFitScore, interestMatchScore,
+  budgetFitScore, durationFitScore, interestMatchScore, applyIntentToStops,
 } from '../../src/services/travelScoring.service.js'
 
 const GUWAHATI = { lat: 26.1445, lng: 91.7362, name: 'Guwahati' }
@@ -90,5 +90,40 @@ describe('travelScoring — scoreCandidateItinerary (integration of the pure pie
     const reviewSummaryById = new Map([['s1', { avgCostInr: 500 }]])
     const result = scoreCandidateItinerary({ origin: GUWAHATI, destinations: [SHILLONG], legsByPair, reviewSummaryById, budgetInr: 20000, days: 6, interests: [] })
     expect(result.localSpendEstimated).toBe(false)
+  })
+})
+
+// The actual new decidable logic behind AI-assisted trip adjustment --
+// see the header comment on applyIntentToStops itself for why this gets
+// hard unit-test coverage instead of a mocked Gemini integration test.
+describe('travelScoring — applyIntentToStops', () => {
+  const currentStops = [SHILLONG, CHERRAPUNJI]
+
+  it('drops a stop matched by name (case-insensitive)', () => {
+    const result = applyIntentToStops(currentStops, { dropStopNames: ['cherrapunji'] })
+    expect(result.map((d) => d.id)).toEqual(['s1'])
+  })
+
+  it('treats a name with no match as a no-op, never an invented removal', () => {
+    const result = applyIntentToStops(currentStops, { dropStopNames: ['Dawki'] })
+    expect(result).toHaveLength(2)
+  })
+
+  it('dropping every stop returns an explicit empty result, not an error', () => {
+    const result = applyIntentToStops(currentStops, { dropStopNames: ['Shillong', 'Cherrapunji'] })
+    expect(result).toEqual([])
+  })
+
+  it('adds a candidate matching an interest, without duplicating an existing stop', () => {
+    const candidatePool = [MAWLYNNONG, SHILLONG] // SHILLONG already in currentStops
+    const result = applyIntentToStops(currentStops, { addInterests: ['NATURE'] }, candidatePool)
+    const ids = result.map((d) => d.id)
+    expect(ids).toContain('s3') // Mawlynnong added
+    expect(ids.filter((id) => id === 's1')).toHaveLength(1) // Shillong not duplicated
+  })
+
+  it('leaves stops untouched when the intent has neither drops nor adds', () => {
+    const result = applyIntentToStops(currentStops, {})
+    expect(result).toHaveLength(2)
   })
 })

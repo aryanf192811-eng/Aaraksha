@@ -74,6 +74,39 @@ const travelPlannerApi = {
 
   commitJourney: (data: { title: string; startDate: string; endDate: string; travelType?: string; totalCostInr: number; itinerary: JourneyItinerary }) =>
     api.post<APIResponse<{ id: string }>>('/travel-planner/commit', data),
+
+  // Part 1 -- natural-language trip intake. Only ever pre-fills the
+  // structured form; never skips straight to a result.
+  extractIntent: (text: string) =>
+    api.post<APIResponse<{
+      fromCity: string | null; region: string | null; days: number | null; budgetInr: number | null
+      interests: Interest[]; transportPref: TransportMode[]; understood: boolean
+    }>>('/travel-planner/extract-intent', { text }),
+
+  // Part 2 -- AI-assisted adjustment of an ALREADY-COMMITTED trip.
+  // adjustTrip only ever returns a proposal; nothing is written until
+  // applyTripAdjustment is called explicitly. See travelPlanner.service.js
+  // for why applyTripAdjustment takes only stop IDENTITY (orderedStopIds +
+  // days) and never a client-supplied cost -- the server always
+  // recomputes totalCostInr itself.
+  // `after` has no externalLegs -- unlike a fresh build-journey result,
+  // an adjustment to an already-committed trip has no fresh "how you got
+  // to Guwahati" leg to show, only the NE-internal itinerary that changed.
+  adjustTrip: (tripId: string, freeText: string) =>
+    api.post<APIResponse<
+      | { understood: false; message: string }
+      | {
+          understood: true
+          before: { totalCostInr: number; days: number; stopNames: string[]; tsiScore: number | null }
+          after: Omit<BuildJourneyResult, 'externalLegs'> & { daysUsedForScoring: number }
+          skippedManualStops: number
+        }
+    >>(`/travel-planner/trips/${tripId}/adjust`, { freeText }),
+
+  applyTripAdjustment: (tripId: string, orderedStopIds: string[], days: number) =>
+    api.post<APIResponse<{ id: string; stops: unknown[]; budget_inr: number; tsi_score: number | null }>>(
+      `/travel-planner/trips/${tripId}/apply-adjustment`, { orderedStopIds, days }
+    ),
 }
 
 export default travelPlannerApi
