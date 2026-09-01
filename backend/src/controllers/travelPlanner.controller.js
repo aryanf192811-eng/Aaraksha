@@ -63,4 +63,11 @@ const applyTripAdjustment = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
-module.exports = { buildJourney, askFollowUp, commitJourney, extractIntent, adjustTrip, applyTripAdjustment }
+const getRoutesBetween = async (req, res, next) => {
+  try {
+    const result = await travelPlannerService.getRoutesBetween(req.validatedQuery.from, req.validatedQuery.to)
+    sendSuccess(res, result)
+  } catch (err) { next(err) }
+}
+
+module.exports = { buildJourney, askFollowUp, commitJourney, extractIntent, adjustTrip, applyTripAdjustment, getRoutesBetween }

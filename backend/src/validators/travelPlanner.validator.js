@@ -63,8 +63,13 @@ const ApplyTripAdjustmentSchema = z.object({
   days: z.number().int().min(1).max(30),
 })
 
+const RoutesBetweenQuerySchema = z.object({
+  from: z.string().uuid(),
+  to:   z.string().uuid(),
+})
+
 module.exports = {
   BuildJourneySchema, AskFollowUpSchema, CommitJourneySchema,
   ExtractIntentSchema, AdjustTripSchema, ApplyTripAdjustmentSchema,
-  INTEREST_TAGS, TRANSPORT_MODES,
+  RoutesBetweenQuerySchema, INTEREST_TAGS, TRANSPORT_MODES,
 }

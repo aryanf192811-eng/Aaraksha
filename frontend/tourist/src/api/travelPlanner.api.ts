@@ -107,6 +107,15 @@ const travelPlannerApi = {
     api.post<APIResponse<{ id: string; stops: unknown[]; budget_inr: number; tsi_score: number | null }>>(
       `/travel-planner/trips/${tripId}/apply-adjustment`, { orderedStopIds, days }
     ),
+
+  // For StopDetailSheet.tsx -- every curated leg between one specific
+  // stop pair (not just the single representative one build-journey
+  // scores with), plus the destination's review summary.
+  getRoutesBetween: (fromId: string, toId: string) =>
+    api.get<APIResponse<{
+      routes: JourneyLeg[]
+      reviewSummary: { avgRating: number | null; avgCostInr: number | null; reviewCount: number; sampleTips: string[]; commonFeltSafe: string | null } | null
+    }>>('/travel-planner/routes-between', { params: { from: fromId, to: toId } }),
 }
 
 export default travelPlannerApi

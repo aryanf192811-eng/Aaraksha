@@ -110,6 +110,8 @@ export interface Stop {
   zone_type: string
   hospital_km: number
   eta_minutes: number | null
+  status: 'UPCOMING' | 'DONE'
+  actualCostInr: number | null
 }
 
 // One entry per trip stop — see tsi.service.js#calculateStopRisk. Powers

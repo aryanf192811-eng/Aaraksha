@@ -11,6 +11,7 @@ const { TripRepository } = require('../repositories/trip.repository')
 const { scoreCandidateItinerary, applyIntentToStops, INTEREST_TAGS } = require('./travelScoring.service')
 const { generateJourneyNarrative, extractPlanningIntent, extractTripIntent } = require('./gemini.service')
 const { createTrip, updateTrip } = require('./trip.service')
+const { haversineKm } = require('../utils/geo')
 const { ERRORS } = require('../constants/errors')
 const logger = require('../utils/logger')
 
@@ -100,6 +101,48 @@ async function recomputeItineraryCost(destinationIds, days) {
     budgetInr: null, days: days || 1, interests: [],
   })
   return { destinations, totalCostInr: scored.totalCostInr }
+}
+
+// Every curated leg between one specific stop pair, or a single
+// haversine-estimated fallback when the dataset has none yet -- for the
+// stop-detail sheet (see StopDetailSheet.tsx). Unlike travelScoring
+// .service.js#buildLegs (used during scoring, which keeps only one
+// representative leg per pair to feed the cost calculation), this keeps
+// ALL curated modes for the pair, since here a human is choosing between
+// options, not a scorer summing a total.
+async function getRoutesBetween(fromId, toId) {
+  const repo = new TravelPlannerRepository()
+  const [destinations, curatedRoutes] = await Promise.all([
+    repo.findDestinationsByIds([fromId, toId]),
+    repo.findRoutesBetween(fromId, toId),
+  ])
+  const from = destinations.find((d) => d.id === fromId)
+  const to = destinations.find((d) => d.id === toId)
+  if (!from || !to) {
+    const err = new Error('One of these stops no longer exists.')
+    err.statusCode = 404
+    throw err
+  }
+
+  let routes
+  if (curatedRoutes.length > 0) {
+    routes = curatedRoutes.map((r) => ({
+      fromName: from.name, toName: to.name, mode: r.mode,
+      durationMinutes: r.duration_minutes, costMinInr: r.cost_min_inr,
+      costMaxInr: r.cost_max_inr, notes: r.notes, estimated: false,
+    }))
+  } else {
+    const distanceKm = haversineKm(from.latitude, from.longitude, to.latitude, to.longitude)
+    routes = [{
+      fromName: from.name, toName: to.name, mode: 'SHARED_TAXI',
+      durationMinutes: Math.round((distanceKm / 35) * 60), // ~35km/h rough NE road speed, same as buildLegs
+      costMinInr: Math.round(distanceKm * 8), costMaxInr: Math.round(distanceKm * 14),
+      notes: null, estimated: true,
+    }]
+  }
+
+  const reviewSummaryById = await repo.getReviewSummaries([toId])
+  return { routes, reviewSummary: reviewSummaryById.get(toId) || null }
 }
 
 async function selectCandidates({ state, interests, count }) {
@@ -359,4 +402,4 @@ async function applyTripAdjustment({ touristId, tourist, tripId, orderedStopIds,
   return updated
 }
 
-module.exports = { buildJourney, askFollowUp, commitJourney, extractIntent, adjustTrip, applyTripAdjustment }
+module.exports = { buildJourney, askFollowUp, commitJourney, extractIntent, adjustTrip, applyTripAdjustment, getRoutesBetween }

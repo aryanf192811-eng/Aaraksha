@@ -62,6 +62,24 @@ class TravelPlannerRepository extends BaseRepository {
     return new Map(rows.map((r) => [`${r.from_destination_id}_${r.to_destination_id}`, r]))
   }
 
+  // All curated routes for one specific pair, for the stop-detail sheet --
+  // deliberately separate from findRoutesAmong (which keeps one
+  // representative route per pair, keyed for the scoring pipeline). A
+  // pair can legitimately have more than one curated mode (e.g. train AND
+  // shared-taxi to the same stop) and the detail view should show all of
+  // them, not just whichever one the scoring Map happened to keep.
+  async findRoutesBetween(fromId, toId) {
+    if (!fromId || !toId) return []
+    return this.query(
+      `SELECT id, from_destination_id, to_destination_id, mode, duration_minutes,
+              cost_min_inr, cost_max_inr, notes, source, created_at
+       FROM typical_routes
+       WHERE from_destination_id = $1 AND to_destination_id = $2
+       ORDER BY duration_minutes ASC NULLS LAST`,
+      [fromId, toId]
+    )
+  }
+
   // Real traveller cost/experience data from destination_reviews -- the
   // "human experience, no hardcoded data" layer both source proposals
   // wanted to scrape from the internet already exists as this table.

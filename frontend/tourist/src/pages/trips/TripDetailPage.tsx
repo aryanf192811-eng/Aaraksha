@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft, Share2, Download, Map, List, Package, FileText, AlertTriangle,
   Rocket, Sparkles, RefreshCw, Loader2, Check, Lightbulb, HeartPulse, Backpack, LocateFixed,
-  Users, Copy, LogOut, Clock, Newspaper, ChevronDown, Plus, Trash2, Wallet, MapPin,
+  Users, Copy, LogOut, Clock, Newspaper, ChevronDown, Plus, Trash2, Wallet, MapPin, CheckCircle2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
@@ -19,6 +19,7 @@ import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog'
 import { TSIBadge, EmptyState, PageSkeleton, NewsFeed, TSIBreakdown, JourneyRiskGraph, SafetyAdvisory, DestinationSearchField, ConfirmDialog } from '../../components/shared'
+import { StopDetailSheet } from '../../components/shared/StopDetailSheet'
 import tripApi from '../../api/trip.api'
 import packingApi from '../../api/packing.api'
 import passportApi from '../../api/passport.api'
@@ -165,6 +166,8 @@ export default function TripDetailPage() {
   // both confirmed before firing, not fired straight from the trash icon.
   const [confirmDeleteStop, setConfirmDeleteStop] = useState<number | null>(null)
   const [confirmDeleteActivity, setConfirmDeleteActivity] = useState<{ stopIdx: number; activityIdx: number } | null>(null)
+  const [detailStopIdx, setDetailStopIdx] = useState<number | null>(null)
+  const [markVisitedIdx, setMarkVisitedIdx] = useState<number | null>(null)
 
   const addStop = (stop: Stop) => {
     saveStops([...(trip?.stops ?? []), stop])
@@ -184,6 +187,14 @@ export default function TripDetailPage() {
     const next = (trip?.stops ?? []).map((s, i) => i === stopIdx ? { ...s, activities: s.activities.filter((_, ai) => ai !== activityIdx) } : s)
     saveStops(next)
     setConfirmDeleteActivity(null)
+  }
+  // Pre-fill is an honest estimate (even share of the total planned
+  // budget), never a claim of a known real cost -- there's no bank/UPI
+  // integration behind this. Editable before confirming.
+  const markVisited = (stopIdx: number, actualCostInr: number) => {
+    const next = (trip?.stops ?? []).map((s, i) => i === stopIdx ? { ...s, status: 'DONE' as const, actualCostInr } : s)
+    saveStops(next)
+    setMarkVisitedIdx(null)
   }
 
   const handleShare = async () => {
@@ -220,6 +231,10 @@ export default function TripDetailPage() {
   const totalCost = Object.values(budgetByType).reduce((s, v) => s + v, 0)
 
   const budgetPct = trip.budget_inr ? Math.min(100, Math.round((totalCost / trip.budget_inr) * 100)) : null
+
+  const doneStops = stops.filter(s => s.status === 'DONE')
+  const spentSoFar = doneStops.reduce((sum, s) => sum + (s.actualCostInr || 0), 0)
+  const nextStopIdx = stops.findIndex(s => s.status !== 'DONE')
 
   return (
     <div className="min-h-screen bg-surface pb-24">
@@ -366,16 +381,46 @@ export default function TripDetailPage() {
         {tab === 'itinerary' && (
           <div className="space-y-4">
             {stops.length === 0 && <p className="text-center text-on-surface-variant py-8">{t('tripDetail.noStopsYet')}</p>}
+
+            {/* Progress timeline — pure derived state from stops[].status,
+                no separate data source. DONE stops filled/checked, the
+                first remaining stop called out as "next". */}
+            {stops.length > 1 && (
+              <div className="flex items-center px-1">
+                {stops.map((stop, idx) => (
+                  <div key={idx} className="flex items-center flex-1 last:flex-none">
+                    <div className="flex flex-col items-center flex-shrink-0" title={stop.city}>
+                      <div className={cn('w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold transition-colors',
+                        stop.status === 'DONE' ? 'bg-tsi-low text-white'
+                          : idx === nextStopIdx ? 'bg-primary text-on-surface ring-4 ring-primary/20'
+                          : 'bg-surface-container-high text-on-surface-variant'
+                      )}>
+                        {stop.status === 'DONE' ? <Check className="w-3.5 h-3.5" /> : idx + 1}
+                      </div>
+                      <span className={cn('text-[9px] mt-1 max-w-[52px] truncate', idx === nextStopIdx ? 'font-bold text-on-surface' : 'text-on-surface-variant')}>{stop.city}</span>
+                    </div>
+                    {idx < stops.length - 1 && (
+                      <div className={cn('h-0.5 flex-1 mx-0.5', stop.status === 'DONE' ? 'bg-tsi-low' : 'bg-surface-container-high')} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             {stops.map((stop, idx) => (
-              <div key={idx} className="bg-surface-container-lowest rounded-3xl shadow-sm overflow-hidden flex">
-                <img src={getDestinationImage(stop.city, { w: 400, q: 80 })} alt={stop.city}
-                  className="w-24 sm:w-28 flex-shrink-0 object-cover" />
+              <div key={idx} className={cn('bg-surface-container-lowest rounded-3xl shadow-sm overflow-hidden flex transition-opacity', stop.status === 'DONE' && 'opacity-70')}>
+                <img src={getDestinationImage(stop.city, { w: 400, q: 80 })} alt="" onClick={() => setDetailStopIdx(idx)}
+                  role="button" aria-label={t('tripDetail.viewStopDetails', { city: stop.city })}
+                  className="w-24 sm:w-28 flex-shrink-0 object-cover cursor-pointer" />
                 <div className="p-4 flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h3 className="font-display font-bold text-on-surface">{stop.city}</h3>
+                    <button onClick={() => setDetailStopIdx(idx)} className="text-left">
+                      <h3 className="font-display font-bold text-on-surface flex items-center gap-1.5">
+                        {stop.city}
+                        {stop.status === 'DONE' && <CheckCircle2 className="w-3.5 h-3.5 text-tsi-low" />}
+                      </h3>
                       <p className="text-xs text-on-surface-variant">{stop.state} · {t('tripDetail.dayCount', { count: stop.days })}</p>
-                    </div>
+                    </button>
                     <div className="flex items-start gap-2 flex-shrink-0">
                       <div className="text-right">
                         <span className="text-xs font-bold text-on-surface-variant">{tEnum(t, 'zoneType', stop.zone_type)}</span>
@@ -383,7 +428,7 @@ export default function TripDetailPage() {
                           <p className="text-xs text-tsi-high">{t('tripDetail.altitudeLabel', { m: stop.altitude_m })}</p>
                         )}
                       </div>
-                      <button onClick={() => setConfirmDeleteStop(idx)} disabled={savingStops} title={t('tripDetail.removeStop')}
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteStop(idx) }} disabled={savingStops} title={t('tripDetail.removeStop')}
                         className="w-6 h-6 rounded-full flex items-center justify-center text-sos/60 hover:text-sos-dark hover:bg-sos/10 transition-colors flex-shrink-0">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -416,6 +461,27 @@ export default function TripDetailPage() {
                     </p>
                   )}
 
+                  {stop.status === 'DONE' ? (
+                    <p className="mt-2.5 text-xs font-semibold text-tsi-low flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> {t('tripDetail.visited')}
+                      {stop.actualCostInr != null && ` · ${formatINR(stop.actualCostInr)}`}
+                    </p>
+                  ) : trip.status === TRIP_STATUSES.ACTIVE && (
+                    markVisitedIdx === idx ? (
+                      <MarkVisitedForm
+                        defaultAmount={stops.length > 0 ? Math.round((trip.budget_inr || 0) / stops.length) : 0}
+                        onConfirm={(amount) => markVisited(idx, amount)}
+                        onCancel={() => setMarkVisitedIdx(null)}
+                        pending={savingStops}
+                      />
+                    ) : (
+                      <button onClick={() => setMarkVisitedIdx(idx)}
+                        className="mt-2.5 flex items-center gap-1 text-xs font-semibold text-tsi-low hover:underline">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> {t('tripDetail.markVisited')}
+                      </button>
+                    )
+                  )}
+
                   {addActivityForStop === idx ? (
                     <AddActivityForm onAdd={(a) => addActivity(idx, a)} onCancel={() => setAddActivityForStop(null)} pending={savingStops} />
                   ) : (
@@ -438,6 +504,24 @@ export default function TripDetailPage() {
         {/* ── Budget Tab ────────────────────────────────────── */}
         {tab === 'budget' && (
           <div className="space-y-4">
+            {/* Spent so far — sum of actualCostInr across stops marked
+                visited (see markVisited above), separate from the
+                activity-cost breakdown below since it tracks real
+                confirmed spend against completed stops, not planned
+                activity costs across the whole trip. */}
+            {doneStops.length > 0 && (
+              <div className="bg-tsi-low/10 border border-tsi-low/20 rounded-3xl shadow-sm p-4">
+                <p className="text-xs font-bold text-tsi-low uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> {t('tripDetail.spentSoFar')}
+                </p>
+                <p className="text-lg font-black text-on-surface leading-none">
+                  {formatINR(spentSoFar)}
+                  {trip.budget_inr && <span className="text-xs font-medium text-on-surface-variant"> / {formatINR(trip.budget_inr)}</span>}
+                </p>
+                <p className="text-[11px] text-on-surface-variant mt-1">{t('tripDetail.visitedCount', { count: doneStops.length, total: stops.length })}</p>
+              </div>
+            )}
+
             {/* Log an expense — same write path as the itinerary tab's
                 per-stop "+ Add Activity", but entry-point-first for anyone
                 who thinks in expenses rather than itinerary structure. */}
@@ -678,6 +762,12 @@ export default function TripDetailPage() {
         pending={savingStops}
         onConfirm={() => confirmDeleteActivity && removeActivity(confirmDeleteActivity.stopIdx, confirmDeleteActivity.activityIdx)}
       />
+      <StopDetailSheet
+        open={detailStopIdx !== null}
+        stop={detailStopIdx !== null ? stops[detailStopIdx] : null}
+        previousStop={detailStopIdx !== null && detailStopIdx > 0 ? stops[detailStopIdx - 1] : null}
+        onClose={() => setDetailStopIdx(null)}
+      />
     </div>
   )
 }
@@ -711,7 +801,7 @@ function AddStopDialog({ open, onOpenChange, onAdd, pending }: {
       days: Math.max(1, Number(days) || 1), arrivalDate: null, departureDate: null,
       activities: [], notes: notes.trim() || null,
       connectivity: 'MODERATE', difficulty: 'EASY', altitude_m: 0, zone_type: 'SAFE',
-      hospital_km: 0, eta_minutes: null,
+      hospital_km: 0, eta_minutes: null, status: 'UPCOMING', actualCostInr: null,
     })
     reset()
   }
@@ -805,6 +895,39 @@ function AddActivityForm({ onAdd, onCancel, pending }: {
         <Button size="sm" disabled={!name.trim() || pending} onClick={submit}
           className="flex-1 h-9 rounded-full text-xs bg-primary hover:brightness-95 text-on-surface font-bold flex items-center justify-center gap-1.5">
           {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Plus className="w-3.5 h-3.5" /> {t('common.add')}</>}
+        </Button>
+        <Button size="sm" variant="outline" onClick={onCancel} className="h-9 rounded-full text-xs px-4">
+          {t('common.cancel')}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ── Mark-visited inline confirm ──────────────────────────────────────────
+// Amount pre-fills with an even share of the trip's total planned budget —
+// an honest estimate, not a claim of a known real cost (no bank/UPI
+// integration exists) — and stays fully editable before confirming.
+function MarkVisitedForm({ defaultAmount, onConfirm, onCancel, pending }: {
+  defaultAmount: number
+  onConfirm: (amount: number) => void
+  onCancel: () => void
+  pending: boolean
+}) {
+  const { t } = useTranslation()
+  const [amount, setAmount] = useState(String(defaultAmount))
+
+  return (
+    <div className="mt-2.5 p-3 bg-tsi-low/5 border border-tsi-low/20 rounded-xl space-y-2">
+      <label className="text-xs text-on-surface-variant flex items-center gap-1.5">
+        <Wallet className="w-3.5 h-3.5" /> {t('tripDetail.actualSpendLabel')}
+      </label>
+      <Input type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)}
+        className="h-9 rounded-lg text-xs" />
+      <div className="flex items-center gap-2">
+        <Button size="sm" disabled={pending} onClick={() => onConfirm(Math.max(0, Number(amount) || 0))}
+          className="flex-1 h-9 rounded-full text-xs bg-tsi-low hover:brightness-95 text-white font-bold flex items-center justify-center gap-1.5">
+          {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><CheckCircle2 className="w-3.5 h-3.5" /> {t('tripDetail.confirmVisited')}</>}
         </Button>
         <Button size="sm" variant="outline" onClick={onCancel} className="h-9 rounded-full text-xs px-4">
           {t('common.cancel')}

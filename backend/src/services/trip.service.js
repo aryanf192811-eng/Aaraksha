@@ -39,8 +39,14 @@ async function enrichStops(stops) {
       city:          stop.city,
       state:         stop.state,
       destinationId: stop.destinationId || null,
-      lat:           stop.lat ?? dest.latitude ?? null,
-      lng:           stop.lng ?? dest.longitude ?? null,
+      // dest.latitude/longitude/nearest_hospital_km are decimal columns --
+      // node-pg returns those as strings, not numbers. Number() them on
+      // the fallback path or a string silently lands in the stored JSONB
+      // and fails StopSchema's z.number() the next time these stops round-
+      // trip through an update (stop.lat/lng themselves are already real
+      // numbers when the client supplies them, e.g. via Nominatim search).
+      lat:           stop.lat ?? (dest.latitude != null ? Number(dest.latitude) : null),
+      lng:           stop.lng ?? (dest.longitude != null ? Number(dest.longitude) : null),
       days:          stop.days,
       arrivalDate:   stop.arrivalDate || null,
       departureDate: stop.departureDate || null,
@@ -50,8 +56,10 @@ async function enrichStops(stops) {
       difficulty:    stop.difficulty  || dest.difficulty   || 'EASY',
       altitude_m:    stop.altitude_m  ?? dest.altitude_m   ?? 0,
       zone_type:     stop.zone_type   || dest.zone_type    || 'SAFE',
-      hospital_km:   stop.hospital_km ?? dest.nearest_hospital_km ?? 0,
+      hospital_km:   stop.hospital_km ?? (dest.nearest_hospital_km != null ? Number(dest.nearest_hospital_km) : 0),
       eta_minutes:   stop.eta_minutes || null,
+      status:        stop.status || 'UPCOMING',
+      actualCostInr: stop.actualCostInr ?? null,
     }
   })
 }

@@ -18,8 +18,14 @@ const StopSchema = z.object({
   city:          z.string().min(1).max(255),
   state:         z.string().min(1).max(100),
   destinationId: z.string().uuid().optional().nullable(),
-  lat:           z.number().min(-90).max(90).optional().nullable(),
-  lng:           z.number().min(-180).max(180).optional().nullable(),
+  // z.coerce -- destinations.latitude/longitude are decimal columns and
+  // node-pg returns those as strings; a stop whose lat/lng got backfilled
+  // from destinations (see trip.service.js#enrichStops) rather than
+  // supplied directly by the client can round-trip through here as a
+  // string. Coercing at this boundary handles that regardless of which
+  // side the string originated on.
+  lat:           z.coerce.number().min(-90).max(90).optional().nullable(),
+  lng:           z.coerce.number().min(-180).max(180).optional().nullable(),
   days:          z.number().int().min(1).max(365),
   arrivalDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   departureDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
@@ -30,8 +36,13 @@ const StopSchema = z.object({
   difficulty:    z.enum(Object.values(DIFFICULTY)).optional().default('EASY'),
   altitude_m:    z.number().int().min(0).optional().default(0),
   zone_type:     z.enum(Object.values(ZONE_TYPES)).optional().default('SAFE'),
-  hospital_km:   z.number().min(0).optional().default(0),
+  hospital_km:   z.coerce.number().min(0).optional().default(0),
   eta_minutes:   z.number().int().min(0).optional().nullable(),
+  // Trip-progress fields -- set by the tourist marking a stop visited,
+  // never derived from destinations. See trip.service.js#enrichStops,
+  // which must thread these through explicitly or a save silently drops them.
+  status:        z.enum(['UPCOMING', 'DONE']).optional().default('UPCOMING'),
+  actualCostInr: z.number().int().min(0).optional().nullable(),
 })
 
 const PackingItemSchema = z.object({

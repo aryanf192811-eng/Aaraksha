@@ -8,10 +8,12 @@ const { validate } = require('../middleware/validate')
 const {
   BuildJourneySchema, AskFollowUpSchema, CommitJourneySchema,
   ExtractIntentSchema, AdjustTripSchema, ApplyTripAdjustmentSchema,
+  RoutesBetweenQuerySchema,
 } = require('../validators/travelPlanner.validator')
 
 router.use(authenticateTourist)
 
+router.get('/routes-between', validate(RoutesBetweenQuerySchema, 'query'), ctrl.getRoutesBetween)
 router.post('/build-journey', validate(BuildJourneySchema), ctrl.buildJourney)
 router.post('/ask', validate(AskFollowUpSchema), ctrl.askFollowUp)
 router.post('/commit', validate(CommitJourneySchema), ctrl.commitJourney)
