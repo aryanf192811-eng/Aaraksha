@@ -281,6 +281,32 @@ version of "the dataset got bigger."
 Format: date, who/which model, what changed, what's next. Newest first.
 
 ```
+2026-09-01 — Claude Code (Sonnet 5) [supervisor pass 3 — acted on both replies]
+  Sessions 9 and 10 both replied to research handoffs. Reviewed and acted:
+
+  Session 9 (EXTERNAL_GATEWAY_LEGS): specific, checkable findings (named
+  trains -- 12424 Dibrugarh Rajdhani, 12519 LTT-AGTL AC Express, the
+  Howrah-Kamakhya Vande Bharat -- with class-by-class fare bands, not a
+  vague range), and it flagged its own two most useful findings itself
+  (Delhi and Kolkata's old costMaxInr undershot real 3A/2A fares). Acted
+  on it: updated the constant in travelPlanner.service.js with the
+  researched figures, using SL-to-2A as the representative band (not 1AC,
+  not a "book 6 months out" floor fare) with a comment citing this
+  session. Live-verified via a real build-journey call that the new
+  figures (Delhi: Rs800-3600, was Rs1200-2200) actually reach the API
+  response. Tests still 56/56.
+
+  Session 10 (multi-modal route research): correctly did research-only,
+  zero inserts, exactly as asked. Real findings for 4 of 6 pairs (bus
+  option for Jorhat<->Kaziranga and Shillong<->Cherrapunji, train for
+  Agartala<->Unakoti, private-taxi-only clarified for Gangtok<->Pelling)
+  and an honest "none found" for the other 2 rather than padding the
+  report. This is now validated backlog, ready for whenever the
+  findRoutesAmong aggregation fix (a Claude Code task, not curation --
+  see the "How to add data" section above) actually lands; not acted on
+  further this pass since that's real application code, not a data-only
+  change like the gateway legs constant was.
+
 2026-09-01 — Claude Code (Sonnet 5) [new research task handed off]
   The user is evolving the tourist app toward per-stop detail (full
   destination info + real "how to reach — via train, via bus" options),
@@ -414,6 +440,33 @@ Format: date, who/which model, what changed, what's next. Newest first.
   as the original Meghalaya route was before session 1 fixed that. See
   the Worklist section above. Continuing the frontend build for the
   natural-language intake + trip-adjustment UI in the main conversation.
+
+2026-09-01 — Gemini 3.1 Pro (High) [session 10]
+  RESEARCH: Additional transport modes for already-covered city pairs (Worklist Item #4)
+  
+  As requested, here is the research on whether a real, sourced second mode exists for each currently curated pair. No inserts were performed.
+
+  **1. Jorhat ↔ Kaziranga (Current: SHARED_TAXI)**
+  - **Second Mode:** `BUS` (ASTC / Private operators like Baikuntha Travels)
+  - **Details:** Takes ~1h 45m to 2h 30m. Fares range from ₹150 (non-AC) to ₹600-₹1000 (AC/Sleeper). Can be booked via redBus/MakeMyTrip.
+
+  **2. Agartala ↔ Unakoti (Current: SHARED_TAXI)**
+  - **Second Mode:** `TRAIN` (IRCTC to Kumarghat, the nearest railhead for Unakoti)
+  - **Details:** Takes ~2h 10m to 3h. Fares range from ₹100-₹140 (SL) up to ₹500-₹700 (3A/2A).
+
+  **3. Gangtok ↔ Pelling (Current: SHARED_TAXI)**
+  - **Second Mode:** `PRIVATE_TAXI` (Since no direct SNT public bus exists)
+  - **Details:** Takes ~4.5h to 5.5h. Fares range from ₹2800 to ₹4500+ depending on the vehicle.
+
+  **4. Shillong ↔ Cherrapunji (Current: SHARED_TAXI)**
+  - **Second Mode:** `BUS` (MTDC Guided Tourist Bus)
+  - **Details:** MTDC operates a day-tour bus (08:00 AM to 05:30 PM). Cost is ₹750 per person. (Note: This is a sightseeing tour rather than point-to-point transit, but acts as a bus transport option).
+
+  **5. Tawang ↔ Ziro Valley (Current: PRIVATE_TAXI)**
+  - **Second Mode:** None found. Pawan Hans helicopter services do not fly directly between Tawang and Ziro (requires routing via Naharlagun, which is highly weather-dependent).
+
+  **6. Dzukou Valley ↔ Longwa Village (Current: SHARED_TAXI)**
+  - **Second Mode:** None found directly. There is no direct NST bus from Kohima to Longwa (requires a `MIXED` mode breaking at Mon).
 
 2026-09-01 — Gemini 3.1 Pro (High) [session 9]
   RESEARCH: EXTERNAL_GATEWAY_LEGS citations (Delhi/Mumbai/Kolkata/Bangalore/Chennai → Guwahati)

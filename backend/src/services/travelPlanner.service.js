@@ -22,12 +22,33 @@ const NE_REGIONS = ['Meghalaya', 'Assam', 'Arunachal Pradesh', 'Nagaland', 'Mani
 // near-universal rail/air gateway into Northeast India; every itinerary
 // effectively starts there regardless of the traveller's real origin city.
 const GATEWAY = { name: 'Guwahati', lat: 26.1445, lng: 91.7362 }
+// Sourced 2026-09-01 (chatbot.md session log, "session 9") -- IRCTC train
+// numbers/fares and flight duration/fare ranges for each gateway city,
+// researched by an Antigravity curation agent per chatbot.md's request.
+// TRAIN cost bands run sleeper-class minimum to AC 2-tier/3-tier maximum
+// (not 1AC, which isn't representative of typical budget travel); FLIGHT
+// bands are the researched fare range, not the "book months ahead" floor.
+// Previously illustrative/uncited placeholder values -- these are real
+// train numbers and fare bands, not invented, but still route-level
+// generalizations, not a live fare-lookup API.
 const EXTERNAL_GATEWAY_LEGS = {
-  DELHI:     { mode: 'TRAIN', durationMinutes: 27 * 60, costMinInr: 1200, costMaxInr: 2200, flightAlt: { durationMinutes: 165, costMinInr: 4500, costMaxInr: 9000 } },
-  MUMBAI:    { mode: 'TRAIN', durationMinutes: 40 * 60, costMinInr: 1800, costMaxInr: 3200, flightAlt: { durationMinutes: 195, costMinInr: 6000, costMaxInr: 11000 } },
-  KOLKATA:   { mode: 'TRAIN', durationMinutes: 17 * 60, costMinInr: 900,  costMaxInr: 1800, flightAlt: { durationMinutes: 90,  costMinInr: 3000, costMaxInr: 6500 } },
-  BANGALORE: { mode: 'FLIGHT', durationMinutes: 165, costMinInr: 5000, costMaxInr: 10000 },
-  CHENNAI:   { mode: 'FLIGHT', durationMinutes: 175, costMinInr: 5500, costMaxInr: 10500 },
+  // Train: 12424 Dibrugarh Rajdhani ~27h05m (fastest named option) to 33-41h
+  // for standard expresses. SL ~Rs800, 3A ~Rs2100-3515, 2A ~Rs4660.
+  // Flight: 2h05m-2h30m non-stop, Rs4500-9000 (avg ~Rs7500-8200).
+  DELHI:     { mode: 'TRAIN', durationMinutes: 27 * 60, costMinInr: 800, costMaxInr: 3600, flightAlt: { durationMinutes: 140, costMinInr: 4500, costMaxInr: 9000 } },
+  // Train: 12519 LTT-AGTL AC Express ~43h30m to 50h+. SL ~Rs810-975,
+  // 3A ~Rs2155-2200, 2A ~Rs3200-3400. Flight: 3h-3h30m, Rs6300-15000.
+  MUMBAI:    { mode: 'TRAIN', durationMinutes: 44 * 60, costMinInr: 810, costMaxInr: 3400, flightAlt: { durationMinutes: 195, costMinInr: 6300, costMaxInr: 15000 } },
+  // Train: Howrah-Kamakhya Vande Bharat ~14h (fastest) to 20h+ standard.
+  // SL ~Rs475-550, 3A ~Rs1200-2435, 2A up to ~Rs3100. Flight: 1h15-1h30,
+  // Rs3500-8000.
+  KOLKATA:   { mode: 'TRAIN', durationMinutes: 15 * 60, costMinInr: 475, costMaxInr: 3100, flightAlt: { durationMinutes: 90,  costMinInr: 3500, costMaxInr: 8000 } },
+  // No realistic direct train (50h+); flight is the standard option.
+  // 3h non-stop, Rs7200-13600.
+  BANGALORE: { mode: 'FLIGHT', durationMinutes: 180, costMinInr: 7200, costMaxInr: 13600 },
+  // No realistic direct train (40h+); flight is the standard option.
+  // 2h15-3h non-stop, Rs6700-18000.
+  CHENNAI:   { mode: 'FLIGHT', durationMinutes: 155, costMinInr: 6700, costMaxInr: 18000 },
 }
 
 function resolveExternalLeg(fromCity, transportPref) {
