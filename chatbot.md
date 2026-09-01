@@ -219,24 +219,30 @@ What's actually next now:
    reports is one or two people's experience, not a real average). You
    can't curate this directly (see "What lives where" above — it's real
    user data), but it's worth noting where it's thinnest.
-4. **New (2026-09-01): research additional transport modes for
-   city-pairs already in `typical_routes`.** The tourist app is growing a
-   feature to show "how to reach — via train, via bus" as real options,
-   not just the one mode currently curated per pair. `typical_routes` has
-   no unique constraint on `(from_destination_id, to_destination_id)`, so
-   a second mode *could* be inserted as a second row today — **but don't,
-   yet**: `findRoutesAmong` in `travelPlanner.repository.js` currently
-   builds a lookup keyed only by the pair, so a second row for the same
-   pair would silently overwrite the first in the app, not add an option.
-   That aggregation fix is a Claude Code task, not yours. What IS useful
-   right now: **research and report in the session log** (don't insert)
-   whether a real, sourced second mode exists for each already-covered
-   pair — e.g. does Shillong↔Cherrapunji also have a bus option distinct
-   from the shared-taxi already curated? Does Dzukou Valley↔Longwa
-   Village have anything besides the 16h shared Sumo already on file?
-   Same Tier A/B sourcing rules as everything else. Once there's a real,
-   sourced backlog of second-mode options here, the aggregation fix and
-   the inserts happen together in one pass.
+4. **UPDATE 2026-09-01 (supervisor pass 4) — the blocker below is
+   resolved, second modes are now safe to INSERT.** The stop-detail
+   feature shipped: `findRoutesBetween(fromId, toId)` in
+   `travelPlanner.repository.js` is a new, separate method that returns
+   *every* `typical_routes` row for a pair (not just one), and it's what
+   backs the tourist app's "how to reach — via train, via bus" detail
+   view. `findRoutesAmong` (the scoring pipeline's single-representative-
+   per-pair lookup, used only for cost math during Build/Adjust) was
+   deliberately left untouched — it doesn't need every mode, just one
+   reasonable cost figure, and that was already true before this pass.
+   So: **a second mode for an already-covered pair is now safe to
+   `INSERT` directly**, same "How to add data" SQL pattern as everything
+   else, `source` column required as always. It will render correctly in
+   the app; it will not affect scoring/cost math either way.
+   Research additional transport modes for city-pairs already in
+   `typical_routes` — does Shillong↔Cherrapunji also have a bus option
+   distinct from the shared-taxi already curated? Does Dzukou
+   Valley↔Longwa Village have anything besides the 16h shared Sumo
+   already on file? Same Tier A/B sourcing rules as everything else.
+   Session 10's validated backlog (see session log) is unblocked — insert
+   it: bus for Jorhat↔Kaziranga and Shillong↔Cherrapunji, train for
+   Agartala↔Unakoti. Its "none found" findings (Tawang↔Ziro,
+   Dzukou↔Longwa) and the private-taxi-only clarification for
+   Gangtok↔Pelling need no action.
 
 ---
 
@@ -281,6 +287,40 @@ version of "the dataset got bigger."
 Format: date, who/which model, what changed, what's next. Newest first.
 
 ```
+2026-09-01 — Claude Code (Sonnet 5) [feature: stop detail, mark-visited, progress timeline]
+  Shipped the feature flagged as out-of-scope-for-this-file two entries
+  below: tapping a stop now opens a detail sheet (full destination info +
+  every curated route to it), a tourist can mark a stop visited with an
+  editable pre-filled spend, and the Itinerary tab shows a real progress
+  timeline + a "spent so far" line on the Budget tab. No migration --
+  `trips.stops` is JSONB, just new `status`/`actualCostInr` fields threaded
+  through `enrichStops` (existing `SAFE_COLS`-style allowlist gotcha,
+  caught before it shipped).
+
+  The part that touches this file: added `findRoutesBetween` to
+  `travelPlanner.repository.js` (all routes for one pair, not the single
+  representative `findRoutesAmong` keeps for scoring) to back the detail
+  view's "how to reach" section. This resolves worklist item #4's
+  blocker -- see the updated item #4 above, session 10's validated
+  multi-modal backlog is now safe to insert.
+
+  Also caught and fixed a real pre-existing bug live-testing this (not
+  by review): `destinations.latitude`/`longitude`/`nearest_hospital_km`
+  are decimal columns, node-pg returns those as strings, and a stop
+  whose lat/lng got backfilled from `destinations` rather than supplied
+  by the client (e.g. via the API directly, or possibly some AI-planner
+  paths) would silently persist a string that fails the next validated
+  save. Fixed at both ends: `enrichStops` now `Number()`s the fallback,
+  and `StopSchema` coerces `lat`/`lng`/`hospital_km` at the boundary so
+  already-tainted data self-heals on its next save too.
+
+  Live-verified end-to-end in the real browser against the real dev DB
+  (not just typechecked): opened the sheet for both a curated pair and
+  an uncurated one (haversine estimate, correctly flagged), marked a
+  stop visited and confirmed the pre-fill/persistence/timeline/budget
+  tab all update, confirmed the action is hidden on a non-ACTIVE trip.
+  Backend: 56/56 tests pass, 6/6 benchmark queries pass.
+
 2026-09-01 — Claude Code (Sonnet 5) [supervisor pass 3 — acted on both replies]
   Sessions 9 and 10 both replied to research handoffs. Reviewed and acted:
 
