@@ -61,7 +61,12 @@ async function createSOS(touristId, data) {
       isStaleLocation:   data.isStaleLocation || false,
       category:          data.category,
       message:           data.message || null,
-      triggerType:       SOS_TRIGGER_TYPES.MANUAL,
+      // Defaults to MANUAL (the tourist's own POST /api/sos) -- callers
+      // that need a different provenance (currently only ntn.service.js,
+      // for a delivered simulated satellite uplink) pass it explicitly.
+      // DMS and the inbound-SMS webhook still bypass this function
+      // entirely and set their own trigger_type directly.
+      triggerType:       data.triggerType || SOS_TRIGGER_TYPES.MANUAL,
       batteryPct:        data.batteryPct || null,
       lowTrustAtTrigger: !!triggeringTourist?.trust_restricted_at,
     })

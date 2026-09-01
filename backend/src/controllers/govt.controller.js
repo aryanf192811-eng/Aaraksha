@@ -10,6 +10,7 @@ const efirReportService = require('../services/efirReport.service')
 const handoffService = require('../services/handoff.service')
 const trustScoreService = require('../services/trustScore.service')
 const sosClusterService = require('../services/sosCluster.service')
+const ntnService = require('../services/ntn.service')
 const { sendSuccess, sendPaginated } = require('../utils/response')
 const { parsePaginationParams } = require('../utils/pagination')
 const logger = require('../utils/logger')
@@ -99,6 +100,13 @@ const decideAppeal = async (req, res, next) => {
     const { decision, resolutionNotes } = req.validatedBody
     const appeal = await trustScoreService.decideAppeal(req.params.id, decision, req.govtUser.id, resolutionNotes)
     sendSuccess(res, appeal, `Appeal ${decision === 'APPROVE' ? 'approved' : 'rejected'}`)
+  } catch (err) { next(err) }
+}
+
+const getRecentNTNActivity = async (req, res, next) => {
+  try {
+    const messages = await ntnService.getRecentMessages(20)
+    sendSuccess(res, messages)
   } catch (err) { next(err) }
 }
 
@@ -244,4 +252,5 @@ module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRiskModelI
   getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer, rejectVolunteer,
   getAnomalies, resolveAnomaly,
   getIncidentQueue, getIncident, getAssignableOfficers, assignIncident, updateIncidentStatus, downloadEfirReport,
-  confirmFraudulentSOS, getPendingAppeals, decideAppeal, getOpenClusters, resolveCluster }
+  confirmFraudulentSOS, getPendingAppeals, decideAppeal, getOpenClusters, resolveCluster,
+  getRecentNTNActivity }

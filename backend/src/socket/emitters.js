@@ -447,6 +447,22 @@ function emitSOSClusterFlagged(cluster) {
   })
 }
 
+// Govt dashboard: one simulated NTN (satellite) uplink attempt completed,
+// delivered or not — live telemetry tick for the NTN network panel.
+function emitNTNChannelStatus(message) {
+  safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.NTN_CHANNEL_STATUS, {
+    touristId:     message.tourist_id,
+    sosEventId:    message.sos_event_id,
+    satelliteId:   message.satellite_id,
+    scenario:      message.scenario,
+    signalPct:     message.signal_pct,
+    latencyMs:     message.latency_ms,
+    packetLossPct: message.packet_loss_pct,
+    status:        message.status,
+    createdAt:     message.created_at,
+  })
+}
+
 // Govt dashboard: a tourist filed a new E-FIR — lands in the officer queue.
 function emitIncidentFiled(incident) {
   safeEmit(SOCKET_ROOMS.GOVT_DASHBOARD, SOCKET_EVENTS.INCIDENT_FILED, {
@@ -494,6 +510,7 @@ module.exports = {
   emitHandoffVerified, emitAssignmentCancelled,
   emitAnomalyDetected, emitAnomalyResolved,
   emitTouristTrustRestricted, emitTrustAppealFiled, emitSOSClusterFlagged,
+  emitNTNChannelStatus,
   emitIncidentFiled, emitIncidentStatusUpdated,
   emitMessageReceived,
 }

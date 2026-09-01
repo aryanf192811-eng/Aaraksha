@@ -29,6 +29,15 @@ const TSI_STYLE: Record<string, string> = {
   'Extreme Risk':  'bg-red-100 text-red-700',
 }
 
+// Mirrors the backend's own triggerLabel() in incidentReport.service.js —
+// kept in sync manually since this is display-only, not a shared package.
+const TRIGGER_LABEL: Record<string, string> = {
+  MANUAL: 'Manual SOS',
+  DEAD_MANS_SWITCH: "Dead Man's Switch timeout",
+  SMS_INBOUND: 'Offline SOS (SMS)',
+  NTN_SATELLITE: '🛰️ Satellite (NTN) SOS',
+}
+
 export default function SOSManagementPage() {
   const [selectedSOS, setSelectedSOS] = useState<SOSWithDetails | null>(null)
   // Two independent selections, exactly one of which may be active at a
@@ -324,7 +333,7 @@ export default function SOSManagementPage() {
                   )}
                 </div>
                 <div><p className="text-xs font-bold text-on-surface-variant uppercase">Blood Group</p><p className="font-bold">{selectedSOS.blood_group || 'Unknown'}</p></div>
-                <div><p className="text-xs font-bold text-on-surface-variant uppercase">Trigger Type</p><p className="font-bold">{selectedSOS.trigger_type}</p></div>
+                <div><p className="text-xs font-bold text-on-surface-variant uppercase">Trigger Type</p><p className="font-bold">{TRIGGER_LABEL[selectedSOS.trigger_type] || selectedSOS.trigger_type}</p></div>
                 <div><p className="text-xs font-bold text-on-surface-variant uppercase">Battery</p><p className="font-bold">{selectedSOS.last_battery !== null ? `${selectedSOS.last_battery}%` : '—'}</p></div>
               </div>
 

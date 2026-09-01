@@ -54,6 +54,7 @@ real-time data model instead of four disconnected apps.
 - [🤖 A real trained model — the Predictive Risk Score](#-a-real-trained-model--the-predictive-risk-score)
 - [🚑 The unified Rescuer network](#-the-unified-rescuer-network)
 - [🗺️ Routing Engine — OSRM & Contraction Hierarchies](#️-routing-engine--osrm--contraction-hierarchies)
+- [🛰️ NTN — a satellite fallback transport](#️-ntn--a-satellite-fallback-transport)
 - [📸 Screenshots](#-screenshots)
 - [🏗️ Architecture at a glance](#️-architecture-at-a-glance)
 - [📈 By the numbers](#-by-the-numbers)
@@ -479,6 +480,61 @@ conditions it structurally cannot see — it detects when that's likely happenin
 | ↔️ Resilience | Any failure (timeout, no route, malformed response) degrades to a straight line, never a crash | `lib/osrm.ts#getRoute` — verified live by blocking the endpoint entirely mid-session |
 | 🧭 Delay honesty | Elapsed time vs. original ETA, 1.6× margin, triggers a Google Maps handoff suggestion | `ActiveJobPage.tsx`, `RescueTrackingCard.tsx`, guardian `TrackingPage.tsx` |
 | 📡 Live cross-portal signal | Rescuer's "Navigate" toggle broadcasts a real-time pill to tourist + guardian | `RESCUER_NAVIGATING_STATE` socket event |
+
+---
+
+## 🛰️ NTN — a satellite fallback transport
+
+> **Named honestly, not oversold.** Aaraksha does not have a satellite modem, and no browser can
+> talk to one — there's no web API for it. What this is: a **software channel simulator** for
+> 3GPP Release-17 NTN (Non-Terrestrial Network / direct-to-device satellite), sitting behind the
+> exact same SOS pipeline the manual button uses, so the system can demonstrate — honestly, today —
+> how it would behave if a real NTN modem existed on the device.
+
+NE India and Kashmir have real terrestrial dead zones — the entire reason Aaraksha exists. 3GPP
+Release-17 direct-to-device NTN is a real, near-term answer to that: Apple's Emergency SOS via
+satellite, Qualcomm Snapdragon Satellite, and BSNL's own announced Viasat-powered direct-to-device
+service for India are all instances of the same idea reaching consumer devices. Aaraksha's SOS
+pipeline is built **transport-agnostic** — it doesn't care whether an emergency arrived over the
+internet, SMS, or a satellite hop, only that it arrived — so when real NTN hardware lands on
+mainstream Indian devices, it's a new adapter behind an existing boundary, not a rewrite.
+
+```mermaid
+flowchart LR
+    A["🛰️ Demo: send via\nsimulated NTN"] --> B["Channel simulator:\nsample signal/latency/loss"]
+    B -- "satellite visible\n+ packet not lost" --> C["sos.service.js#createSOS\ntriggerType: NTN_SATELLITE"]
+    B -- "no visibility\nor packet lost" --> D["❌ FAILED — audited,\nno SOS created"]
+    C --> E["Same canonical fan-out as\na manual SOS: guardian alert,\ncluster check, volunteer alert"]
+    C --> F["ntn_messages audit row\n(linked to the SOS)"]
+    D --> F
+    F --> G["🖥️ Govt dashboard —\nNTN_CHANNEL_STATUS tick"]
+```
+
+**What's real vs. simulated, stated plainly**: the channel model (signal strength, latency, packet
+loss across three named conditions — clear sky, mountain valley, no visibility) is a deterministic
+software simulator, with parameters *informed by* documented 3GPP NTN system characteristics and
+propagation assumptions — not measured satellite telemetry, and not a claim that 3GPP publishes one
+universal real-world number for every terrain type. What's real: the moment a simulated uplink is
+marked delivered, it runs through the *exact same* SOS pipeline a manual trigger does — the same
+transaction, the same guardian alert, the same proximity-cluster check, the same volunteer
+fan-out — recorded end-to-end in an append-only `ntn_messages` audit table and visible live on the
+government dashboard's NTN panel.
+
+**Why this and not a real 5G/NTN stack for the prototype**: bringing up OpenAirInterface + Open5GS
+in RF-simulation mode is a real integration path (documented below), but it's a multi-week effort
+even for teams experienced with telecom stacks, and a browser-based PWA has no way to reach it
+directly regardless — any real integration needs a native app or bridge process, a separate project
+in its own right. None of that unseen complexity is verifiable in a short demo slot anyway; what's
+verifiable is the pipeline shown above, working end-to-end, live.
+
+| Layer | What it does | Where |
+|---|---|---|
+| 🎛️ Channel simulator | Three named conditions (clear sky / mountain valley / no visibility), each sampling signal/latency/packet-loss within a documented range | `simulators/ntnChannel.js` |
+| 📡 Uplink attempt | Simulates the delay, rolls the packet-loss odds, always records the outcome | `services/ntn.service.js#sendViaNTN` |
+| ♻️ Pipeline reuse | A delivered uplink calls the same `createSOS` every manual trigger uses — no second, partial copy of the fan-out logic | `services/sos.service.js` (one additive `triggerType` param) |
+| 🗂️ Audit trail | Every attempt, delivered or failed, is an append-only row | `ntn_messages` (migration `024_ntn_messages`) |
+| 🖥️ Live ops visibility | Signal/latency/loss and recent activity, ticking off a socket event | `NTN_CHANNEL_STATUS`, `NTNPanel.tsx` on the govt dashboard |
+| 🔮 Real-hardware integration path | Documented future work, not attempted here: OpenAirInterface + Open5GS in RFsimulator mode, behind the same `ntn.service.js` boundary | Out of scope for this pass |
 
 ---
 

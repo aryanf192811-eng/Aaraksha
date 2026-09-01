@@ -38,6 +38,18 @@ const SOS_TRIGGER_TYPES = Object.freeze({
   MANUAL: 'MANUAL',
   DEAD_MANS_SWITCH: 'DEAD_MANS_SWITCH',
   SMS_INBOUND: 'SMS_INBOUND',
+  // Delivered via the simulated NTN (satellite) channel — see
+  // ntn.service.js. Same SOS pipeline as MANUAL, different transport.
+  NTN_SATELLITE: 'NTN_SATELLITE',
+})
+
+// Named NTN channel conditions the simulator can be run under — see
+// simulators/ntnChannel.js. Shared here so validators/controllers don't
+// need to import the simulator module just to check the enum.
+const NTN_SCENARIOS = Object.freeze({
+  CLEAR_SKY: 'CLEAR_SKY',
+  MOUNTAIN_VALLEY: 'MOUNTAIN_VALLEY',
+  NO_VISIBILITY: 'NO_VISIBILITY',
 })
 
 const DMS_STATUSES = Object.freeze({
@@ -264,4 +276,5 @@ module.exports = {
   ASSIGNMENT_STATUSES, ASSIGNMENT_TERMINAL_STATUSES, SCAM_CATEGORIES, ACTIVITY_TYPES, PACKING_CATEGORIES,
   NOTIFICATION_TIERS, VOLUNTEER_STATUSES, VOLUNTEER_DISPATCH_STATUSES, RESCUER_TYPES,
   ANOMALY_TYPES, ANOMALY_STATUSES, INCIDENT_CATEGORIES, INCIDENT_STATUSES, INCIDENT_PRIORITIES,
+  NTN_SCENARIOS,
 }

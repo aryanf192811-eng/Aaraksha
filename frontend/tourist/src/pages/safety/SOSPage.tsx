@@ -17,6 +17,7 @@ import { RescueTrackingCard } from '../../components/shared/RescueTrackingCard'
 import { ActiveSOSBanner } from '../../components/shared/ActiveSOSBanner'
 import { SafetyTimeline } from '../../components/shared/SafetyTimeline'
 import { OfflineBanner } from '../../components/shared/OfflineBanner'
+import { NTNDemoPanel, isNTNDemoEnabled } from '../../components/shared/NTNDemoPanel'
 import { useSOS } from '../../hooks/useSOS'
 import { useBattery } from '../../hooks/useBattery'
 import { useDMS } from '../../hooks/useDMS'
@@ -493,6 +494,8 @@ export default function SOSPage() {
           </div>
           <ChevronRight className="w-4 h-4 text-on-surface-variant flex-shrink-0" />
         </button>
+
+        {isNTNDemoEnabled() && <NTNDemoPanel category={category} message={message} />}
       </div>
     </div>
   )

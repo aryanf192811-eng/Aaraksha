@@ -221,9 +221,28 @@ export interface AssignableOfficer {
   district: string
 }
 
+// Mirrors backend ntn_messages rows (migration 024_ntn_messages), joined
+// with the tourist's name for display.
+export interface NTNMessage {
+  id: string
+  tourist_id: string
+  tourist_name: string
+  sos_event_id: string | null
+  satellite_id: string
+  scenario: string
+  signal_pct: number
+  latency_ms: number
+  packet_loss_pct: number
+  status: 'DELIVERED' | 'FAILED'
+  created_at: string
+}
+
 const govtApi = {
   getDashboard: () =>
     api.get<APIResponse<GovtDashboard>>('/govt/dashboard'),
+
+  getRecentNTNActivity: () =>
+    api.get<APIResponse<NTNMessage[]>>('/govt/ntn/recent'),
 
   getActiveSOS: (params?: { status?: string; category?: string; page?: number; limit?: number }) =>
     api.get<PaginatedResponse<SOSWithDetails>>('/govt/sos/active', { params }),

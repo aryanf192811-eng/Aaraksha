@@ -54,6 +54,11 @@ const SOCKET_EVENTS = Object.freeze({
   // Govt flagged 3+ SOS as a proximity cluster needing triage (see
   // migration 023_sos_cluster_flags / sosCluster.service.js).
   SOS_CLUSTER_FLAGGED: 'SOS_CLUSTER_FLAGGED',
+  // A simulated NTN (satellite) uplink attempt completed, delivered or
+  // not — govt-dashboard-only live telemetry tick (see ntn.service.js /
+  // migration 024_ntn_messages). Never sent to the tourist's own room;
+  // their app already knows the outcome from the HTTP response.
+  NTN_CHANNEL_STATUS: 'NTN_CHANNEL_STATUS',
   // A tourist filed a new E-FIR — lands in the govt officer queue (see
   // migration 012_incident_reports).
   INCIDENT_FILED:          'INCIDENT_FILED',

@@ -5,6 +5,7 @@ import { Bell, Users, Shield, MapPin, Activity, Download } from 'lucide-react'
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { Button } from '../components/ui/button'
 import { useSOSSocket } from '../hooks/useSOSSocket'
+import { NTNPanel } from '../components/NTNPanel'
 import govtApi from '../api/govt.api'
 import { formatTimeAgo } from '../lib/utils'
 import type { GovtDashboard } from '../types/api.types'
@@ -55,7 +56,7 @@ const SOS_COLORS: Record<string, string> = {
 }
 
 export default function DashboardPage() {
-  useSOSSocket()
+  const { latestNTNStatus } = useSOSSocket()
 
   const { data: dashboard } = useQuery({
     queryKey: ['govt', 'dashboard'],
@@ -208,6 +209,8 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      <NTNPanel latest={latestNTNStatus} />
     </div>
   )
 }

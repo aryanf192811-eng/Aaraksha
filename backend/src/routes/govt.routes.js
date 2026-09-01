@@ -141,6 +141,7 @@ router.post('/trust-appeals/:id/decide',   requireGovtRole(...TRUST_REVIEW_ROLES
 // resolve one, since a CONFIRMED_ABUSE decision applies a trust
 // consequence to real accounts -- same district-level judgment gate as
 // the trust-appeals review above.
+router.get('/ntn/recent',                requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getRecentNTNActivity)
 router.get('/sos-clusters',              requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getOpenClusters)
 router.post('/sos-clusters/:id/resolve', requireGovtRole(...TRUST_REVIEW_ROLES), validate(ResolveClusterSchema), ctrl.resolveCluster)
 

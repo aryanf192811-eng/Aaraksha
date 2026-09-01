@@ -49,9 +49,22 @@ interface IncidentFiledPayload {
 // with a plain subscriber list instead of React state so every instance
 // re-renders when it changes -- the socket listeners themselves are
 // registered exactly once no matter how many components call this hook.
+export interface NTNChannelStatusPayload {
+  touristId: string
+  sosEventId: string | null
+  satelliteId: string
+  scenario: string
+  signalPct: number
+  latencyMs: number
+  packetLossPct: number
+  status: 'DELIVERED' | 'FAILED'
+  createdAt: string
+}
+
 let refCount = 0
 let activeSosCount = 0
 let latestSOS: SOSReceivedPayload | null = null
+let latestNTNStatus: NTNChannelStatusPayload | null = null
 let unregisterListeners: (() => void) | undefined
 const subscribers = new Set<() => void>()
 
@@ -239,6 +252,16 @@ function registerListeners(socket: ReturnType<typeof connectSocket>) {
     queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
   }
 
+  // One simulated NTN uplink attempt completed -- routine telemetry tick,
+  // no toast (same treatment as onRescuerUpdate), just keep the NTN panel
+  // and its recent-activity list current.
+  const onNTNChannelStatus = (data: NTNChannelStatusPayload) => {
+    latestNTNStatus = data
+    notify()
+    queryClient.invalidateQueries({ queryKey: ['govt', 'ntn', 'recent'] })
+    if (data.sosEventId) queryClient.invalidateQueries({ queryKey: ['govt', 'sos'] })
+  }
+
   socket.on(SOCKET_EVENTS.SOS_RECEIVED, onSOSReceived)
   socket.on(SOCKET_EVENTS.SOS_RESOLVED, onSOSResolved)
   socket.on(SOCKET_EVENTS.DMS_TRIGGERED, onDMSTriggered)
@@ -258,8 +281,10 @@ function registerListeners(socket: ReturnType<typeof connectSocket>) {
   socket.on(SOCKET_EVENTS.SOS_CLUSTER_FLAGGED, onClusterFlagged)
   socket.on(SOCKET_EVENTS.TSI_BULK_UPDATE, onTsiBulkUpdate)
   socket.on(SOCKET_EVENTS.VOLUNTEER_ASSIGNMENT_UPDATED, onVolunteerAssignmentUpdated)
+  socket.on(SOCKET_EVENTS.NTN_CHANNEL_STATUS, onNTNChannelStatus)
 
   return () => {
+    socket.off(SOCKET_EVENTS.NTN_CHANNEL_STATUS, onNTNChannelStatus)
     socket.off(SOCKET_EVENTS.HANDOFF_VERIFIED, onHandoffVerified)
     socket.off(SOCKET_EVENTS.SOS_CATEGORY_AMENDED, onCategoryAmended)
     socket.off(SOCKET_EVENTS.TOURIST_TRUST_RESTRICTED, onTrustRestricted)
@@ -310,5 +335,5 @@ export function useSOSSocket() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
-  return { activeSosCount, latestSOS }
+  return { activeSosCount, latestSOS, latestNTNStatus }
 }

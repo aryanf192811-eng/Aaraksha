@@ -190,7 +190,7 @@ function categoryLabel(category) {
 }
 
 function triggerLabel(trigger) {
-  return { MANUAL: 'Manual SOS', DEAD_MANS_SWITCH: "Dead Man's Switch timeout", SMS_INBOUND: 'Offline SOS (SMS)' }[trigger] || trigger
+  return { MANUAL: 'Manual SOS', DEAD_MANS_SWITCH: "Dead Man's Switch timeout", SMS_INBOUND: 'Offline SOS (SMS)', NTN_SATELLITE: 'Satellite (NTN) SOS' }[trigger] || trigger
 }
 
 function minutesBetween(from, to) {
