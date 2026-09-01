@@ -198,51 +198,26 @@ values), not just taken on the session log's word. Every one of the 8 NE
 states now has 2-3 destinations and at least one sourced route pair. Real,
 substantial progress — see the session log for the full trail.
 
-What's actually next now:
-1. **`EXTERNAL_GATEWAY_LEGS` in `backend/src/services/travelPlanner.service.js`
-   has zero citations** — these are the Delhi/Mumbai/Kolkata/Bangalore/Chennai
-   → Guwahati train/flight duration+cost figures, and they were typed in
-   during development the same way the original unsourced Meghalaya route
-   was (illustrative, not researched). Unlike `typical_routes`, this isn't
-   a database table an agent can `INSERT` into — it's a JS constant, code
-   not data. **Research it anyway and report the sourced figures in the
-   session log** (real IRCTC/train-time and flight-duration references for
-   each of the 5 cities → Guwahati) — updating the constant itself is a
-   short code change Claude Code will make from your findings, not
-   something to edit directly (same "flag it, don't touch application
-   code" rule as everything else in this file).
-2. A **third destination per state** where a real, well-sourced one
-   exists — richer itineraries than always the same 2 stops. Not urgent,
-   genuinely optional.
-3. More `destination_reviews`-informed cost data — most destinations have
+Item 4 (second transport modes for already-covered pairs) is **also done**
+as of 2026-09-01 — sessions 10-12 researched, inserted, and then
+re-sourced it after a supervisor pass caught one non-compliant citation
+(a commercial booking-aggregator source, since replaced with the ASTC/
+MTDC/IRCTC official portals it should have used from the start). Verified
+directly against the DB: `typical_routes` is now 24 rows, all sourced from
+compliant Tier A/B references, and `GET /travel-planner/routes-between`
+confirmed live-returning multiple modes for Kaziranga↔Jorhat. Item 1
+(EXTERNAL_GATEWAY_LEGS sourcing) was completed earlier, in supervisor
+pass 3 — see the session log. **This means the original worklist is now
+fully closed.**
+
+What's actually next now — both genuinely optional, pick either:
+1. A **third destination per state** where a real, well-sourced one
+   exists — richer itineraries than always the same 2 stops.
+2. More `destination_reviews`-informed cost data — most destinations have
    0-2 reviews right now, which is thin (the `avgCostInr` the scorer
    reports is one or two people's experience, not a real average). You
    can't curate this directly (see "What lives where" above — it's real
    user data), but it's worth noting where it's thinnest.
-4. **UPDATE 2026-09-01 (supervisor pass 4) — the blocker below is
-   resolved, second modes are now safe to INSERT.** The stop-detail
-   feature shipped: `findRoutesBetween(fromId, toId)` in
-   `travelPlanner.repository.js` is a new, separate method that returns
-   *every* `typical_routes` row for a pair (not just one), and it's what
-   backs the tourist app's "how to reach — via train, via bus" detail
-   view. `findRoutesAmong` (the scoring pipeline's single-representative-
-   per-pair lookup, used only for cost math during Build/Adjust) was
-   deliberately left untouched — it doesn't need every mode, just one
-   reasonable cost figure, and that was already true before this pass.
-   So: **a second mode for an already-covered pair is now safe to
-   `INSERT` directly**, same "How to add data" SQL pattern as everything
-   else, `source` column required as always. It will render correctly in
-   the app; it will not affect scoring/cost math either way.
-   Research additional transport modes for city-pairs already in
-   `typical_routes` — does Shillong↔Cherrapunji also have a bus option
-   distinct from the shared-taxi already curated? Does Dzukou
-   Valley↔Longwa Village have anything besides the 16h shared Sumo
-   already on file? Same Tier A/B sourcing rules as everything else.
-   Session 10's validated backlog (see session log) is unblocked — insert
-   it: bus for Jorhat↔Kaziranga and Shillong↔Cherrapunji, train for
-   Agartala↔Unakoti. Its "none found" findings (Tawang↔Ziro,
-   Dzukou↔Longwa) and the private-taxi-only clarification for
-   Gangtok↔Pelling need no action.
 
 ---
 
@@ -287,6 +262,30 @@ version of "the dataset got bigger."
 Format: date, who/which model, what changed, what's next. Newest first.
 
 ```
+2026-09-01 — Claude Code (Sonnet 5) [supervisor pass 6 — verified session 12, worklist closed]
+  Verified session 12's fix directly against the DB, not the log's word:
+  all 3 flagged citations replaced, correctly and specifically —
+  Jorhat<->Kaziranga BUS now cites "ASTC official portal (astcbus.in)",
+  Shillong<->Cherrapunji BUS cites "MTDC official portal
+  (app.meghalayatourism.in)", Agartala<->Unakoti TRAIN now names a real
+  train ("IRCTC Kanchanjunga Express (13174) AGTL-KUGT") instead of a
+  vague "IRCTC schedules". All Tier A official-portal sources, all
+  specific enough to independently check, applied to both directions of
+  each pair (6 rows). The one real policy violation from session 11 is
+  fully resolved.
+
+  This closes the loop the Researcher/Validator/Writer split exists for:
+  session 10 researched, session 11 wrote (missing the one bad source),
+  a supervisor pass caught it, session 12 fixed it, another supervisor
+  pass confirmed the fix. Exactly the process working as designed, not
+  just described.
+
+  Updated the Worklist section above: item 4 marked done alongside item
+  1 (which was already done as of supervisor pass 3) — the original
+  4-item worklist plus this multi-modal-transport extension is now
+  fully closed. What remains (third destination per state, more review
+  data) is genuinely optional, not a backlog.
+
 2026-09-01 — Claude Code (Sonnet 5) [supervisor pass 5 — verified session 11]
   Verified session 11's insert directly against the DB, not on the log's
   word (same discipline every prior supervisor pass here has used) --
@@ -521,6 +520,18 @@ Format: date, who/which model, what changed, what's next. Newest first.
   as the original Meghalaya route was before session 1 fixed that. See
   the Worklist section above. Continuing the frontend build for the
   natural-language intake + trip-adjustment UI in the main conversation.
+
+2026-09-01 — Gemini 3.1 Pro (High) [session 12]
+  UPDATE: Tightened citations for alternative transport modes
+  
+  As instructed in supervisor pass 5, I have re-sourced the citations for the alternative transport modes inserted in Session 11 to meet the project's strict sourcing bar.
+
+  Updates made directly to `typical_routes`:
+  - **Jorhat ↔ Kaziranga (BUS):** Replaced commercial aggregator citation with the compliant `ASTC official portal (astcbus.in)`.
+  - **Shillong ↔ Cherrapunji (Sohra) (BUS):** Tightened citation to the specific `MTDC official portal (app.meghalayatourism.in)`.
+  - **Agartala ↔ Unakoti (TRAIN):** Tightened citation to include a specific, checkable reference: `IRCTC Kanchanjunga Express (13174) AGTL-KUGT`.
+
+  All 3 pairs (6 rows) have been successfully updated in the dev database.
 
 2026-09-01 — Gemini 3.1 Pro (High) [session 11]
   INSERT: Alternate transport modes (Worklist Item #4)
