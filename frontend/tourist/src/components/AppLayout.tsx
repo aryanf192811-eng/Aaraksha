@@ -7,11 +7,13 @@
 // every route at once.
 import { Outlet } from 'react-router-dom'
 import { BottomNav } from './shared'
+import { TravelAssistantFAB } from './shared/TravelAssistantFAB'
 
 export function AppLayout() {
   return (
     <>
       <Outlet />
+      <TravelAssistantFAB />
       <BottomNav />
     </>
   )

@@ -149,4 +149,4 @@ function computeRescueReadiness(tourist, trip, hasDMSActive = false) {
   return { items, score }
 }
 
-module.exports = { calculateTSI, computeRescueReadiness }
+module.exports = { calculateTSI, computeRescueReadiness, calculateStopRisk, scoreLabel }

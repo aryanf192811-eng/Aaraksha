@@ -1,0 +1,242 @@
+// src/components/shared/TravelAssistantFAB.tsx
+// Persistent floating "Build My Journey" assistant, tourist app only.
+// Deliberately NOT a plain chat-bubble thread -- see JourneyResultCard.tsx
+// for why. Every number shown here came from a deterministic scorer
+// (travelScoring.service.js); Gemini only narrates it. See chatbot.md for
+// the dataset this reasons over and travelPlanner.service.js's header
+// comment for the "AI explains, doesn't decide" boundary this whole
+// feature is built around.
+import { useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
+import { Compass, X, Loader2, Send, Sparkles, IndianRupee, CalendarDays, MapPinned, Rocket } from 'lucide-react'
+import { useDragSheet } from '../../hooks/useDragSheet'
+import { cn } from '../../lib/utils'
+import { getErrorMessage } from '../../api/client'
+import travelPlannerApi, { type BuildJourneyPayload, type BuildJourneyResult, type Interest, type TransportMode } from '../../api/travelPlanner.api'
+import { JourneyResultCard } from './travelAssistant/JourneyResultCard'
+
+const NE_STATES = ['Meghalaya', 'Assam', 'Arunachal Pradesh', 'Nagaland', 'Manipur', 'Sikkim']
+const INTEREST_OPTIONS: { value: Interest; label: string }[] = [
+  { value: 'NATURE', label: 'Nature' }, { value: 'ADVENTURE', label: 'Adventure' },
+  { value: 'CULTURE', label: 'Culture' }, { value: 'WILDLIFE', label: 'Wildlife' },
+  { value: 'RELAXATION', label: 'Relaxation' },
+]
+const TRANSPORT_OPTIONS: { value: TransportMode; label: string }[] = [
+  { value: 'TRAIN', label: 'Train' }, { value: 'FLIGHT', label: 'Flight' },
+]
+const ORIGIN_QUICK_PICKS = ['Delhi', 'Mumbai', 'Kolkata', 'Bangalore', 'Chennai']
+
+export function TravelAssistantFAB() {
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const { handleProps, sheetStyle } = useDragSheet({ onClose: () => setOpen(false) })
+
+  const [fromCity, setFromCity] = useState('Delhi')
+  const [region, setRegion] = useState('Meghalaya')
+  const [days, setDays] = useState(5)
+  const [budgetInr, setBudgetInr] = useState(20000)
+  const [interests, setInterests] = useState<Interest[]>(['NATURE'])
+  const [transportPref, setTransportPref] = useState<TransportMode[]>([])
+  const [followUp, setFollowUp] = useState('')
+  const [result, setResult] = useState<BuildJourneyResult | null>(null)
+
+  const context: BuildJourneyPayload = { fromCity, region, days, budgetInr, interests, transportPref }
+
+  const { mutate: build, isPending: building } = useMutation({
+    mutationFn: () => travelPlannerApi.buildJourney(context).then((r) => r.data.data),
+    onSuccess: (data) => setResult(data),
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+
+  const { mutate: ask, isPending: asking } = useMutation({
+    mutationFn: () => travelPlannerApi.askFollowUp(followUp, { ...context, stopNames: result?.itinerary.orderedStops.map((s) => s.name) }).then((r) => r.data.data),
+    onSuccess: (data) => {
+      if (!data.understood) { toast.message(data.message || "Didn't understand that — try being specific."); return }
+      setDays(data.appliedContext.days ?? days)
+      setBudgetInr(data.appliedContext.budgetInr ?? budgetInr)
+      setInterests((data.appliedContext.interests as Interest[]) ?? interests)
+      setResult(data)
+      setFollowUp('')
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+
+  const { mutate: commit, isPending: committing } = useMutation({
+    mutationFn: () => {
+      if (!result) throw new Error('No journey to start')
+      const startDate = new Date()
+      const endDate = new Date(startDate.getTime() + result.itinerary.daysNeeded * 86400000)
+      return travelPlannerApi.commitJourney({
+        title: `${region} trip via Aaraksha Assistant`,
+        startDate: startDate.toISOString().slice(0, 10),
+        endDate: endDate.toISOString().slice(0, 10),
+        totalCostInr: result.totalCostInr,
+        itinerary: result.itinerary,
+      }).then((r) => r.data.data)
+    },
+    onSuccess: (trip) => {
+      toast.success('Journey started — now a real, monitored Aaraksha trip.')
+      setOpen(false)
+      navigate(`/trips/${trip.id}`)
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
+
+  const toggleInterest = (tag: Interest) =>
+    setInterests((cur) => (cur.includes(tag) ? cur.filter((t) => t !== tag) : cur.length < 5 ? [...cur, tag] : cur))
+  const toggleTransport = (mode: TransportMode) =>
+    setTransportPref((cur) => (cur.includes(mode) ? cur.filter((m) => m !== mode) : [...cur, mode]))
+
+  return (
+    <>
+      {/* Positioned above BottomNav's raised center SOS button — bottom-right
+          keeps it clear of that existing high-priority control entirely. */}
+      <button
+        onClick={() => setOpen(true)}
+        aria-label="Open Aaraksha Travel Assistant"
+        className="fixed z-30 right-4 bottom-24 w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/30 flex items-center justify-center text-white active:scale-95 transition-transform"
+      >
+        <span className="absolute inset-0 rounded-full bg-amber-400 opacity-40 animate-ping motion-reduce:hidden" />
+        <Compass className="w-6 h-6 relative" />
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-[1100] flex items-end sm:items-center sm:justify-center bg-black/40" onClick={() => setOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={sheetStyle}
+            className="w-full sm:w-[440px] sm:rounded-3xl bg-surface rounded-t-3xl shadow-2xl h-[85vh] max-h-[720px] flex flex-col overflow-hidden">
+            <div {...handleProps} className="flex-shrink-0 pt-2.5 pb-1 flex justify-center">
+              <div className="w-10 h-1 bg-outline-variant rounded-full" />
+            </div>
+            <div className="flex items-center justify-between px-4 pb-3 border-b border-outline-variant flex-shrink-0">
+              <p className="flex items-center gap-2 font-display font-black text-on-surface">
+                <Sparkles className="w-4 h-4 text-amber-500" /> Aaraksha Travel Assistant
+              </p>
+              <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container">
+                <X className="w-4 h-4 text-on-surface-variant" />
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+              {!result ? (
+                <>
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    Tell me where you're starting from and what you're after — I'll build a real, costed itinerary from Aaraksha's Northeast India data, not a guess.
+                  </p>
+
+                  <div>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 block">Starting from</label>
+                    <input value={fromCity} onChange={(e) => setFromCity(e.target.value)}
+                      className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {ORIGIN_QUICK_PICKS.map((c) => (
+                        <button key={c} onClick={() => setFromCity(c)}
+                          className={cn('text-[11px] font-bold px-2.5 py-1 rounded-full border', fromCity === c ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 flex items-center gap-1"><MapPinned className="w-3 h-3" /> Where in the Northeast</label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {NE_STATES.map((s) => (
+                        <button key={s} onClick={() => setRegion(s)}
+                          className={cn('text-xs font-bold px-2 py-2 rounded-xl border text-center', region === s ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 flex items-center gap-1"><CalendarDays className="w-3 h-3" /> Days</label>
+                      <input type="number" min={1} max={30} value={days} onChange={(e) => setDays(Number(e.target.value) || 1)}
+                        className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 flex items-center gap-1"><IndianRupee className="w-3 h-3" /> Budget</label>
+                      <input type="number" min={0} step={500} value={budgetInr} onChange={(e) => setBudgetInr(Number(e.target.value) || 0)}
+                        className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 block">Interests</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {INTEREST_OPTIONS.map(({ value, label }) => (
+                        <button key={value} onClick={() => toggleInterest(value)}
+                          className={cn('text-xs font-bold px-3 py-1.5 rounded-full border', interests.includes(value) ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-1.5 block">Prefer (optional)</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {TRANSPORT_OPTIONS.map(({ value, label }) => (
+                        <button key={value} onClick={() => toggleTransport(value)}
+                          className={cn('text-xs font-bold px-3 py-1.5 rounded-full border', transportPref.includes(value) ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface-variant')}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <JourneyResultCard result={result} />
+                  <button onClick={() => setResult(null)}
+                    className="w-full text-xs font-bold text-on-surface-variant hover:text-primary py-1">
+                    ← Start over with a new request
+                  </button>
+                </>
+              )}
+
+              {building && (
+                <div className="flex flex-col items-center gap-2 py-8 text-on-surface-variant">
+                  <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+                  <p className="text-xs font-semibold">Scoring routes across Northeast India…</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-shrink-0 border-t border-outline-variant p-3 bg-surface">
+              {!result ? (
+                <button onClick={() => build()} disabled={building}
+                  className="w-full h-12 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60">
+                  {building ? <Loader2 className="w-4 h-4 animate-spin" /> : <Compass className="w-4 h-4" />}
+                  Build My Journey
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input value={followUp} onChange={(e) => setFollowUp(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && followUp.trim() && !asking) ask() }}
+                      placeholder='e.g. "only ₹12,000 now" or "drop a stop"'
+                      className="flex-1 rounded-full border border-outline-variant bg-surface-container px-4 py-2.5 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                    <button onClick={() => ask()} disabled={asking || !followUp.trim()}
+                      aria-label="Send"
+                      className="w-11 h-11 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center flex-shrink-0 disabled:opacity-40">
+                      {asking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <button onClick={() => commit()} disabled={committing}
+                    className="w-full h-12 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-60">
+                    {committing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+                    Start This Journey
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}

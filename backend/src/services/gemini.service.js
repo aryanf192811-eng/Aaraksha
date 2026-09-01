@@ -224,4 +224,113 @@ the tourist ("you"), be specific to the route above, not generic advice.`
   }
 }
 
-module.exports = { generatePackingList, generateSafetyAdvisory }
+// Same "AI explains an ALREADY-COMPUTED decision" boundary as
+// generateSafetyAdvisory above -- every number in `scored` (cost, duration,
+// safety score, which stop is riskiest) came from travelScoring.service.js,
+// a pure deterministic module. This function's only job is prose: why this
+// specific order/route makes sense for this traveller, in plain language.
+// It must never restate or contradict a number -- the prompt says so
+// explicitly, same discipline as the safety-advisory prompt.
+function fallbackJourneyNarrative(scored) {
+  const bullets = [`Fits your ${scored.daysNeeded}-day timeframe and an estimated ₹${scored.totalCostInr.toLocaleString('en-IN')} budget.`]
+  if (scored.orderedStops.length > 1) {
+    bullets.push(`Visits ${scored.orderedStops.map((s) => s.name).join(' → ')}, ordered to minimise backtracking.`)
+  }
+  if (scored.safety.worstStop) {
+    bullets.push(`${scored.safety.worstStop.city} is the highest-risk stop on this route (${scored.safety.worstStop.label}) — see the safety notes below.`)
+  }
+  if (scored.localSpendEstimated) {
+    bullets.push('Local spend for some stops is an estimate — no traveller reviews with cost data yet for those destinations.')
+  }
+  return bullets
+}
+
+async function generateJourneyNarrative(scored) {
+  const model = getGeminiModel()
+  if (!model) {
+    logger.info('Gemini not available — using templated journey narrative')
+    return { whyThisRoute: fallbackJourneyNarrative(scored), source: 'TEMPLATED_FALLBACK' }
+  }
+
+  const stopsList = scored.orderedStops.map((s, i) =>
+    `${i + 1}. ${s.name}, ${s.state}${s.matchedInterests?.length ? ` (matches: ${s.matchedInterests.join(', ')})` : ''}${s.reviewSummary ? ` — ${s.reviewSummary.reviewCount} traveller review(s), avg rating ${s.reviewSummary.avgRating}/5` : ' — no traveller reviews yet'}`
+  ).join('\n')
+  const legsList = scored.legs.map((l) =>
+    `${l.fromName} → ${l.toName}: ${l.mode}, ~${Math.round(l.durationMinutes / 60)}h, ₹${l.costMinInr}-${l.costMaxInr}${l.estimated ? ' (estimated)' : ''}`
+  ).join('\n')
+
+  const prompt = `You are a travel planning assistant for Northeast India. A deterministic
+scoring system has ALREADY computed every number below — do not invent a
+different number, cost, duration, or safety score, and do not contradict
+them. Your job is only to explain, in plain and genuinely helpful language,
+why this specific route and order makes sense for this traveller.
+
+Route (in the recommended order):
+${stopsList}
+
+Legs:
+${legsList}
+
+Total estimated cost: ₹${scored.totalCostInr.toLocaleString('en-IN')}
+Days needed: ${scored.daysNeeded}
+Overall fit score: ${scored.scores.overall}/100 (budget ${scored.scores.budget}, safety ${scored.scores.safety}, interest match ${scored.scores.interestMatch}, route efficiency ${scored.scores.backtracking})
+Highest-risk stop: ${scored.safety.worstStop?.city || 'none'} (${scored.safety.worstStop?.label || 'n/a'})
+
+Write exactly 3-5 short bullet points, one per line, each starting with "- ",
+plain text, no markdown bold/headers. Cover: (1) why this order avoids
+unnecessary backtracking, (2) how it fits the budget/timeframe, (3) what
+traveller reviews say about the stops, if any exist, (4) the one safety
+consideration worth flagging. Speak directly to the traveller ("you").`
+
+  try {
+    const result = await generateContentWithTimeout(model, prompt)
+    const text = result.response.text().trim()
+    if (!text) throw new Error('Gemini returned an empty journey narrative')
+    const whyThisRoute = parseAdvisoryBullets(text)
+    logger.info({ stops: scored.orderedStops.length, cost: scored.totalCostInr }, 'Gemini journey narrative generated')
+    return { whyThisRoute, source: 'GEMINI_AI' }
+  } catch (err) {
+    logger.error({ err: { message: err.message } }, 'Gemini journey narrative failed — using templated fallback')
+    return { whyThisRoute: fallbackJourneyNarrative(scored), source: 'TEMPLATED_FALLBACK' }
+  }
+}
+
+// Free-text follow-up ("I only have ₹12k now", "drop Dawki") -> structured
+// filter deltas. This is the one place Gemini is allowed to produce
+// something other than prose over already-computed facts -- but note what
+// it is NOT allowed to do: it never outputs a cost, duration, or safety
+// score itself, only which existing filters changed. Those deltas get
+// re-run through the exact same deterministic scorer, so a hallucinated
+// number here is structurally impossible, not just discouraged by a prompt.
+async function extractPlanningIntent(freeText, currentContext) {
+  const model = getGeminiModel()
+  if (!model) {
+    logger.info('Gemini not available — cannot parse free-text planning intent')
+    return { understood: false, source: 'OFFLINE_FALLBACK' }
+  }
+
+  const prompt = `A traveller planning a trip in Northeast India sent this follow-up message:
+"${freeText}"
+
+Current plan context: budget ₹${currentContext.budgetInr ?? 'unset'}, ${currentContext.days ?? 'unset'} days,
+stops: ${(currentContext.stopNames || []).join(', ') || 'none yet'}, interests: ${(currentContext.interests || []).join(', ') || 'none'}.
+
+Return ONLY a valid JSON object (no markdown, no code blocks) with any of
+these keys that changed, omitting keys that didn't:
+{"budgetInr": number, "days": number, "dropStopNames": ["string"], "addInterests": ["NATURE"|"ADVENTURE"|"CULTURE"|"WILDLIFE"|"RELAXATION"], "understood": boolean}
+Set "understood" to false if the message isn't a planning adjustment at all.`
+
+  try {
+    const result = await generateContentWithTimeout(model, prompt)
+    const text = result.response.text()
+    const clean = text.replace(/```json|```/g, '').trim()
+    const parsed = JSON.parse(clean)
+    logger.info({ freeText, parsed }, 'Gemini planning intent extracted')
+    return { ...parsed, understood: parsed.understood !== false, source: 'GEMINI_AI' }
+  } catch (err) {
+    logger.error({ err: { message: err.message } }, 'Gemini intent extraction failed')
+    return { understood: false, source: 'OFFLINE_FALLBACK' }
+  }
+}
+
+module.exports = { generatePackingList, generateSafetyAdvisory, generateJourneyNarrative, extractPlanningIntent }
