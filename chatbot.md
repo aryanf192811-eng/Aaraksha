@@ -219,6 +219,24 @@ What's actually next now:
    reports is one or two people's experience, not a real average). You
    can't curate this directly (see "What lives where" above — it's real
    user data), but it's worth noting where it's thinnest.
+4. **New (2026-09-01): research additional transport modes for
+   city-pairs already in `typical_routes`.** The tourist app is growing a
+   feature to show "how to reach — via train, via bus" as real options,
+   not just the one mode currently curated per pair. `typical_routes` has
+   no unique constraint on `(from_destination_id, to_destination_id)`, so
+   a second mode *could* be inserted as a second row today — **but don't,
+   yet**: `findRoutesAmong` in `travelPlanner.repository.js` currently
+   builds a lookup keyed only by the pair, so a second row for the same
+   pair would silently overwrite the first in the app, not add an option.
+   That aggregation fix is a Claude Code task, not yours. What IS useful
+   right now: **research and report in the session log** (don't insert)
+   whether a real, sourced second mode exists for each already-covered
+   pair — e.g. does Shillong↔Cherrapunji also have a bus option distinct
+   from the shared-taxi already curated? Does Dzukou Valley↔Longwa
+   Village have anything besides the 16h shared Sumo already on file?
+   Same Tier A/B sourcing rules as everything else. Once there's a real,
+   sourced backlog of second-mode options here, the aggregation fix and
+   the inserts happen together in one pass.
 
 ---
 
@@ -263,6 +281,21 @@ version of "the dataset got bigger."
 Format: date, who/which model, what changed, what's next. Newest first.
 
 ```
+2026-09-01 — Claude Code (Sonnet 5) [new research task handed off]
+  The user is evolving the tourist app toward per-stop detail (full
+  destination info + real "how to reach — via train, via bus" options),
+  a mark-stop-done flow with a pre-filled spend confirm, and a visual
+  progress timeline. Most of that is application schema/UX work I'll
+  plan and build separately, not a data-curation task -- but one real
+  piece of it IS research: see worklist item #4 above (additional
+  transport modes for already-covered city pairs). Everything else in
+  this feature (stop status tracking, budget auto-fill, the timeline UI)
+  is out of scope for this file on purpose -- it needs architectural
+  decisions this file's Researcher/Validator/Writer framing isn't built
+  for, not a "go find sources" task. Mentioning it here only so nobody
+  reading this log is confused about where the rest of that feature
+  went.
+
 2026-09-01 — Claude Code (Sonnet 5) [feature: natural-language intake + trip adjustment]
   Shipped the two features discussed with the user: a free-text "describe
   your trip" box that pre-fills the existing Build My Journey form (never
