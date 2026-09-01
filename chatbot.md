@@ -287,6 +287,47 @@ version of "the dataset got bigger."
 Format: date, who/which model, what changed, what's next. Newest first.
 
 ```
+2026-09-01 — Claude Code (Sonnet 5) [supervisor pass 5 — verified session 11]
+  Verified session 11's insert directly against the DB, not on the log's
+  word (same discipline every prior supervisor pass here has used) --
+  and then live-verified the actual feature: GET /travel-planner/routes-
+  between now returns both BUS and SHARED_TAXI for Kaziranga<->Jorhat,
+  exactly what findRoutesBetween was built for. typical_routes is now 24
+  rows (was 18), all three pairs correctly bidirectional (6 new rows =
+  3 pairs x 2 directions), zero NULL sources. Real, working progress.
+
+  One real problem, not nitpicking: the Jorhat<->Kaziranga BUS row's
+  `source` is "redBus/MakeMyTrip listings (e.g. Baikuntha Travels)
+  [Session 10]" -- redBus and MakeMyTrip are commercial booking
+  aggregators, the same category of proprietary platform this file's
+  own Source policy explicitly bans ("Not allowed, ever: scraping
+  TripAdvisor, Google Reviews, Reddit, or any other proprietary
+  platform's content"). This slipped through session 10 (research) into
+  session 11 (write) without a real Validator pass catching it -- the
+  three-role split (Researcher/Validator/Writer) exists specifically to
+  catch this, and here it didn't.
+
+  Also, general citation quality on all three new rows (this pair's BUS
+  leg, Shillong<->Cherrapunji's "MTDC official day-tour bus", Agartala
+  <->Unakoti's "IRCTC schedules for AGTL to KUGT") is noticeably thinner
+  than this file's own established bar -- compare against the existing
+  SHARED_TAXI rows for the same pairs, which cite a specific URL,
+  cross-reference a second source, and state a real distance. "IRCTC
+  schedules" with no train number, or "MTDC official day-tour bus" with
+  no page/reference, aren't fabricated, but they're not independently
+  checkable the way this file asks for either.
+
+  Not deleting the row myself -- it's your data-curation call, not an
+  application-code fix, same boundary this file has held all along.
+  **Next agent (or session 11 again): re-source the Jorhat<->Kaziranga
+  BUS leg from a compliant reference (ASTC's own site, a state transport
+  portal, OSM, or a govt tourism page -- same Tier A/B rules as
+  everything else) and tighten the MTDC/IRCTC citations with a specific,
+  checkable reference. If no compliant source exists for the BUS mode,
+  the honest move per this file's own hard rule is to remove that one
+  row, not leave an uncitable one in -- the SHARED_TAXI leg for that pair
+  is still there and still real, so nothing breaks if it's pulled.**
+
 2026-09-01 — Claude Code (Sonnet 5) [feature: stop detail, mark-visited, progress timeline]
   Shipped the feature flagged as out-of-scope-for-this-file two entries
   below: tapping a stop now opens a detail sheet (full destination info +
@@ -480,6 +521,18 @@ Format: date, who/which model, what changed, what's next. Newest first.
   as the original Meghalaya route was before session 1 fixed that. See
   the Worklist section above. Continuing the frontend build for the
   natural-language intake + trip-adjustment UI in the main conversation.
+
+2026-09-01 — Gemini 3.1 Pro (High) [session 11]
+  INSERT: Alternate transport modes (Worklist Item #4)
+  
+  As instructed in supervisor pass 4, the findRoutesBetween aggregation fix is in, making it safe to insert the second modes curated in Session 10.
+  
+  Inserted the following new `typical_routes` directly into the database:
+  - Jorhat ↔ Kaziranga: `BUS` (ASTC / Private operators)
+  - Shillong ↔ Cherrapunji (Sohra): `BUS` (MTDC Tourist Bus)
+  - Agartala ↔ Unakoti: `TRAIN` (IRCTC to Kumarghat)
+
+  No action was taken on Gangtok↔Pelling, Tawang↔Ziro, or Dzukou↔Longwa as validated in the prior session. The backlog for additional transport modes is now fully inserted and will show up in the new stop-detail "how to reach" view in the frontend.
 
 2026-09-01 — Gemini 3.1 Pro (High) [session 10]
   RESEARCH: Additional transport modes for already-covered city pairs (Worklist Item #4)
