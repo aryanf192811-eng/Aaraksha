@@ -5,12 +5,17 @@
 // text. Legs reveal staggered on mount (30-50ms/item, per this app's
 // motion conventions) and respect prefers-reduced-motion.
 import { useEffect, useState } from 'react'
-import { Train, Plane, Bus, Car, MapPin, IndianRupee, Clock, ShieldCheck, ChevronDown, Star, Sparkles } from 'lucide-react'
+import { Train, Plane, Bus, Car, Ship, Waypoints, MapPin, IndianRupee, Clock, ShieldCheck, ChevronDown, Star, Sparkles } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import type { BuildJourneyResult, JourneyLeg } from '../../../api/travelPlanner.api'
 
+// MIXED/FERRY: see chatbot.md's "Multi-modal legs" convention -- a single
+// typical_routes row can legitimately represent a connecting journey (e.g.
+// road + government ferry) rather than one physical vehicle, disclosed via
+// `notes` (rendered below) instead of hidden inside a combined duration.
 const MODE_ICON: Record<string, typeof Train> = {
   TRAIN: Train, FLIGHT: Plane, BUS: Bus, SHARED_TAXI: Car, LOCAL_TRANSPORT: Car,
+  FERRY: Ship, MIXED: Waypoints,
 }
 
 // Same score-band language as SOSManagementPage.tsx's TSI_STYLE badge --
@@ -55,6 +60,10 @@ function LegRow({ leg, index }: { leg: JourneyLeg; index: number }) {
           <IndianRupee className="w-3 h-3" /> {fmtInr(leg.costMinInr)}-{fmtInr(leg.costMaxInr)?.replace('₹', '')}
           {leg.estimated && <span className="text-[10px] uppercase tracking-wide font-bold text-amber-600 ml-1">estimated</span>}
         </p>
+        {/* Disclosure for anything a bare from->to/duration/cost row can't
+            say on its own -- e.g. a MIXED leg's actual road+ferry
+            breakdown. Never hide this; it's often the safety-relevant part. */}
+        {leg.notes && <p className="text-[11px] text-on-surface-variant/80 mt-0.5 leading-snug">{leg.notes}</p>}
       </div>
     </div>
   )

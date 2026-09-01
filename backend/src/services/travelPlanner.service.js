@@ -10,7 +10,6 @@ const { TravelPlannerRepository } = require('../repositories/travelPlanner.repos
 const { scoreCandidateItinerary, INTEREST_TAGS } = require('./travelScoring.service')
 const { generateJourneyNarrative, extractPlanningIntent } = require('./gemini.service')
 const { createTrip } = require('./trip.service')
-const { ERRORS } = require('../constants/errors')
 const logger = require('../utils/logger')
 
 // A small, stable reference list -- not the kind of thing that benefits
@@ -72,9 +71,13 @@ async function buildJourney({ fromCity, region, days, budgetInr, interests, tran
   const { candidates, repo } = await selectCandidates({ state: region, interests, count })
 
   if (candidates.length === 0) {
-    const err = new Error(ERRORS.VALIDATION_FAILED)
+    // errorHandler.js only ever reads err.message for a thrown
+    // err.statusCode error -- a separate err.details property (the
+    // previous version of this code) is silently dropped, so the tourist
+    // saw the generic "Validation failed" instead of this actually
+    // useful explanation. Put the real message where it's read.
+    const err = new Error(`No destinations found for "${region}" yet — the dataset may not cover this region. See chatbot.md.`)
     err.statusCode = 422
-    err.details = `No destinations found for "${region}" yet — the dataset may not cover this region. See chatbot.md.`
     throw err
   }
 
