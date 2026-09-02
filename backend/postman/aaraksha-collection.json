@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Aaraksha Backend — Full API Test Suite",
-    "description": "Complete automated test suite for the Aaraksha backend. 119 tests across 21 folders (+ cleanup) covering the core API surface, auth flows, security guards, validation, edge cases, and the unified Rescuer network (volunteer registration/verification/provisioning, combined team-or-volunteer SOS assignment, live rescuer location/status). Run against http://localhost:5000.",
+    "description": "Complete automated test suite for the Aaraksha backend. 300 assertions across 133 requests in 24 folders (+ cleanup) covering the core API surface, auth flows, security guards, validation, edge cases, the unified Rescuer network (volunteer registration/verification/provisioning, combined team-or-volunteer SOS assignment, live rescuer location/status), the AI Travel Assistant (Build My Journey, natural-language intake, propose-then-apply trip adjustment, routes-between), and the simulated NTN satellite fallback. Run against http://localhost:5000.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -5536,6 +5536,649 @@
                     "exec": [
                       "pm.test('Status 200', () => pm.response.to.have.status(200));",
                       "pm.test('No active assignment — volunteer freed up', () => { pm.expect(pm.response.json().data).to.be.null; });"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "22 - Travel Planner (AI Assistant)",
+          "item": [
+            {
+              "name": "Test 120: Build Journey (Delhi to Meghalaya)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/travel-planner/build-journey",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "travel-planner",
+                    "build-journey"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fromCity\": \"Delhi\",\n  \"region\": \"Meghalaya\",\n  \"days\": 5,\n  \"budgetInr\": 20000,\n  \"interests\": [\n    \"NATURE\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "const buildData = pm.response.json().data;",
+                      "pm.test('Has orderedStops', () => pm.expect(buildData.itinerary.orderedStops).to.be.an('array').with.length.above(0));",
+                      "pm.test('Has a real totalCostInr', () => pm.expect(buildData.totalCostInr).to.be.a('number').above(0));",
+                      "pm.test('Has narrativeSource', () => pm.expect(['GEMINI_AI','TEMPLATED_FALLBACK']).to.include(buildData.narrativeSource));",
+                      "pm.environment.set('TRAVEL_JOURNEY_RAW', JSON.stringify(buildData));",
+                      "const builtStops = buildData.itinerary.orderedStops;",
+                      "pm.environment.set('TRAVEL_STOP_1_ID', builtStops[0].id);",
+                      "if (builtStops.length > 1) pm.environment.set('TRAVEL_STOP_2_ID', builtStops[1].id);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 121: Ask Follow-Up (Lower the Budget)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/travel-planner/ask",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "travel-planner",
+                    "ask"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"question\": \"only ₹12,000 now\",\n  \"currentContext\": {\n    \"fromCity\": \"Delhi\",\n    \"region\": \"Meghalaya\",\n    \"days\": 5,\n    \"budgetInr\": 20000,\n    \"interests\": [\n      \"NATURE\"\n    ],\n    \"transportPref\": [],\n    \"stopNames\": []\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Response has understood flag', () => pm.expect(pm.response.json().data).to.have.property('understood'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 122: Extract Intent from Free Text",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/travel-planner/extract-intent",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "travel-planner",
+                    "extract-intent"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"text\": \"6 days in Meghalaya from Delhi, under ₹20,000, mostly nature\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "const extractData = pm.response.json().data;",
+                      "pm.test('Response has understood flag', () => pm.expect(extractData).to.have.property('understood'));",
+                      "pm.test('interests is an array', () => pm.expect(extractData.interests).to.be.an('array'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 123: Commit Journey as a Real Trip",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/travel-planner/commit",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "travel-planner",
+                    "commit"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"placeholder\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const journey = JSON.parse(pm.environment.get('TRAVEL_JOURNEY_RAW'));",
+                      "const start = new Date();",
+                      "const end = new Date(start.getTime() + journey.itinerary.daysNeeded * 86400000);",
+                      "pm.request.body.update(JSON.stringify({",
+                      "  title: 'Meghalaya trip -- API Test',",
+                      "  startDate: start.toISOString().slice(0,10),",
+                      "  endDate: end.toISOString().slice(0,10),",
+                      "  totalCostInr: journey.totalCostInr,",
+                      "  itinerary: journey.itinerary,",
+                      "}));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                      "const trip = pm.response.json().data;",
+                      "pm.test('Trip has an id', () => pm.expect(trip.id).to.be.a('string'));",
+                      "pm.environment.set('TRAVEL_TRIP_ID', trip.id);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 124: Propose an AI Adjustment to the Trip",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/travel-planner/trips/{{TRAVEL_TRIP_ID}}/adjust",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "travel-planner",
+                    "trips",
+                    "{{TRAVEL_TRIP_ID}}",
+                    "adjust"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"freeText\": \"I have less budget now, around 2000 rupees less\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "const adjustData = pm.response.json().data;",
+                      "if (adjustData.understood) {",
+                      "  pm.test('Proposal has before/after', () => {",
+                      "    pm.expect(adjustData.before).to.have.property('totalCostInr');",
+                      "    pm.expect(adjustData.after).to.have.property('totalCostInr');",
+                      "  });",
+                      "  pm.environment.set('TRAVEL_ADJUST_STOP_IDS', JSON.stringify(adjustData.after.itinerary.orderedStops.map(s => s.id)));",
+                      "  pm.environment.set('TRAVEL_ADJUST_DAYS', adjustData.after.daysUsedForScoring);",
+                      "} else {",
+                      "  pm.test('Understood-false still returns a message', () => pm.expect(adjustData.message).to.be.a('string'));",
+                      "  pm.environment.unset('TRAVEL_ADJUST_STOP_IDS');",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 125: Apply the Proposed Adjustment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/travel-planner/trips/{{TRAVEL_TRIP_ID}}/apply-adjustment",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "travel-planner",
+                    "trips",
+                    "{{TRAVEL_TRIP_ID}}",
+                    "apply-adjustment"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"placeholder\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const ids = pm.environment.get('TRAVEL_ADJUST_STOP_IDS');",
+                      "if (!ids) { pm.execution.skipRequest(); }",
+                      "else pm.request.body.update(JSON.stringify({ orderedStopIds: JSON.parse(ids), days: Number(pm.environment.get('TRAVEL_ADJUST_DAYS')) }));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Trip stops reflect the applied change', () => pm.expect(pm.response.json().data.stops).to.be.an('array'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 126: Routes Between Two Curated Stops",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/travel-planner/routes-between?from={{TRAVEL_STOP_1_ID}}&to={{TRAVEL_STOP_2_ID}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "travel-planner",
+                    "routes-between"
+                  ],
+                  "query": [
+                    {
+                      "key": "from",
+                      "value": "{{TRAVEL_STOP_1_ID}}"
+                    },
+                    {
+                      "key": "to",
+                      "value": "{{TRAVEL_STOP_2_ID}}"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "const routesData = pm.response.json().data;",
+                      "pm.test('Returns at least one route', () => pm.expect(routesData.routes).to.be.an('array').with.length.above(0));",
+                      "pm.test('Each route names its mode and whether it is estimated', () => {",
+                      "  routesData.routes.forEach(r => {",
+                      "    pm.expect(r).to.have.property('mode');",
+                      "    pm.expect(r).to.have.property('estimated');",
+                      "  });",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 127: Build Journey Validation Error (Missing Region)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/travel-planner/build-journey",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "travel-planner",
+                    "build-journey"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fromCity\": \"Delhi\",\n  \"days\": 5\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "23 - NTN (Satellite Fallback)",
+          "item": [
+            {
+              "name": "Test 128: NTN Channel Status (Clear Sky)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/ntn/status?scenario=CLEAR_SKY",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "ntn",
+                    "status"
+                  ],
+                  "query": [
+                    {
+                      "key": "scenario",
+                      "value": "CLEAR_SKY"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "const clearSkyData = pm.response.json().data;",
+                      "pm.test('Satellite visible in clear sky', () => pm.expect(clearSkyData.satelliteVisible).to.equal(true));",
+                      "pm.test('signalPct/latencyMs are numbers', () => {",
+                      "  pm.expect(clearSkyData.signalPct).to.be.a('number');",
+                      "  pm.expect(clearSkyData.latencyMs).to.be.a('number');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 129: NTN Channel Status (No Visibility)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/ntn/status?scenario=NO_VISIBILITY",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "ntn",
+                    "status"
+                  ],
+                  "query": [
+                    {
+                      "key": "scenario",
+                      "value": "NO_VISIBILITY"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "const noVisData = pm.response.json().data;",
+                      "pm.test('No satellite visibility', () => pm.expect(noVisData.satelliteVisible).to.equal(false));",
+                      "pm.test('Packet loss is total', () => pm.expect(noVisData.packetLossPct).to.equal(100));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 130: NTN Uplink Attempt (Clear Sky)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/ntn/uplink",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "ntn",
+                    "uplink"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"scenario\": \"CLEAR_SKY\",\n  \"latitude\": 26.1445,\n  \"longitude\": 91.7362,\n  \"category\": \"MEDICAL\",\n  \"message\": \"API Test NTN uplink\",\n  \"batteryPct\": 40\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 or 201', () => pm.expect([200,201]).to.include(pm.response.code));",
+                      "const uplinkData = pm.response.json().data;",
+                      "pm.test('Has a delivered flag and channel telemetry', () => {",
+                      "  pm.expect(uplinkData).to.have.property('delivered');",
+                      "  pm.expect(uplinkData.channel).to.have.property('signalPct');",
+                      "});",
+                      "if (uplinkData.delivered) {",
+                      "  pm.test('Delivered uplink created a real SOS event', () => pm.expect(uplinkData.sosEvent).to.not.be.null);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 131: NTN Uplink Validation Error (Missing Latitude)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/ntn/uplink",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "ntn",
+                    "uplink"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"scenario\": \"CLEAR_SKY\",\n  \"longitude\": 91.7362\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400', () => pm.response.to.have.status(400));"
                     ]
                   }
                 }
