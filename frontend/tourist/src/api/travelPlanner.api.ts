@@ -32,6 +32,11 @@ export interface JourneyStop {
     sampleTips: string[]
     commonFeltSafe: string | null
   } | null
+  // Display-only count of govt-verified local providers at this stop --
+  // full LocalOperator objects live on the destination record itself
+  // (see Destination.localOperators in api.types.ts), fetched separately
+  // when the stop is opened in StopDetailSheet.
+  localOperatorsCount?: number
 }
 
 export interface JourneyItinerary {

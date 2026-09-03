@@ -5,7 +5,8 @@
 // text. Legs reveal staggered on mount (30-50ms/item, per this app's
 // motion conventions) and respect prefers-reduced-motion.
 import { useEffect, useState } from 'react'
-import { Train, Plane, Bus, Car, Ship, Waypoints, MapPin, IndianRupee, Clock, ShieldCheck, ChevronDown, Star, Sparkles } from 'lucide-react'
+import { Train, Plane, Bus, Car, Ship, Waypoints, MapPin, IndianRupee, Clock, ShieldCheck, ChevronDown, Star, Sparkles, BadgeCheck } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../../lib/utils'
 import type { BuildJourneyResult, JourneyLeg } from '../../../api/travelPlanner.api'
 
@@ -76,6 +77,7 @@ function LegRow({ leg, index }: { leg: JourneyLeg; index: number }) {
 // live-testing the adjust flow: this component originally assumed
 // externalLegs always existed and crashed rendering a proposal.
 export function JourneyResultCard({ result }: { result: Omit<BuildJourneyResult, 'externalLegs'> & { externalLegs?: BuildJourneyResult['externalLegs'] } }) {
+  const { t } = useTranslation()
   const [showWhy, setShowWhy] = useState(true)
   const { itinerary } = result
   const worst = itinerary.safety.worstStop
@@ -109,6 +111,18 @@ export function JourneyResultCard({ result }: { result: Omit<BuildJourneyResult,
               <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
               <span className="font-bold">{s.name}</span>
               <span className="text-on-surface-variant">{s.reviewSummary!.avgRating}/5 · {s.reviewSummary!.reviewCount} review{s.reviewSummary!.reviewCount === 1 ? '' : 's'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {itinerary.orderedStops.some((s) => (s.localOperatorsCount ?? 0) > 0) && (
+        <div className="px-4 pb-3 flex flex-wrap gap-2">
+          {itinerary.orderedStops.filter((s) => (s.localOperatorsCount ?? 0) > 0).map((s) => (
+            <div key={s.id} className="flex items-center gap-1 text-xs bg-surface-container px-2.5 py-1 rounded-full">
+              <BadgeCheck className="w-3 h-3 text-emerald-600" />
+              <span className="font-bold">{s.name}</span>
+              <span className="text-on-surface-variant">{t('tripDetail.localOperatorsPill', { count: s.localOperatorsCount })}</span>
             </div>
           ))}
         </div>

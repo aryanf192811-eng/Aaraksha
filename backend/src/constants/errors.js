@@ -77,6 +77,9 @@ const ERRORS = Object.freeze({
   VOLUNTEER_NOT_AVAILABLE: 'Volunteer is not available — status must be AVAILABLE to assign',
   ASSIGNMENT_NOT_FOUND:    'Assignment not found or access denied',
   ASSIGNMENT_ALREADY_VERIFIED: 'You already verified the handoff with the tourist — this case is being closed, it can\'t be declined or cancelled now',
+
+  // Local tourism providers
+  LOCAL_OPERATOR_NOT_FOUND: 'Local tourism provider not found',
   ANOMALY_NOT_FOUND:       'Anomaly not found or already resolved',
   INCIDENT_NOT_FOUND:      'Incident report not found or access denied',
   INCIDENT_ALREADY_CLOSED: 'This incident report is already resolved or closed',

@@ -10,15 +10,15 @@
 > This is a checklist-style engineering artifact — go/no-go signal, not the pitch. For the full
 > narrative (features, architecture rationale, screenshots) see [`README.md`](./README.md).
 
-**Snapshot as of 2026-09-01** — verified directly against the live dev DB and the route files, not
+**Snapshot as of 2026-09-03** — verified directly against the live dev DB and the route files, not
 estimated:
 
 | | |
 |---|---|
 | Portals | 4 (Tourist PWA, Govt Command Center, Guardian Portal, Rescuer App) |
-| API endpoints | 136, across 17 route groups |
-| Database tables | 30 (+ `pgmigrations` tracking table) |
-| Migrations | 26, applied incrementally |
+| API endpoints | 140, across 17 route groups |
+| Database tables | 31 (+ `pgmigrations` tracking table) |
+| Migrations | 27, applied incrementally |
 | Auth model | JWT (HS256, algorithm-pinned) + RBAC (tourist / govt roles) + token-based guardian links |
 | Offline SOS path | Twilio inbound SMS → structured parser → canonical SOS pipeline |
 
@@ -61,21 +61,21 @@ only, no string-built SQL anywhere in the codebase.
 |---|---|
 | Backend unit + integration (vitest) | 56 tests passing — pure logic (TSI scoring, itinerary scoring, crypto) + integration flows against `DATABASE_TEST_URL` |
 | Frontend (vitest, all 4 apps) | ~95 tests total across tourist/govt/guardian/volunteer |
-| API contract (Postman/Newman) | 300 assertions across 133 requests in 24 folders — auth, trips, SOS, DMS, govt ops, security guards, validation, edge cases, the unified rescuer flow, the AI Travel Assistant, and the simulated NTN path |
+| API contract (Postman/Newman) | 310 assertions across 138 requests in 25 folders — auth, trips, SOS, DMS, govt ops, security guards, validation, edge cases, the unified rescuer flow, the AI Travel Assistant, the simulated NTN path, and Local Tourism Provider govt verification |
 | CI | `.github/workflows/test.yml` runs the backend suite against a real ephemeral Postgres and matrixes the frontend suite across all four apps on every push/PR |
 | Scoring-quality benchmark | `tests/eval/travelPlanner.benchmark.js` — 6 fixed real-world queries against the live scorer + dev DB, 6/6 passing |
 | Newer endpoints (community reviews, news rotation, group trips, push, incident reports, risk-density, anomaly detection, E-FIR queue, checkpoint hash-chain, AI Travel Assistant) | Verified through live, real-network Playwright end-to-end testing rather than Postman assertions — see [Testing](./README.md#-testing) in the README for what that actually checks |
 
 ---
 
-## Database — 30 tables, by area
+## Database — 31 tables, by area
 
 Full column-level detail lives in [`DB_GUIDE.md`](./DB_GUIDE.md); this is the map, not the schema.
 
 | Area | Tables |
 |---|---|
 | Identity & auth | `tourists`, `govt_users`, `otp_verifications`, `data_deletion_requests` |
-| Trips & travel planning | `trips`, `trip_members`, `destinations`, `typical_routes`, `destination_news`, `destination_reviews`, `weather_cache` |
+| Trips & travel planning | `trips`, `trip_members`, `destinations`, `typical_routes`, `destination_news`, `destination_reviews`, `weather_cache`, `local_operators` |
 | Safety core | `checkins`, `dead_mans_switches`, `sos_events`, `sos_cluster_flags`, `safety_anomalies`, `tourist_locations` |
 | Rescue network | `rescue_teams`, `rescue_assignments`, `volunteers`, `volunteer_dispatches` |
 | Incidents & community | `incident_reports`, `scam_reports`, `checkpoint_scans` |

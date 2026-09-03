@@ -127,6 +127,13 @@ router.get('/volunteers/pending',      requireGovtRole(...COMMAND_CENTER_ROLES),
 router.patch('/volunteers/:id/verify', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.verifyVolunteer)
 router.patch('/volunteers/:id/reject', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.rejectVolunteer)
 
+// Local Tourism Enablement pillar — verified provider directory, mirrors
+// the volunteer verify/reject flow exactly (see localOperator.repository.js).
+router.get('/local-operators',              requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getAllLocalOperators)
+router.get('/local-operators/pending',      requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.getPendingLocalOperators)
+router.patch('/local-operators/:id/verify', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.verifyLocalOperator)
+router.patch('/local-operators/:id/reject', requireGovtRole(...COMMAND_CENTER_ROLES), ctrl.rejectLocalOperator)
+
 // Trust score / appeals -- scoped tighter than COMMAND_CENTER_ROLES.
 // Deciding someone's account restriction (or overturning it) is a
 // district-level judgment call, not something every operator role should

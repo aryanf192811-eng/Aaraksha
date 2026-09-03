@@ -364,6 +364,28 @@ export interface Volunteer {
   team_name: string | null
 }
 
+// localOperator.repository.js's SAFE_COLS — govt-verified local tourism
+// providers (hotels/homestays/guides/experiences/artisans). Same shape
+// whether pending or verified, `is_verified` is what the govt Local
+// Providers page filters on, same pattern as Volunteer above.
+export interface LocalOperator {
+  id: string
+  business_name: string
+  category: 'HOTEL' | 'HOMESTAY' | 'GUIDE' | 'EXPERIENCE' | 'ARTISAN'
+  destination_id: string | null
+  district: string
+  state: string
+  contact_phone: string
+  description: string | null
+  price_range_text: string | null
+  source: string | null
+  is_verified: boolean
+  verified_by: string | null
+  verified_at: string | null
+  is_active: boolean
+  created_at: string
+}
+
 export interface RescueAssignment {
   id: string
   sos_event_id: string

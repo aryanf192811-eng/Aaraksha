@@ -290,6 +290,27 @@ export interface Destination {
   tsi_weather_delta?: number
   weather_updated_at?: string
   scam_count?: number
+  localOperators?: LocalOperator[]
+}
+
+// ── Local tourism provider (govt-verified hotels/homestays/guides/experiences/
+// artisans, merged onto GET /destinations/:id the same way scamReports is) ──
+export interface LocalOperator {
+  id: string
+  business_name: string
+  category: 'HOTEL' | 'HOMESTAY' | 'GUIDE' | 'EXPERIENCE' | 'ARTISAN'
+  destination_id: string
+  district: string | null
+  state: string
+  contact_phone: string | null
+  description: string | null
+  price_range_text: string | null
+  source: string
+  is_verified: boolean
+  verified_by: string | null
+  verified_at: string | null
+  is_active: boolean
+  created_at: string
 }
 
 // ── Scam report ────────────────────────────────────────────────────────────

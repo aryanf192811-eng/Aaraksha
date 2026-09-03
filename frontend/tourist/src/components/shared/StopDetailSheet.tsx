@@ -11,15 +11,16 @@ import { useQuery } from '@tanstack/react-query'
 import {
   X, MapPin, Mountain, HeartPulse, Shield, CalendarDays, Star, Train, Plane,
   Bus, Car, Ship, Waypoints, Clock, IndianRupee, FileWarning, Phone,
+  Building2, Home, Compass, Palette, ShieldCheck,
 } from 'lucide-react'
 import { useDragSheet } from '../../hooks/useDragSheet'
-import { formatINR } from '../../lib/utils'
+import { formatINR, cn } from '../../lib/utils'
 import { tEnum } from '../../lib/i18nEnums'
 import { useTranslation } from 'react-i18next'
 import destinationApi from '../../api/destination.api'
 import travelPlannerApi from '../../api/travelPlanner.api'
 import { getDestinationImage } from '../../lib/destinationImages'
-import type { Stop } from '../../types/api.types'
+import type { Stop, LocalOperator } from '../../types/api.types'
 
 const MODE_ICON: Record<string, typeof Train> = {
   TRAIN: Train, FLIGHT: Plane, BUS: Bus, SHARED_TAXI: Car, LOCAL_TRANSPORT: Car,
@@ -28,6 +29,25 @@ const MODE_ICON: Record<string, typeof Train> = {
 const MODE_LABEL: Record<string, string> = {
   TRAIN: 'Train', FLIGHT: 'Flight', BUS: 'Bus', SHARED_TAXI: 'Shared taxi',
   LOCAL_TRANSPORT: 'Local transport', FERRY: 'Ferry', MIXED: 'Mixed (road + ferry)',
+}
+const OPERATOR_CATEGORY_ICON: Record<LocalOperator['category'], typeof Building2> = {
+  HOTEL: Building2, HOMESTAY: Home, GUIDE: Compass, EXPERIENCE: Mountain, ARTISAN: Palette,
+}
+// Same category→color mapping as the govt LocalOperatorsPage roster cards —
+// one visual vocabulary for "what kind of provider is this" across portals.
+const OPERATOR_CATEGORY_TINT: Record<LocalOperator['category'], { bg: string; text: string }> = {
+  HOTEL: { bg: 'bg-blue-100', text: 'text-blue-700' },
+  HOMESTAY: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  GUIDE: { bg: 'bg-indigo-100', text: 'text-indigo-700' },
+  EXPERIENCE: { bg: 'bg-orange-100', text: 'text-orange-700' },
+  ARTISAN: { bg: 'bg-pink-100', text: 'text-pink-700' },
+}
+const OPERATOR_CATEGORY_LABEL_KEY: Record<LocalOperator['category'], string> = {
+  HOTEL: 'tripDetail.localOperatorCategoryHotel',
+  HOMESTAY: 'tripDetail.localOperatorCategoryHomestay',
+  GUIDE: 'tripDetail.localOperatorCategoryGuide',
+  EXPERIENCE: 'tripDetail.localOperatorCategoryExperience',
+  ARTISAN: 'tripDetail.localOperatorCategoryArtisan',
 }
 
 function fmtDuration(min: number | null) {
@@ -152,6 +172,67 @@ export function StopDetailSheet({ open, stop, previousStop, onClose }: {
               </div>
             </>
           ) : null}
+
+          {/* Local Tourism Providers — govt-verified, merged onto the same
+              destination record scamReports uses; render nothing at all
+              when there are none, no empty-state placeholder. */}
+          {destination?.localOperators && destination.localOperators.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">
+                {t('tripDetail.localOperatorsTitle')}
+              </p>
+              <p className="text-xs text-on-surface-variant mb-2.5">
+                {t('tripDetail.localOperatorsCount', { count: destination.localOperators.length })}
+              </p>
+              <div className="space-y-2.5">
+                {destination.localOperators.map((op) => {
+                  const Icon = OPERATOR_CATEGORY_ICON[op.category] || Building2
+                  const tint = OPERATOR_CATEGORY_TINT[op.category]
+                  return (
+                    <div key={op.id} className="rounded-2xl border border-outline-variant bg-surface-container-lowest px-4 py-3.5">
+                      <div className="flex items-start gap-3">
+                        <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0', tint.bg, tint.text)}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {/* Name leads the hierarchy; category rides alongside as a
+                              tinted pill instead of a separate uppercase line above it. */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-sm font-bold text-on-surface">{op.business_name}</p>
+                            <span className={cn('text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full flex-shrink-0', tint.bg, tint.text)}>
+                              {t(OPERATOR_CATEGORY_LABEL_KEY[op.category])}
+                            </span>
+                          </div>
+                          {op.description && (
+                            <p className="text-xs text-on-surface-variant leading-relaxed mt-1">{op.description}</p>
+                          )}
+                          {op.price_range_text && (
+                            <p className="text-xs text-on-surface-variant mt-1 flex items-center gap-1">
+                              <IndianRupee className="w-3 h-3" /> {op.price_range_text}
+                            </p>
+                          )}
+                          {op.contact_phone && (
+                            <a href={`tel:${op.contact_phone}`}
+                              className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-primary-dark bg-primary/10 px-2.5 py-1.5 rounded-full">
+                              <Phone className="w-3 h-3" /> {op.contact_phone}
+                            </a>
+                          )}
+                          {/* Verified badge and source citation stay two distinct
+                              elements — a trust signal vs. fine-print attribution. */}
+                          <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 w-fit px-2 py-0.5 rounded-full">
+                            <ShieldCheck className="w-3 h-3" /> {t('tripDetail.localOperatorVerifiedBadge')}
+                          </div>
+                          <p className="text-[10px] text-on-surface-variant/70 mt-1">
+                            {t('tripDetail.localOperatorSource', { source: op.source })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* How to reach — only when there's a previous stop to route from */}
           {previousStop?.destinationId && stop.destinationId && (

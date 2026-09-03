@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Shield, Map, Bell, TrendingUp, AlertTriangle, LogOut, Activity, ScanLine, Smartphone, Menu, X, HeartHandshake, FileWarning, ShieldAlert } from 'lucide-react'
+import { Shield, Map, Bell, TrendingUp, AlertTriangle, LogOut, Activity, ScanLine, Smartphone, Menu, X, HeartHandshake, FileWarning, ShieldAlert, Store } from 'lucide-react'
 import { useAuthStore } from '../store/auth.store'
 import { useSOSSocket } from '../hooks/useSOSSocket'
 import { ALLOWED_CHECKPOINT_ROLES } from '../pages/CheckpointScanPage'
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { to: '/sos', icon: Bell, label: 'SOS Management' },
   { to: '/incidents', icon: FileWarning, label: 'E-FIR Queue' },
   { to: '/volunteers', icon: HeartHandshake, label: 'Volunteers' },
+  { to: '/local-operators', icon: Store, label: 'Local Providers' },
   { to: '/trust-appeals', icon: ShieldAlert, label: 'Trust Appeals' },
   { to: '/map', icon: Map, label: 'Live Map' },
   { to: '/risk', icon: AlertTriangle, label: 'Risk Overview' },

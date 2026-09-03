@@ -8,6 +8,7 @@
 
 const { TravelPlannerRepository } = require('../repositories/travelPlanner.repository')
 const { TripRepository } = require('../repositories/trip.repository')
+const { LocalOperatorRepository } = require('../repositories/localOperator.repository')
 const { scoreCandidateItinerary, applyIntentToStops, INTEREST_TAGS } = require('./travelScoring.service')
 const { generateJourneyNarrative, extractPlanningIntent, extractTripIntent } = require('./gemini.service')
 const { createTrip, updateTrip } = require('./trip.service')
@@ -181,14 +182,27 @@ async function buildJourney({ fromCity, region, days, budgetInr, interests, tran
   }
 
   const destinationIds = candidates.map((d) => d.id)
-  const [legsByPair, reviewSummaryById] = await Promise.all([
+  const [legsByPair, reviewSummaryById, localOperatorsById] = await Promise.all([
     repo.findRoutesAmong(destinationIds),
     repo.getReviewSummaries(destinationIds),
+    new LocalOperatorRepository().getSummariesByDestinationIds(destinationIds),
   ])
 
   const scored = scoreCandidateItinerary({
     origin: GATEWAY, destinations: candidates, legsByPair, reviewSummaryById,
     budgetInr, days, interests,
+  })
+  // Display-only enrichment, attached after scoring rather than threaded
+  // into scoreCandidateItinerary itself -- deliberately NOT a scoring
+  // signal yet (see chatbot.md / the implementation plan for why: that
+  // function has its own regression benchmark and an explicit "AI
+  // explains, doesn't decide" integrity guarantee not worth touching in
+  // the same pass that stands up a brand-new, still-thin data source).
+  // Count only, same reasoning JourneyResultCard's pill only needs a
+  // number -- full provider objects are fetched separately by
+  // StopDetailSheet via GET /destinations/:id.
+  scored.orderedStops.forEach((stop) => {
+    stop.localOperatorsCount = (localOperatorsById.get(stop.id) || []).length
   })
 
   const externalLeg = resolveExternalLeg(fromCity, transportPref)

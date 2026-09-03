@@ -245,11 +245,34 @@ const rejectVolunteer = async (req, res, next) => {
   } catch (err) { next(err) }
 }
 
+const getPendingLocalOperators = async (req, res, next) => {
+  try { sendSuccess(res, await govtService.getPendingLocalOperators()) } catch (err) { next(err) }
+}
+
+const getAllLocalOperators = async (req, res, next) => {
+  try { sendSuccess(res, await govtService.getAllLocalOperators()) } catch (err) { next(err) }
+}
+
+const verifyLocalOperator = async (req, res, next) => {
+  try {
+    const operator = await govtService.verifyLocalOperator(req.params.id, req.govtUser.id)
+    sendSuccess(res, operator, 'Local tourism provider verified')
+  } catch (err) { next(err) }
+}
+
+const rejectLocalOperator = async (req, res, next) => {
+  try {
+    const operator = await govtService.rejectLocalOperator(req.params.id)
+    sendSuccess(res, operator, 'Local tourism provider rejected')
+  } catch (err) { next(err) }
+}
+
 module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRiskModelInfo, getRescueTeams,
   getAnalytics, exportAnalyticsReport, getActiveSOS, assignRescue, getNearbyRescuers, getActiveRescuers,
   resolveSOS, verifyHandoffRelay, updateTeamStatus, downloadIncidentReport,
   scanCheckpoint, getRecentCheckpointScans, postDestinationNews,
   getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer, rejectVolunteer,
+  getPendingLocalOperators, getAllLocalOperators, verifyLocalOperator, rejectLocalOperator,
   getAnomalies, resolveAnomaly,
   getIncidentQueue, getIncident, getAssignableOfficers, assignIncident, updateIncidentStatus, downloadEfirReport,
   confirmFraudulentSOS, getPendingAppeals, decideAppeal, getOpenClusters, resolveCluster,

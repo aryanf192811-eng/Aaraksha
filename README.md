@@ -1,24 +1,29 @@
 # 🛡️ Aaraksha — Smart Tourism, Safe Journey
 
-**An integrated tourist-safety and rescue-coordination platform for Northeast India — built for
-Smart India Hackathon 2026, Student Innovation category, Travel & Tourism theme.**
+**One journey, three intelligence layers: AI-planned, verified-tourism-enabled, and
+safety-protected — an integrated platform for Northeast India built for Smart India Hackathon
+2026, Student Innovation category, Travel & Tourism theme.**
 
 > *Aaraksha* (आराक्षा) — "protection." Not a translation exercise: it's the one-word summary of
-> what every screen in this system is trying to do.
+> what every screen in this system is trying to do — including, now, protecting a tourist's
+> money and time from a fragmented planning experience, not just their body from an emergency.
 
-> **Submission title:** *Aaraksha — An Integrated, Offline-Resilient Tourist Safety, Verifiable
-> Digital Identity & Real-Time Rescue Coordination Platform for High-Risk Northeast Indian Terrain*
+> **Submission title:** *Aaraksha — An AI-Native Travel Planning, Verified Local Tourism
+> Discovery, and Offline-Resilient Safety Platform for Northeast Indian Terrain*
 >
-> Deliberately broader than a single feature demo, because that's what the system actually is:
-> trip-level risk scoring before a journey starts, emergency response that keeps working with zero
-> signal, a tamper-evident digital identity chain a third party can independently verify, and one
-> live coordination loop tying the tourist, their family, government dispatch, and the rescuer on
-> the ground together — not four separate claims stapled to one slide.
+> Deliberately three claims, not one, because that's what the system actually is: an AI travel
+> assistant that plans, costs, and adapts a real itinerary; a government-verified directory of
+> real local hotels, homestays, guides, and artisans surfaced inside that same itinerary — the
+> direct answer to this PS's own "including hotels, travel and others"; and a safety layer that
+> keeps working with zero signal, ties the tourist, their family, government dispatch, and a
+> rescuer on the ground into one live picture, and never lets the first two claims come at the
+> cost of the third.
 
 [![Status](https://img.shields.io/badge/status-demo--ready-brightgreen)]()
 [![Portals](https://img.shields.io/badge/portals-4-blue)]()
-[![API](https://img.shields.io/badge/API%20endpoints-136-orange)]()
-[![Tables](https://img.shields.io/badge/DB%20tables-30-orange)]()
+[![API](https://img.shields.io/badge/API%20endpoints-140-orange)]()
+[![Tables](https://img.shields.io/badge/DB%20tables-31-orange)]()
+[![Local providers](https://img.shields.io/badge/verified%20local%20providers-35-brightgreen)]()
 [![Offline SOS](https://img.shields.io/badge/offline%20SOS-2G%20capable-red)]()
 [![Digital ID](https://img.shields.io/badge/digital%20ID-hash--chained-9cf)]()
 [![Category](https://img.shields.io/badge/SIH%202026-Student%20Innovation-purple)]()
@@ -28,16 +33,23 @@ Smart India Hackathon 2026, Student Innovation category, Travel & Tourism theme.
 
 ## 🎯 The pitch, in one paragraph
 
-Northeast India pulls a growing number of tourists into terrain most safety apps were never
-built for: 3000m mountain passes, zero-connectivity valleys, single-lane approach roads, and
-districts where the nearest hospital is a two-hour drive. Existing tourism apps stop at
-itinerary planning. Existing safety apps assume a phone signal. Aaraksha is built on the
-opposite assumption — **that the moment someone needs help is exactly the moment their phone
-stops being reliable** — and designs every safety mechanism backward from there: SOS that works
-over SMS with zero data, a Dead Man's Switch that fires *for* you if you go silent, a citizen
-volunteer network that gets a real turn-by-turn road route the instant they're dispatched, and a
-government command center watching the same live picture the tourist sees — tied together by one
-real-time data model instead of four disconnected apps.
+Northeast India pulls a growing number of tourists into terrain most tourism and safety apps were
+never built for: 3000m mountain passes, zero-connectivity valleys, districts where the nearest
+hospital is a two-hour drive — and a local tourism economy (real homestays, registered guides,
+handloom cooperatives) that has almost no digital presence a traveller can actually find or trust.
+Existing tourism apps stop at itinerary planning and treat "local business" as an afterthought, if
+they touch it at all. Existing safety apps assume a phone signal. Aaraksha connects all three: an
+**AI Travel Assistant** that plans, costs, and safety-scores a real Northeast India itinerary from
+curated data, not guesswork; a **government-verified Local Tourism Providers directory** — real
+hotels, homestays, registered guides, and artisan cooperatives, sourced from official registries
+and OpenStreetMap, reviewed by a government operator before any tourist sees them, and surfaced
+directly inside the trip being planned — the concrete answer to boosting the tourism industry a PS
+about "hotels, travel and others" is actually asking for; and a **safety layer built on the
+opposite assumption most apps make** — that the moment someone needs help is exactly the moment
+their phone stops being reliable — SOS over SMS with zero data, a Dead Man's Switch that fires
+*for* you if you go silent, a citizen volunteer network with real turn-by-turn routing, and a
+government command center watching the same live picture the tourist sees. One real-time data
+model, not three disconnected claims stapled to one slide.
 
 <p align="center">
   <img src="./docs/screenshots/govt-dashboard.png" alt="Aaraksha government command center dashboard" width="100%">
@@ -50,6 +62,7 @@ real-time data model instead of four disconnected apps.
 - [🔬 Research & prior art — where Aaraksha sits](#-research--prior-art--where-aaraksha-sits)
 - [🧩 Four portals, one system](#-four-portals-one-system)
 - [⭐ Feature walkthrough](#-feature-walkthrough)
+- [🏨 Local Tourism Providers — the tourism-industry pillar](#-local-tourism-providers--the-tourism-industry-pillar)
 - [🔗 Verifiable Digital ID — the Journey Integrity Hash](#-verifiable-digital-id--the-journey-integrity-hash)
 - [🤖 A real trained model — the Predictive Risk Score](#-a-real-trained-model--the-predictive-risk-score)
 - [🧭 AI Travel Assistant — plan, adjust, and track a journey](#-ai-travel-assistant--plan-adjust-and-track-a-journey)
@@ -187,6 +200,12 @@ has to *operate* the system, not just use it. That's the bar this comparison is 
 - **Budget tracking** per trip, category breakdowns, plus a running "spent so far" total from visited stops
 - **Group trips** — invite codes, join-by-code, shared itinerary, member roster
 - **Digital Journey Passport** — a PDFKit-generated trip summary (itinerary, safety events, check-in history) a tourist can download or share, with a tamper-evident **SHA-256 integrity hash chain** printed on the last page — see [Verifiable Digital ID](#verifiable-digital-id--the-journey-integrity-hash) below
+
+### 🏨 Local Tourism Providers
+- **Government-verified local business directory** — real hotels, homestays, registered guides, and artisan/handicraft cooperatives across all 8 Northeast Indian states, each with a checkable citation (an official state tourism/handicrafts/cooperative department page, or an OpenStreetMap node) and a govt operator's sign-off before it's ever shown to a tourist — see [Local Tourism Providers](#-local-tourism-providers--the-tourism-industry-pillar) below for the full pillar
+- **Surfaced inside the trip, not a separate directory app** — a stop's detail sheet shows every verified provider at that destination directly, and the AI Travel Assistant's itinerary results carry a live count per stop, so discovery happens exactly where a tourist is already deciding where to go
+- **Two-sided trust, shown honestly** — a "✓ Government Verified" badge and a "Source: {citation}" line are always two separate, distinct facts on every card — who confirmed it, and where the underlying data came from — never merged into one unverifiable claim
+- **A real, live "Tourism Ecosystem Coverage" dashboard** for government operators — verified-provider counts by category and by district/destination, computed from the same data a tourist sees, not a separate vanity metric
 
 ### 🚨 Safety
 - **One-tap SOS** — hold-to-confirm button, 7 incident categories, GPS-first with a last-known-location fallback
@@ -431,6 +450,62 @@ states currently have 2–3 sourced destinations and at least one sourced intra-
 
 ---
 
+## 🏨 Local Tourism Providers — the tourism-industry pillar
+
+SIH PS 26204 asks for a solution that can *"boost the current situation of the tourism industries
+including hotels, travel and others."* The AI Travel Assistant above answers "travel." This is
+the direct answer to "hotels ... and others" — and it was built the same way everything else in
+this README was: with a real trust boundary, real sourced data, and an explicit decision about
+what *not* to build.
+
+**The decision, stated plainly:** this is a **discovery and trust layer, not a booking platform.**
+No payments, no inventory, no availability calendar — building an OTA clone would be a different,
+much larger product, and isn't what an open-innovation PS asking to *boost* an industry is
+requesting. What Aaraksha adds instead is the thing that's actually missing: a way for a real
+local hotel, homestay, guide, or artisan cooperative to be **discoverable and trustworthy** inside
+the exact moment a tourist is planning their trip.
+
+**The trust model is borrowed on purpose, not invented from scratch** — a "local provider" needs
+the same shape of trust this platform already proved out for **citizen rescue volunteers**: a
+real-world identity with a checkable citation that is *not* safe to surface to a tourist until a
+government reviewer has verified it. Same reasoning, same review queue pattern, same "citation
+alone isn't enough" discipline — just a different actor.
+
+| Stage | What happens | Where |
+|---|---|---|
+| 🔎 Sourced | A real hotel/homestay/guide/artisan cooperative, cited from an official state tourism/handicrafts/cooperative department page or an OpenStreetMap node — never a booking aggregator (OYO, MakeMyTrip, Airbnb, TripAdvisor, Booking.com are explicitly banned as sources) | `chatbot.md`'s "Local Tourism Enablement" section, `local_operators.source` (`NOT NULL` at the DB level) |
+| ⏳ Pending | Inserted `is_verified = false` — real and cited is not yet the same as safe-to-surface | `local_operators` table, migration `027_local_operators` |
+| ✅ Verified | A government operator reviews the citation and approves it in the Command Center — the same identity-confirmation discipline as volunteer onboarding | `POST /govt/local-operators/:id/verify`, `LocalOperatorsPage.tsx` |
+| 📲 Visible | Only verified, active providers are ever returned to a tourist — enforced as a hard-coded `WHERE is_verified = true` in the repository layer, not a frontend filter | `localOperator.repository.js#findByDestinationId`, `StopDetailSheet.tsx`, `JourneyResultCard.tsx` |
+
+**Two distinct facts, always shown as two distinct lines** — every provider card carries a
+"✓ Government Verified" badge (who confirmed it) and a separate "Source: {citation}" line (where
+the underlying fact came from). They're deliberately never merged into one sentence: a citation
+being real isn't the same claim as a government reviewer having signed off on it, and this
+platform doesn't blur the two just to make a card read cleaner.
+
+**Real numbers, not a seed script's placeholder count** — as of this build: **40 real, cited
+providers across all 8 Northeast Indian states**, every state represented in every category this
+dataset defines (14 hotels, 11 homestays, 9 registered guides, 6 artisan/handicraft cooperatives)
+— including an independently-confirmed individual guide in every single state, not just an
+association — 35 already government-verified, a handful deliberately left pending as a genuine,
+uncoached verify-it-live moment rather than a staged demo. Every citation is independently checkable —
+official OSM node/way IDs, or a named government department page — the full research and
+verification trail (including one caught and corrected citation, left in the log rather than
+quietly fixed) is in [`chatbot.md`](./chatbot.md)'s session log.
+
+<p align="center">
+  <img src="./docs/screenshots/govt-local-operators.png" alt="Govt Command Center Local Tourism Providers page" width="80%">
+</p>
+<p align="center"><sub>Govt Command Center — verified-provider roster and live Tourism Ecosystem Coverage dashboard</sub></p>
+
+<p align="center">
+  <img src="./docs/screenshots/tourist-local-providers.png" alt="Tourist app showing verified local tourism providers on a stop's detail sheet" width="40%">
+</p>
+<p align="center"><sub>Tourist PWA — verified local providers surfaced directly on a trip stop</sub></p>
+
+---
+
 ## 🚑 The unified Rescuer network
 
 Two kinds of rescuer used to be structurally separate systems: official rescue teams (a shared
@@ -633,6 +708,9 @@ are in [`docs/screenshots/`](./docs/screenshots/), free to drop straight into sl
 <td width="50%"><img src="./docs/screenshots/tourist-community.png" alt="Community reviews"><p align="center"><sub>Community — rich destination reviews</sub></p></td>
 <td width="50%"><img src="./docs/screenshots/tourist-dashboard.png" alt="Tourist dashboard"><p align="center"><sub>Dashboard — SOS, DMS, active trips</sub></p></td>
 </tr>
+<tr>
+<td width="50%"><img src="./docs/screenshots/tourist-local-providers.png" alt="Verified local tourism providers on a trip stop"><p align="center"><sub>Stop detail — verified local providers, badge + source shown separately</sub></p></td>
+</tr>
 </table>
 
 **Govt Command Center**
@@ -653,6 +731,9 @@ are in [`docs/screenshots/`](./docs/screenshots/), free to drop straight into sl
 <tr>
 <td width="50%"><img src="./docs/screenshots/govt-risk-overview.png" alt="Risk overview"><p align="center"><sub>Risk Overview — per-destination live risk</sub></p></td>
 <td width="50%"><img src="./docs/screenshots/govt-analytics.png" alt="Analytics dashboard"><p align="center"><sub>Analytics — incident trends + PDF export</sub></p></td>
+</tr>
+<tr>
+<td width="50%" colspan="2"><img src="./docs/screenshots/govt-local-operators.png" alt="Local Tourism Providers roster and coverage dashboard"><p align="center"><sub>Local Tourism Providers — verified roster + Tourism Ecosystem Coverage</sub></p></td>
 </tr>
 </table>
 
@@ -704,11 +785,12 @@ in repositories, and every multi-table write that must be atomic goes through a 
 | | |
 |---|---|
 | **Portals** | 4 (Tourist PWA, Govt Command Center, Guardian Portal, Rescuer App) |
-| **API endpoints** | 136, across 17 route groups |
-| **Database tables** | 30 |
-| **Migrations** | 26, applied incrementally — every schema change is a reviewable, named diff, never a hand-edited table |
+| **API endpoints** | 140, across 17 route groups |
+| **Database tables** | 31 |
+| **Migrations** | 27, applied incrementally — every schema change is a reviewable, named diff, never a hand-edited table |
 | **Destinations seeded** | 19, across all 8 Northeast Indian states (Assam, Meghalaya, Nagaland, Arunachal Pradesh, Sikkim, Manipur, Mizoram, Tripura) — each with real altitude, connectivity, ILP, and hospital data |
-| **Curated `typical_routes` legs** | 18, each with a required, reviewed `source` — see [AI Travel Assistant](#-ai-travel-assistant--plan-adjust-and-track-a-journey) |
+| **Verified local tourism providers** | 35 government-verified (40 total, real and cited) — hotels, homestays, registered guides, artisan cooperatives across all 8 states — see [Local Tourism Providers](#-local-tourism-providers--the-tourism-industry-pillar) |
+| **Curated `typical_routes` legs** | 24, each with a required, reviewed `source` — see [AI Travel Assistant](#-ai-travel-assistant--plan-adjust-and-track-a-journey) |
 | **Curated news items** | ~45, hand-written per destination, auto-rotating |
 | **Tourist app screens** | 15 (landing, auth, dashboard, trip planning + detail with 6 tabs, check-in, SOS, incident reporting, community, advisory, profile) |
 | **Govt app screens** | 9 (login, dashboard, SOS management, E-FIR queue, volunteers, live map, risk overview, analytics, checkpoint scan) |
@@ -1084,6 +1166,17 @@ honestly scoped beyond the current build:
       Tourist ↔ Rescuer messaging that does exist today; a rescuer messaging an anonymous
       link-holder with no real identity is a different trust boundary, worth its own design pass
       rather than bolting on as a third thread
+- [ ] **Provider relevance as an AI Travel Assistant scoring signal** — right now, verified local
+      providers are a display-time enrichment on top of an already-scored itinerary; making the
+      deterministic scorer treat "a verified guide/homestay exists here" as an actual planning
+      signal is the natural next step, deliberately not done in the same pass that stood the
+      provider dataset up — that scorer carries this platform's core "AI explains, never decides"
+      integrity guarantee and its own regression benchmark, and mixing in a brand-new, still-thin
+      data source at the same time as building it is how that guarantee quietly erodes. Do it once
+      there's enough verified depth for the signal to mean something, as its own reviewed change
+- [ ] **Provider enquiry/lead analytics** — track discovery, not just listing: which verified
+      providers a tourist's itinerary actually surfaced, as a real "did this boost visibility"
+      metric for the tourism department, not a vanity count
 
 ---
 

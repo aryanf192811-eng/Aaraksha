@@ -10,6 +10,7 @@ const { DestinationRepository } = require('../repositories/destination.repositor
 const { TripRepository } = require('../repositories/trip.repository')
 const { TouristRepository } = require('../repositories/tourist.repository')
 const { VolunteerRepository } = require('../repositories/volunteer.repository')
+const { LocalOperatorRepository } = require('../repositories/localOperator.repository')
 const { VolunteerDispatchRepository } = require('../repositories/volunteerDispatch.repository')
 const { emitSOSResolved, emitRescueAssigned, emitGuardianRescueAssigned, emitVolunteerAssigned } = require('../socket/emitters')
 const { SOS_STATUSES, TEAM_STATUSES, VOLUNTEER_STATUSES } = require('../constants/enums')
@@ -377,9 +378,32 @@ async function rejectVolunteer(volunteerId) {
   return volunteer
 }
 
+async function getPendingLocalOperators() {
+  return new LocalOperatorRepository().findPendingVerification()
+}
+
+async function getAllLocalOperators() {
+  return new LocalOperatorRepository().findAll()
+}
+
+async function verifyLocalOperator(operatorId, govtUserId) {
+  const operator = await new LocalOperatorRepository().verify(operatorId, govtUserId)
+  if (!operator) throw Object.assign(new Error(ERRORS.LOCAL_OPERATOR_NOT_FOUND), { statusCode: 404 })
+  logger.info({ operatorId, govtUserId }, 'Local tourism provider verified')
+  return operator
+}
+
+async function rejectLocalOperator(operatorId) {
+  const operator = await new LocalOperatorRepository().reject(operatorId)
+  if (!operator) throw Object.assign(new Error(ERRORS.LOCAL_OPERATOR_NOT_FOUND), { statusCode: 404 })
+  logger.info({ operatorId }, 'Local tourism provider rejected')
+  return operator
+}
+
 module.exports = {
   getDashboard, getActiveSOS, assignRescue, resolveSOS, getNearbyRescuers, getActiveRescuers,
   getLiveTourists, getRiskOverview, getRiskModelInfo, getRescueTeams, updateTeamStatus, getAnalytics,
   getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer, rejectVolunteer,
+  getPendingLocalOperators, getAllLocalOperators, verifyLocalOperator, rejectLocalOperator,
   confirmFraudulentSOS,
 }
