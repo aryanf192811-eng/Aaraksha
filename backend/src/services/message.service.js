@@ -30,9 +30,14 @@ async function getGuardianThreadForTourist(touristId, limit) {
   return rows.reverse() // oldest-first for rendering, newest-first was just the cheap query order
 }
 
-async function getGuardianThreadForGuardian(token, limit) {
+// PIN-gated the same way getGuardianView is (see tourist.service.js) — the
+// chat thread is just as sensitive as live location, so a leaked link
+// alone can't read it either.
+async function getGuardianThreadForGuardian(token, pin, limit) {
   const tourist = await new TouristRepository().findByGuardianToken(token)
   if (!tourist) throw Object.assign(new Error(ERRORS.GUARDIAN_TOKEN_INVALID), { statusCode: 404 })
+  if (!pin) throw Object.assign(new Error(ERRORS.GUARDIAN_PIN_REQUIRED), { statusCode: 401 })
+  if (pin !== tourist.guardian_pin) throw Object.assign(new Error(ERRORS.GUARDIAN_PIN_INCORRECT), { statusCode: 401 })
   return getGuardianThreadForTourist(tourist.id, limit)
 }
 
@@ -45,9 +50,11 @@ async function sendGuardianMessageAsTourist(touristId, body) {
   return message
 }
 
-async function sendGuardianMessageAsGuardian(token, body) {
+async function sendGuardianMessageAsGuardian(token, pin, body) {
   const tourist = await new TouristRepository().findByGuardianToken(token)
   if (!tourist) throw Object.assign(new Error(ERRORS.GUARDIAN_TOKEN_INVALID), { statusCode: 404 })
+  if (!pin) throw Object.assign(new Error(ERRORS.GUARDIAN_PIN_REQUIRED), { statusCode: 401 })
+  if (pin !== tourist.guardian_pin) throw Object.assign(new Error(ERRORS.GUARDIAN_PIN_INCORRECT), { statusCode: 401 })
   const message = await new MessageRepository().create({
     conversationType: 'TOURIST_GUARDIAN', touristId: tourist.id, senderKind: 'GUARDIAN', senderId: null, body,
   })

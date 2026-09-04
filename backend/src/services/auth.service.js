@@ -7,7 +7,7 @@ const config = require('../config/env')
 const logger = require('../utils/logger')
 const { TouristRepository } = require('../repositories/tourist.repository')
 const { GovtRepository } = require('../repositories/govt.repository')
-const { hashPassword, verifyPassword, hashGovtId, generateGuardianToken,
+const { hashPassword, verifyPassword, hashGovtId, generateGuardianToken, generateGuardianPin,
         normalizePhone, extractSuffix } = require('../utils/crypto')
 const { computeProfileReadiness } = require('./tourist.service')
 const { ERRORS } = require('../constants/errors')
@@ -30,6 +30,7 @@ async function registerTourist(data) {
   const passwordHash = await hashPassword(data.password)
   const guardianToken = generateGuardianToken()
   const guardianTokenExpires = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // 90 days
+  const guardianPin = generateGuardianPin()
 
   const contacts = (data.emergencyContacts || []).map((c, i) => ({
     id:          uuid(),
@@ -46,7 +47,7 @@ async function registerTourist(data) {
     medicalInfo: data.medicalInfo || null, emergencyContacts: contacts,
     govtIdType: data.govtIdType, govtIdHash,
     govtIdSuffix: extractSuffix(data.govtIdNumber),
-    guardianToken, guardianTokenExpires, passwordHash,
+    guardianToken, guardianTokenExpires, guardianPin, passwordHash,
   })
 
   const token = generateJWT(tourist.id, 'tourist')

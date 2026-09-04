@@ -21,8 +21,8 @@ safety-protected — an integrated platform for Northeast India built for Smart 
 
 [![Status](https://img.shields.io/badge/status-demo--ready-brightgreen)]()
 [![Portals](https://img.shields.io/badge/portals-4-blue)]()
-[![API](https://img.shields.io/badge/API%20endpoints-140-orange)]()
-[![Tables](https://img.shields.io/badge/DB%20tables-31-orange)]()
+[![API](https://img.shields.io/badge/API%20endpoints-143-orange)]()
+[![Tables](https://img.shields.io/badge/DB%20tables-32-orange)]()
 [![Local providers](https://img.shields.io/badge/verified%20local%20providers-35-brightgreen)]()
 [![Offline SOS](https://img.shields.io/badge/offline%20SOS-2G%20capable-red)]()
 [![Digital ID](https://img.shields.io/badge/digital%20ID-hash--chained-9cf)]()
@@ -140,7 +140,7 @@ has to *operate* the system, not just use it. That's the bar this comparison is 
 
 ```
                      ┌──────────────────┐
-                     │   PostgreSQL      │  30 tables — raw pg, no ORM
+                     │   PostgreSQL      │  32 tables — raw pg, no ORM
                      │   parameterized   │  see DB_GUIDE.md
                      │   SQL only        │
                      └────────▲──────────┘
@@ -148,7 +148,7 @@ has to *operate* the system, not just use it. That's the bar this comparison is 
                      ┌────────┴──────────┐
                      │  Express API       │  Route → Middleware → Controller
                      │  (backend/)        │  → Service → Repository
-                     │  JWT + RBAC        │  136 endpoints · 17 route groups
+                     │  JWT + RBAC        │  143 endpoints · 18 route groups
                      └─┬───────┬───────┬──┘
               Socket.IO│       │       │  REST (JSON)
               real-time│       │       │
@@ -785,9 +785,9 @@ in repositories, and every multi-table write that must be atomic goes through a 
 | | |
 |---|---|
 | **Portals** | 4 (Tourist PWA, Govt Command Center, Guardian Portal, Rescuer App) |
-| **API endpoints** | 140, across 17 route groups |
-| **Database tables** | 31 |
-| **Migrations** | 27, applied incrementally — every schema change is a reviewable, named diff, never a hand-edited table |
+| **API endpoints** | 143, across 18 route groups |
+| **Database tables** | 32 |
+| **Migrations** | 30, applied incrementally — every schema change is a reviewable, named diff, never a hand-edited table |
 | **Destinations seeded** | 19, across all 8 Northeast Indian states (Assam, Meghalaya, Nagaland, Arunachal Pradesh, Sikkim, Manipur, Mizoram, Tripura) — each with real altitude, connectivity, ILP, and hospital data |
 | **Verified local tourism providers** | 35 government-verified (40 total, real and cited) — hotels, homestays, registered guides, artisan cooperatives across all 8 states — see [Local Tourism Providers](#-local-tourism-providers--the-tourism-industry-pillar) |
 | **Curated `typical_routes` legs** | 24, each with a required, reviewed `source` — see [AI Travel Assistant](#-ai-travel-assistant--plan-adjust-and-track-a-journey) |
@@ -844,7 +844,7 @@ Aaraksha/
 │   │   ├── ml/                      logisticRegression.js (from-scratch trainer)
 │   │   │                             + features.js (shared train/serve encoding)
 │   │   ├── database/                connection pool, transaction helper
-│   │   └── migrations/              node-pg-migrate schema — 30 tables across 26 migrations
+│   │   └── migrations/              node-pg-migrate schema — 32 tables across 30 migrations
 │   ├── scripts/
 │   │   ├── preflight.js             env/DB connectivity check before setup
 │   │   ├── seed.js                  idempotent demo data (--reset flag available)
@@ -980,7 +980,7 @@ page) into `/track/:token` on the guardian app.
 
 ## 🔌 API surface
 
-136 REST endpoints across 17 route groups, all under `/api`:
+143 REST endpoints across 18 route groups, all under `/api`:
 
 | Prefix | Covers |
 |---|---|
@@ -993,6 +993,7 @@ page) into `/track/:token` on the guardian app.
 | `/travel-planner` | Build My Journey, natural-language intake, ask-a-follow-up, commit, propose/apply trip adjustment, routes between two stops — see [AI Travel Assistant](#-ai-travel-assistant--plan-adjust-and-track-a-journey) |
 | `/checkins` | Manual check-ins |
 | `/destinations` | Catalog, weather cache, risk overview, per-destination news, reviews |
+| `/local-operators` | Tourist-facing reviews for a verified local operator (get/create) — the Trust Economy loop, awards "Vocal for Local" points, see [Local Tourism Providers](#-local-tourism-providers--the-tourism-industry-pillar) |
 | `/scam-reports` | Community-reported safety incidents, 90-day hotspot summary |
 | `/incidents` | Tourist-facing E-FIR filing and status tracking (`POST /`, `GET /me`, `GET /:id`) |
 | `/packing` | AI-generated packing checklists |
@@ -1025,7 +1026,7 @@ matrixes the frontend suite across all four apps on every push and pull request.
 cd backend
 npx newman run postman/aaraksha-collection.json -e postman/aaraksha-environment.json
 ```
-124 requests, 269 assertions across 22 folders, run against a fresh `DATABASE_TEST_URL` — auth,
+145 requests, 320 assertions across 26 folders, run against a fresh `DATABASE_TEST_URL` — auth,
 trips, SOS, DMS, govt ops, security guards, validation, edge cases, and the full unified-rescuer
 flow (volunteer self-registration and govt provisioning, identity verification, combined
 team-or-volunteer SOS assignment, live location/status updates, the govt-only resolve boundary).

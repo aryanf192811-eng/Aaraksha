@@ -11,6 +11,7 @@ import { useSOSStatusListener } from './hooks/useSOSStatusListener'
 import { useZoneWarnings } from './hooks/useZoneWarnings'
 import { useWeatherAlerts } from './hooks/useWeatherAlerts'
 import { usePanicGesture } from './hooks/usePanicGesture'
+import { useVoiceSOS } from './hooks/useVoiceSOS'
 import { useGroupSOSListener } from './hooks/useGroupSOSListener'
 import { useDestinationNewsListener } from './hooks/useDestinationNewsListener'
 import { AppLayout } from './components/AppLayout'
@@ -52,6 +53,7 @@ function AppWithSync() {
   useZoneWarnings()       // Warn once when GPS enters a high-risk/restricted trip stop
   useWeatherAlerts()      // Warn when weather risk worsens for an active trip destination
   usePanicGesture()       // Shake-to-SOS backup, opt-in via Safety Center
+  useVoiceSOS()           // "Help Aaraksha" voice-phrase SOS, opt-in via Safety Center
   useGroupSOSListener()   // Alert when a co-traveler on a group trip sends SOS
   useDestinationNewsListener() // Alert on critical destination news for an active trip
   return null

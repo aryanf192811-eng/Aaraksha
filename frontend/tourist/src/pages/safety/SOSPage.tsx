@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft, Battery, Loader2, Timer, CheckCircle2, Wifi, WifiOff,
-  PowerOff, Smartphone, Bell, FileWarning, Radar,
+  PowerOff, Smartphone, Bell, FileWarning, Radar, Mic,
   Check, ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -22,6 +22,7 @@ import { useSOS } from '../../hooks/useSOS'
 import { useBattery } from '../../hooks/useBattery'
 import { useDMS } from '../../hooks/useDMS'
 import { requestPanicGesturePermission } from '../../hooks/usePanicGesture'
+import { isVoiceSOSSupported } from '../../hooks/useVoiceSOS'
 import { useSafetyMode, isSafetyModeSupported } from '../../hooks/useSafetyMode'
 import { usePushNotifications, isPushSupported } from '../../hooks/usePushNotifications'
 import dmsApi, { withSecondsRemaining } from '../../api/dms.api'
@@ -54,6 +55,8 @@ export default function SOSPage() {
   const { dms, disableDMS, disabling } = useDMS()
   const panicGestureEnabled = useSafetyStore((s) => s.panicGestureEnabled)
   const setPanicGestureEnabled = useSafetyStore((s) => s.setPanicGestureEnabled)
+  const voiceSOSEnabled = useSafetyStore((s) => s.voiceSOSEnabled)
+  const setVoiceSOSEnabled = useSafetyStore((s) => s.setVoiceSOSEnabled)
   const [safetyModeMinutes, setSafetyModeMinutes] = useState(30)
   const safetyMode = useSafetyMode(() => toast(t('sos.toastSafetyModeExpired')))
   // Unlike the nav bar's SOS button (NavSOSButton.tsx), this one never
@@ -111,6 +114,21 @@ export default function SOSPage() {
     } else {
       toast.error(t('sos.toastMotionDenied'))
     }
+  }
+
+  const handleToggleVoiceSOS = () => {
+    if (voiceSOSEnabled) {
+      setVoiceSOSEnabled(false)
+      toast(t('sos.toastVoiceSOSDisabled'))
+      return
+    }
+    // useVoiceSOS's own recognition.start() triggers the actual mic
+    // permission prompt (and its onerror handler auto-disables + toasts on
+    // denial) — no separate probe needed here, unlike panic gesture's
+    // DeviceMotionEvent.requestPermission() which genuinely must be called
+    // from this click handler directly (iOS 13+ requirement).
+    setVoiceSOSEnabled(true)
+    toast.success(t('sos.toastVoiceSOSEnabled'))
   }
 
   const handleTogglePush = async () => {
@@ -448,6 +466,33 @@ export default function SOSPage() {
               )} />
             </button>
           </div>
+
+          {isVoiceSOSSupported() && (
+            <div className="flex items-center justify-between gap-3 p-5">
+              <div className="flex items-center gap-3 min-w-0">
+                <Mic className="w-5 h-5 text-primary flex-shrink-0" />
+                <div className="min-w-0">
+                  <h2 className="font-bold text-sm text-on-surface">{t('sos.voiceSOSTitle')}</h2>
+                  <p className="text-xs text-on-surface-variant">{t('sos.voiceSOSSubtitle')}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={voiceSOSEnabled}
+                onClick={handleToggleVoiceSOS}
+                className={cn(
+                  'relative flex-shrink-0 w-12 h-7 rounded-full transition-colors',
+                  voiceSOSEnabled ? 'bg-primary' : 'bg-outline-variant'
+                )}
+              >
+                <span className={cn(
+                  'absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform',
+                  voiceSOSEnabled && 'translate-x-5'
+                )} />
+              </button>
+            </div>
+          )}
 
           {isPushSupported() && (
             <div className="flex items-center justify-between gap-3 p-5">

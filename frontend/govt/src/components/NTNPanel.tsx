@@ -3,16 +3,19 @@
 // Ticks off NTN_CHANNEL_STATUS (see useSOSSocket.ts) with a polling
 // fallback for the recent-activity list. No claim of a real satellite link
 // -- see AGENTS.md / the NTN plan for why this is a software simulator.
+import { useState } from 'react'
 import { Satellite } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import govtApi from '../api/govt.api'
+import govtApi, { type NTNMessage } from '../api/govt.api'
 import { formatTimeAgo } from '../lib/utils'
 import type { NTNChannelStatusPayload } from '../hooks/useSOSSocket'
+import { RecentActivityDialog } from './RecentActivityDialog'
 
 export function NTNPanel({ latest }: { latest: NTNChannelStatusPayload | null }) {
+  const [viewAllOpen, setViewAllOpen] = useState(false)
   const { data: recent } = useQuery({
     queryKey: ['govt', 'ntn', 'recent'],
-    queryFn: () => govtApi.getRecentNTNActivity().then((r) => r.data.data),
+    queryFn: () => govtApi.getRecentNTNActivity({ limit: 20 }).then((r) => r.data.data),
     refetchInterval: 30_000,
   })
 
@@ -52,17 +55,40 @@ export function NTNPanel({ latest }: { latest: NTNChannelStatusPayload | null })
       )}
 
       {recent && recent.length > 0 && (
-        <div className="space-y-1.5">
-          {recent.slice(0, 6).map((m) => (
-            <div key={m.id} className="flex items-center gap-x-3 gap-y-1 py-1.5 border-b border-outline-variant last:border-0 text-sm">
-              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${m.status === 'DELIVERED' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-              <span className="font-semibold text-on-surface flex-1 min-w-[6rem] truncate">{m.tourist_name}</span>
-              <span className="text-xs text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">{m.scenario}</span>
-              <span className="text-xs text-on-surface-variant ml-auto">{formatTimeAgo(m.created_at)}</span>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="space-y-1.5">
+            {recent.slice(0, 3).map((m) => (
+              <div key={m.id} className="flex items-center gap-x-3 gap-y-1 py-1.5 border-b border-outline-variant last:border-0 text-sm">
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${m.status === 'DELIVERED' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                <span className="font-semibold text-on-surface flex-1 min-w-[6rem] truncate">{m.tourist_name}</span>
+                <span className="text-xs text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">{m.scenario}</span>
+                <span className="text-xs text-on-surface-variant ml-auto">{formatTimeAgo(m.created_at)}</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setViewAllOpen(true)}
+            className="mt-3 text-xs font-bold text-primary-dark hover:underline">
+            View all
+          </button>
+        </>
       )}
+
+      <RecentActivityDialog<NTNMessage>
+        open={viewAllOpen} onOpenChange={setViewAllOpen}
+        title="NTN Network Activity" description="All simulated satellite SOS uplinks in the selected window."
+        queryKey="govt-ntn-activity"
+        queryFn={(days) => govtApi.getRecentNTNActivity({ limit: 200, days }).then((r) => r.data.data)}
+        emptyLabel="No NTN uplink activity in this window."
+        renderRow={(m) => (
+          <div className="flex items-center gap-x-3 gap-y-1 py-2 border-b border-outline-variant last:border-0 text-sm">
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${m.status === 'DELIVERED' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+            <span className="font-semibold text-on-surface flex-1 min-w-[6rem] truncate">{m.tourist_name}</span>
+            <span className="text-xs text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">{m.scenario}</span>
+            <span className="text-xs text-on-surface-variant">{m.satellite_id}</span>
+            <span className="text-xs text-on-surface-variant ml-auto">{formatTimeAgo(m.created_at)}</span>
+          </div>
+        )}
+      />
     </div>
   )
 }

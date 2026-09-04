@@ -86,7 +86,7 @@ async function markEmergencyContactVerified(touristId, rawPhone) {
   return { ...updated, rescue_readiness_score: computeProfileReadiness(updated) }
 }
 
-async function getGuardianView(token) {
+async function getGuardianView(token, pin) {
   const touristRepo  = new TouristRepository()
   const locationRepo = new LocationRepository()
   const sosRepo      = new SOSRepository()
@@ -94,6 +94,13 @@ async function getGuardianView(token) {
 
   const tourist = await touristRepo.findByGuardianToken(token)
   if (!tourist) throw Object.assign(new Error(ERRORS.GUARDIAN_TOKEN_INVALID), { statusCode: 404 })
+
+  // The link alone isn't enough — the PIN is shared over a separate
+  // channel (see migration 028), so a leaked/publicly-posted link can't be
+  // opened without it. requiresPin lets the frontend show a dedicated PIN
+  // entry screen instead of the generic "link not found" error.
+  if (!pin) throw Object.assign(new Error(ERRORS.GUARDIAN_PIN_REQUIRED), { statusCode: 401, requiresPin: true })
+  if (pin !== tourist.guardian_pin) throw Object.assign(new Error(ERRORS.GUARDIAN_PIN_INCORRECT), { statusCode: 401, requiresPin: true })
 
   const [location, activeTrip] = await Promise.all([
     locationRepo.findByTouristId(tourist.id),

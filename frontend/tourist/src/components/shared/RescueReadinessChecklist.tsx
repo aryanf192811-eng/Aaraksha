@@ -55,7 +55,7 @@ export function RescueReadinessChecklist({ tourist, activeTrip, dms }: {
   const score = Math.round((items.filter(i => i.done).length / items.length) * 100)
 
   return (
-    <div className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant p-5">
+    <div className="bg-surface-container-lowest rounded-2xl shadow-md border border-outline-variant p-5">
       <div className="flex items-center justify-between mb-1">
         <h3 className="font-bold text-on-surface">Rescue Readiness</h3>
         <span className={cn('text-sm font-bold px-2 py-0.5 rounded-full',

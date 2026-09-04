@@ -140,9 +140,26 @@ export default function ActiveJobPage() {
     // next 20s poll or having to check chat.
     const onCategoryAmended = () => queryClient.invalidateQueries({ queryKey: ['volunteer', 'active-assignment'] })
     socket.on('SOS_CATEGORY_AMENDED', onCategoryAmended)
+    // The SOS this job is for just closed out from under the volunteer --
+    // a tourist's own false-alarm, or govt resolving it directly. Without
+    // this, a volunteer mid-response found out only when the silent 20s
+    // getActiveAssignment poll eventually dropped the job, with nothing
+    // explaining why it vanished. Refetching (rather than assuming) still
+    // matters here: a stale/out-of-order event for a DIFFERENT past
+    // assignment must not bounce someone off a job that's still real.
+    const onStatusUpdated = (payload: { sosId: string; status: string }) => {
+      if (payload.status === 'FALSE_ALARM' || payload.status === 'RESOLVED') {
+        toast.info(payload.status === 'FALSE_ALARM'
+          ? 'The tourist marked this a false alarm — case closed.'
+          : 'This case has been resolved by the command center.')
+        queryClient.invalidateQueries({ queryKey: ['volunteer', 'active-assignment'] })
+      }
+    }
+    socket.on('SOS_STATUS_UPDATED', onStatusUpdated)
     return () => {
       socket.off('MESSAGE_RECEIVED', onMessage)
       socket.off('SOS_CATEGORY_AMENDED', onCategoryAmended)
+      socket.off('SOS_STATUS_UPDATED', onStatusUpdated)
     }
   }, [queryClient])
 

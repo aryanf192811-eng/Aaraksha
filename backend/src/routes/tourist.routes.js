@@ -7,12 +7,14 @@ const dataRightsCtrl = require('../controllers/dataRights.controller')
 const messageCtrl = require('../controllers/message.controller')
 const { authenticateTourist } = require('../middleware/auth')
 const { validate } = require('../middleware/validate')
-const { createMessageLimiter } = require('../middleware/rateLimiter')
+const { createMessageLimiter, createGuardianViewLimiter, createGuardianPinLimiter } = require('../middleware/rateLimiter')
 const { SendMessageSchema } = require('../validators/message.validator')
 const { z } = require('zod')
 const { PhoneSchema } = require('../validators/common.validator')
 
 const messageLimiter = createMessageLimiter()
+const guardianViewLimiter = createGuardianViewLimiter()
+const guardianPinLimiter = createGuardianPinLimiter()
 
 const SubmitTrustAppealSchema = z.object({
   message: z.string().trim().min(20, 'Explain your situation (at least 20 characters)').max(1000),
@@ -42,7 +44,7 @@ router.patch('/me',                  authenticateTourist, validate(UpdateProfile
 router.post('/emergency-contacts/send-otp',   authenticateTourist, validate(SendEmergencyContactOTPSchema),   ctrl.sendEmergencyContactOTP)
 router.post('/emergency-contacts/verify-otp', authenticateTourist, validate(VerifyEmergencyContactOTPSchema), ctrl.verifyEmergencyContactOTP)
 router.get('/checkpoint-qr',         authenticateTourist, ctrl.getCheckpointQR)
-router.get('/guardian/:token',       ctrl.getGuardianView)  // Public — no auth
+router.get('/guardian/:token',       guardianViewLimiter, guardianPinLimiter, ctrl.getGuardianView)  // Public — no auth
 
 // Tourist <-> Guardian messaging. Guardian side is public — no auth,
 // mirrors getGuardianView's own token-in-URL model exactly — but every
@@ -50,8 +52,8 @@ router.get('/guardian/:token',       ctrl.getGuardianView)  // Public — no aut
 // service, same enforcement point getGuardianView already uses.
 router.get('/me/guardian-messages',  authenticateTourist, messageCtrl.getGuardianThreadAsTourist)
 router.post('/me/guardian-messages', authenticateTourist, messageLimiter, validate(SendMessageSchema), messageCtrl.sendGuardianMessageAsTourist)
-router.get('/guardian/:token/messages',  messageCtrl.getGuardianThreadAsGuardian)  // Public — no auth
-router.post('/guardian/:token/messages', messageLimiter, validate(SendMessageSchema), messageCtrl.sendGuardianMessageAsGuardian)  // Public — no auth
+router.get('/guardian/:token/messages',  guardianViewLimiter, guardianPinLimiter, messageCtrl.getGuardianThreadAsGuardian)  // Public — no auth
+router.post('/guardian/:token/messages', messageLimiter, guardianPinLimiter, validate(SendMessageSchema), messageCtrl.sendGuardianMessageAsGuardian)  // Public — no auth
 
 // DPDP Act 2023 data rights — see services/dataRights.service.js.
 router.get('/me/privacy-notice',     authenticateTourist, dataRightsCtrl.getPrivacyNotice)

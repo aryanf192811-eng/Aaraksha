@@ -30,6 +30,17 @@ const CATEGORY_META: Record<LocalOperator['category'], { label: string; icon: ty
 
 const CATEGORY_ORDER: LocalOperator['category'][] = ['HOTEL', 'HOMESTAY', 'GUIDE', 'EXPERIENCE', 'ARTISAN']
 
+// Same derivation as the tourist app's StopDetailSheet: a real OSM
+// node/way cited in `source` gets a precise, direct link; everything else
+// falls back to a real Google Maps search (business + district + state) —
+// an honest search, not a fabricated pin, since no coordinate exists
+// anywhere in this data model for govt-registry/cooperative citations.
+function getOperatorMapsUrl(op: LocalOperator): string {
+  const osmMatch = op.source?.match(/(?:OpenStreetMap|OSM)\s+(node|way)\s+(\d+)/i)
+  if (osmMatch) return `https://www.openstreetmap.org/${osmMatch[1].toLowerCase()}/${osmMatch[2]}`
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${op.business_name}, ${op.district}, ${op.state}`)}`
+}
+
 export default function LocalOperatorsPage() {
   const [tab, setTab] = useState<'pending' | 'roster'>('pending')
   const [reviewing, setReviewing] = useState<LocalOperator | null>(null)
@@ -245,6 +256,10 @@ export default function LocalOperatorsPage() {
                       <span className="flex items-center gap-1 font-semibold text-primary"><Tag className="w-3 h-3" />{op.price_range_text}</span>
                     )}
                   </div>
+                  <a href={getOperatorMapsUrl(op)} target="_blank" rel="noopener noreferrer"
+                    className="mt-2 flex items-center gap-1 text-[11px] font-bold text-on-surface-variant hover:text-primary-dark transition-colors w-fit">
+                    <MapPin className="w-3 h-3" /> View on map
+                  </a>
                 </div>
               )
             })}

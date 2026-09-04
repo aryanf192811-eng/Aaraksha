@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Search, MapPin } from 'lucide-react'
+import { Search, MapPin, Users } from 'lucide-react'
 import destinationApi from '../../api/destination.api'
 import { getDestinationImage } from '../../lib/destinationImages'
 import { cn } from '../../lib/utils'
@@ -43,6 +43,25 @@ export function ExploreDestinations() {
     staleTime: 5 * 60_000,
   })
 
+  // Real-time "how many trips are currently near this place" — same signal
+  // the govt Command Center's Risk Overview already surfaces, reused here
+  // (not recomputed) so a tourist choosing where to go can see it too, not
+  // just an officer after the fact. A quiet failure here (govt dashboard
+  // down, network hiccup) should never block browsing destinations, so this
+  // stays a separate, best-effort query rather than gating the page on it.
+  const { data: riskOverview } = useQuery({
+    queryKey: ['destinations', 'risk-overview', 'explore'],
+    queryFn: () => destinationApi.getRiskOverview().then(r => r.data.data),
+    staleTime: 2 * 60_000,
+  })
+  const loadByDestId = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const zone of riskOverview || []) {
+      if (zone.destinationId) map.set(zone.destinationId, zone.total)
+    }
+    return map
+  }, [riskOverview])
+
   const destinations = useMemo(() => {
     const all = [...(data || [])].sort((a, b) => b.popularity_index - a.popularity_index)
     return all.filter((d) => {
@@ -51,6 +70,26 @@ export function ExploreDestinations() {
       return matchesZone && matchesQuery
     })
   }, [data, zone, query])
+
+  // A single, honest nudge — not a badge on every card. Only fires when one
+  // destination is genuinely busier than a same-state alternative right
+  // now (not a static "popular places" guess), and only ever suggests a
+  // place that's actually in this filtered result set already.
+  const quietAlternative = useMemo(() => {
+    if (loadByDestId.size === 0) return null
+    const busiest = [...destinations]
+      .filter((d) => (loadByDestId.get(d.id) || 0) > 0)
+      .sort((a, b) => (loadByDestId.get(b.id) || 0) - (loadByDestId.get(a.id) || 0))[0]
+    if (!busiest) return null
+    const busiestLoad = loadByDestId.get(busiest.id) || 0
+    const quieter = destinations
+      .filter((d) => d.id !== busiest.id && d.state === busiest.state)
+      .sort((a, b) => (loadByDestId.get(a.id) || 0) - (loadByDestId.get(b.id) || 0))[0]
+    if (!quieter) return null
+    const quieterLoad = loadByDestId.get(quieter.id) || 0
+    if (busiestLoad < 3 || quieterLoad > busiestLoad / 3) return null
+    return { busy: busiest, quiet: quieter }
+  }, [destinations, loadByDestId])
 
   if (!data) return null
 
@@ -85,12 +124,23 @@ export function ExploreDestinations() {
         ))}
       </div>
 
+      {quietAlternative && (
+        <div className="flex items-start gap-2.5 bg-trust-light border border-trust/25 rounded-2xl px-4 py-3 mb-4">
+          <Users className="w-4 h-4 text-trust-dark flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-trust-dark leading-snug">
+            <strong>{quietAlternative.busy.name}</strong> has {loadByDestId.get(quietAlternative.busy.id)} travelers right now — {' '}
+            <strong>{quietAlternative.quiet.name}</strong> is quieter this week, same state.
+          </p>
+        </div>
+      )}
+
       {destinations.length === 0 ? (
         <p className="text-sm text-on-surface-variant text-center py-8">{t('dashboard.noDestinationsFound')}</p>
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {destinations.slice(0, 8).map((dest) => {
             const badge = ZONE_BADGE[dest.zone_type] || ZONE_BADGE[ZONE_TYPES.SAFE]
+            const load = loadByDestId.get(dest.id) || 0
             return (
               <button
                 key={dest.id}
@@ -107,6 +157,11 @@ export function ExploreDestinations() {
                 <span className={cn('absolute top-2.5 left-2.5 text-[10px] font-bold px-2.5 py-1 rounded-full', badge.bg, badge.text)}>
                   {badge.label}
                 </span>
+                {load > 0 && (
+                  <span className="absolute top-2.5 right-2.5 flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-black/50 text-white backdrop-blur-sm">
+                    <Users className="w-3 h-3" /> {load}
+                  </span>
+                )}
                 <div className="absolute bottom-0 left-0 right-0 p-3.5">
                   <p className="font-display font-bold text-white text-base leading-tight">{dest.name}</p>
                   <p className="text-xs text-white/80 flex items-center gap-1 mt-0.5">

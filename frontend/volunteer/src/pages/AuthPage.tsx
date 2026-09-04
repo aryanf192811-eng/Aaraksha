@@ -92,8 +92,8 @@ export default function AuthPage() {
 
   return (
     <div className={cn(
-      'min-h-[100dvh] bg-surface flex flex-col items-center px-5 font-sans',
-      tab === 'login' ? 'justify-center py-10' : 'pt-[max(2.5rem,env(safe-area-inset-top))] pb-10'
+      'min-h-[100dvh] flex flex-col items-center px-5 font-sans',
+      tab === 'login' ? 'hero-mesh justify-center py-10' : 'bg-surface pt-[max(2.5rem,env(safe-area-inset-top))] pb-10'
     )}>
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-3 mb-8">

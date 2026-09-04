@@ -23,7 +23,7 @@ const updateMe = async (req, res, next) => {
 
 const getGuardianView = async (req, res, next) => {
   try {
-    const view = await touristService.getGuardianView(req.params.token)
+    const view = await touristService.getGuardianView(req.params.token, req.query.pin)
     sendSuccess(res, view)
   } catch (err) { next(err) }
 }

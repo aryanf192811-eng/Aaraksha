@@ -104,6 +104,7 @@
                           "  pm.environment.set('TOURIST_TOKEN', body.data.token);",
                           "  pm.environment.set('TOURIST_ID', body.data.tourist.id);",
                           "  pm.environment.set('GUARDIAN_TOKEN', body.data.tourist.guardian_token);",
+                          "  pm.environment.set('GUARDIAN_PIN', body.data.tourist.guardian_pin);",
                           "}",
                           "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
                           "pm.test('Response has success flag', () => { pm.expect(pm.response.json().success).to.be.true; });",
@@ -2846,7 +2847,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{BASE_URL}}/tourists/guardian/{{GUARDIAN_TOKEN}}",
+                  "raw": "{{BASE_URL}}/tourists/guardian/{{GUARDIAN_TOKEN}}?pin={{GUARDIAN_PIN}}",
                   "host": [
                     "{{BASE_URL}}"
                   ],
@@ -2854,6 +2855,12 @@
                     "tourists",
                     "guardian",
                     "{{GUARDIAN_TOKEN}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "pin",
+                      "value": "{{GUARDIAN_PIN}}"
+                    }
                   ]
                 }
               },
@@ -2876,6 +2883,35 @@
                       "});",
                       "pm.test('Location data key present', () => { pm.expect(pm.response.json().data).to.have.property('location'); });",
                       "pm.test('TSI data key present', () => { pm.expect(pm.response.json().data).to.have.property('tsiScore'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 61b: Guardian View — Missing PIN (401)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/tourists/guardian/{{GUARDIAN_TOKEN}}",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "tourists",
+                    "guardian",
+                    "{{GUARDIAN_TOKEN}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 401 without PIN', () => pm.response.to.have.status(401));"
                     ]
                   }
                 }
@@ -3418,6 +3454,51 @@
                       "pm.test('Status 200', () => pm.response.to.have.status(200));",
                       "pm.test('SOS status is RESOLVED', () => { pm.expect(pm.response.json().data.status).to.equal('RESOLVED'); });",
                       "pm.test('Resolution notes saved', () => { pm.expect(pm.response.json().data.resolution_notes).to.include('safe'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 142: Get Recent SOS Activity — View All (Day Filter)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{GOVT_TOKEN}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/govt/sos/recent?limit=50&days=7",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "govt",
+                    "sos",
+                    "recent"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "50"
+                    },
+                    {
+                      "key": "days",
+                      "value": "7"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns an array', () => pm.expect(pm.response.json().data).to.be.an('array'));"
                     ]
                   }
                 }
@@ -6373,6 +6454,236 @@
                       "    pm.expect(op.is_verified).to.equal(true);",
                       "  });",
                       "}"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "25 - Local Operator Reviews (Trust Economy)",
+          "item": [
+            {
+              "name": "Test 137: Create Operator Review — Valid",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/local-operators/{{localOperatorId}}/reviews",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "local-operators",
+                    "{{localOperatorId}}",
+                    "reviews"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rating\": 5,\n  \"reviewText\": \"Lovely hosts, clean rooms, great breakfast.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                      "const review = pm.response.json().data;",
+                      "pm.test('Review has rating and points awarded', () => {",
+                      "  pm.expect(review.rating).to.eql(5);",
+                      "  pm.expect(review.pointsAwarded).to.eql(10);",
+                      "  pm.expect(review.touristLocalPoints).to.be.a('number');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 138: Create Operator Review — Duplicate (409)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/local-operators/{{localOperatorId}}/reviews",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "local-operators",
+                    "{{localOperatorId}}",
+                    "reviews"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rating\": 4\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 409 for duplicate review', () => pm.response.to.have.status(409));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 139: Get Operator Reviews — Aggregate Present",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/local-operators/{{localOperatorId}}/reviews",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "local-operators",
+                    "{{localOperatorId}}",
+                    "reviews"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "const result = pm.response.json().data;",
+                      "pm.test('Aggregate reflects the new review', () => {",
+                      "  pm.expect(result.aggregate.reviewCount).to.be.at.least(1);",
+                      "  pm.expect(result.aggregate.avgRating).to.be.a('number');",
+                      "  pm.expect(result.reviews).to.be.an('array');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 140: Create Operator Review — No Auth (401)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/local-operators/{{localOperatorId}}/reviews",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "local-operators",
+                    "{{localOperatorId}}",
+                    "reviews"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rating\": 3\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 401 without auth', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 141: Create Operator Review — Nonexistent Operator (404)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{TOURIST_TOKEN}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{BASE_URL}}/local-operators/00000000-0000-0000-0000-000000000000/reviews",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "local-operators",
+                    "00000000-0000-0000-0000-000000000000",
+                    "reviews"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rating\": 3\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 404 for nonexistent operator', () => pm.response.to.have.status(404));"
                     ]
                   }
                 }

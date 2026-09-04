@@ -54,8 +54,10 @@ export default function TrustAppealsPage() {
         <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
       )}
       {!isLoading && pendingList.length === 0 && (
-        <div className="text-center py-20">
-          <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-4" />
+        <div className="text-center py-16 px-6 rounded-2xl border border-outline-variant/60 bg-surface-container-lowest">
+          <div className="w-14 h-14 rounded-2xl bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="w-7 h-7" />
+          </div>
           <p className="text-lg font-bold text-on-surface">No pending appeals</p>
           <p className="text-on-surface-variant text-sm">Every submitted appeal has been reviewed</p>
         </div>

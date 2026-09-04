@@ -68,4 +68,37 @@ const createMessageLimiter = () => rateLimit({
   keyGenerator: (req) => `${req.ip}-${req.params.sosId || req.params.token || req.tourist?.id || ''}`,
 })
 
-module.exports = { generalLimiter, createAuthLimiter, createOtpLimiter, webhookLimiter, createMessageLimiter }
+// Guardian view/thread endpoints take a bare token in the URL with no
+// account behind it to lock out — the only real defense against someone
+// enumerating tokens is throttling by IP. Deliberately keyed on IP alone,
+// NOT IP+token like createMessageLimiter/createOtpLimiter: composite keying
+// would give every guessed token its own fresh budget, which stops nothing.
+// max is sized well above one legitimate guardian's own 30s auto-refresh
+// poll (≈30 requests/15min) so a real family member is never rate-limited,
+// while a rapid multi-token guessing pass still trips it fast.
+const createGuardianViewLimiter = () => rateLimit({
+  ...limiterDefaults,
+  windowMs: config.rateLimit.windowMs,
+  max:      80,
+  message:  { success: false, message: 'Too many requests — please try again later.' },
+  keyGenerator: (req) => req.ip,
+})
+
+// A 4-digit PIN is only a 10,000-value space — this is the actual
+// brute-force defense for it, separate from createGuardianViewLimiter's
+// broader enumeration throttle above. Keyed by IP+token (like
+// createOtpLimiter/createMessageLimiter) so guessing one traveler's PIN
+// doesn't burn another traveler's budget on a shared IP, and
+// skipSuccessfulRequests means a guardian who already knows the right PIN
+// never gets throttled by their own legitimate 30s auto-refresh polling —
+// only wrong-PIN attempts count against the window.
+const createGuardianPinLimiter = () => rateLimit({
+  ...limiterDefaults,
+  windowMs: config.rateLimit.windowMs,
+  max:      8,
+  skipSuccessfulRequests: true,
+  message:  { success: false, message: 'Too many incorrect PIN attempts — please try again later.' },
+  keyGenerator: (req) => `${req.ip}-${req.params.token}`,
+})
+
+module.exports = { generalLimiter, createAuthLimiter, createOtpLimiter, webhookLimiter, createMessageLimiter, createGuardianViewLimiter, createGuardianPinLimiter }

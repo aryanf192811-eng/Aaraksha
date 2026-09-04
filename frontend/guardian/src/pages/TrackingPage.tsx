@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off, LocateFixed, Truck, MessageCircle, X } from 'lucide-react'
+import axios from 'axios'
+import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off, LocateFixed, Truck, MessageCircle, X, KeyRound, Loader2 } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
@@ -119,6 +120,14 @@ const RESCUER_ICON = L.divIcon({
 
 export default function TrackingPage() {
   const { token } = useParams<{ token: string }>()
+  // The PIN gates every guardian call now (see migration 028) — entered
+  // once per browser tab and cached in sessionStorage so the 30s
+  // auto-refresh poll doesn't re-prompt. Cleared the moment the backend
+  // rejects it (wrong PIN, or a token whose owner rotated their PIN).
+  const [pin, setPin] = useState<string | null>(() => (token ? sessionStorage.getItem(`guardian_pin_${token}`) : null))
+  const [pinInput, setPinInput] = useState('')
+  const [pinSubmitting, setPinSubmitting] = useState(false)
+  const [pinError, setPinError] = useState<string | null>(null)
   const [view, setView] = useState<GuardianView | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -134,15 +143,27 @@ export default function TrackingPage() {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [sendingMessage, setSendingMessage] = useState(false)
 
-  const fetchTracking = async () => {
+  // A 401 here always means the cached PIN no longer works (wrong from the
+  // start, or the traveler rotated it) — drop it back to the entry screen
+  // rather than showing the generic tracking-error state, which otherwise
+  // reads as "this link is dead" instead of "re-enter the PIN".
+  const isPinRejected = (err: unknown) => axios.isAxiosError(err) && err.response?.status === 401
+
+  const fetchTracking = async (activePin: string) => {
     if (!token) return
     try {
-      const res = await touristApi.getGuardianView(token)
+      const res = await touristApi.getGuardianView(token, activePin)
       setView(res.data.data)
       setLastRefresh(new Date())
       setError(null)
     } catch (err) {
-      setError(getErrorMessage(err))
+      if (isPinRejected(err)) {
+        sessionStorage.removeItem(`guardian_pin_${token}`)
+        setPin(null)
+        setPinError(getErrorMessage(err))
+      } else {
+        setError(getErrorMessage(err))
+      }
     } finally {
       setLoading(false)
     }
@@ -152,10 +173,10 @@ export default function TrackingPage() {
   // active SOS. Fetched on-demand when the chat panel opens rather than
   // alongside the 30s tracking poll, since most visits never open it.
   const fetchMessages = async () => {
-    if (!token) return
+    if (!token || !pin) return
     setLoadingMessages(true)
     try {
-      const res = await touristApi.getGuardianMessages(token)
+      const res = await touristApi.getGuardianMessages(token, pin)
       setMessages(res.data.data)
     } catch (err) {
       toast.error(getErrorMessage(err))
@@ -169,10 +190,10 @@ export default function TrackingPage() {
   }, [showChat])
 
   const sendMessage = async (body: string) => {
-    if (!token) return
+    if (!token || !pin) return
     setSendingMessage(true)
     try {
-      const res = await touristApi.sendGuardianMessage(token, body)
+      const res = await touristApi.sendGuardianMessage(token, pin, body)
       // The MESSAGE_RECEIVED socket push for this same message can win the
       // race and arrive before this HTTP response does (the backend emits
       // over the socket before the POST's response finishes sending) — dedupe
@@ -189,13 +210,41 @@ export default function TrackingPage() {
     }
   }
 
-  // Auto-refresh every 30 seconds
+  const submitPin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!token || pinInput.length !== 4) return
+    setPinSubmitting(true)
+    setPinError(null)
+    try {
+      // Verify against the real endpoint before caching it — a 200 here IS
+      // the verification, so this single request both confirms the PIN and
+      // loads the first tracking snapshot.
+      const res = await touristApi.getGuardianView(token, pinInput)
+      sessionStorage.setItem(`guardian_pin_${token}`, pinInput)
+      setView(res.data.data)
+      setLastRefresh(new Date())
+      setError(null)
+      setPin(pinInput)
+    } catch (err) {
+      if (isPinRejected(err)) {
+        setPinError(getErrorMessage(err))
+      } else {
+        setError(getErrorMessage(err))
+      }
+    } finally {
+      setPinSubmitting(false)
+      setLoading(false)
+    }
+  }
+
+  // Auto-refresh every 30 seconds — only once a verified PIN is cached.
   useEffect(() => {
-    fetchTracking()
-    const interval = setInterval(fetchTracking, 30_000)
+    if (!pin) { setLoading(false); return }
+    fetchTracking(pin)
+    const interval = setInterval(() => fetchTracking(pin), 30_000)
     return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
+  }, [token, pin])
 
   // Socket.IO: real-time updates via the shared singleton (guardian-scoped
   // auth). GUARDIAN_SOS_ALERT and GUARDIAN_ETA_UPDATE are both wired
@@ -358,9 +407,44 @@ export default function TrackingPage() {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-surface-container-lowest px-6 text-center">
-        <Link2Off className="w-12 h-12 text-slate-300 mb-4" />
-        <h1 className="text-xl font-black text-on-surface mb-2">{error}</h1>
-        <p className="text-sm text-on-surface-variant">Ask the traveler to share a new tracking link.</p>
+        <div className="w-full max-w-sm bg-white rounded-3xl shadow-md border border-outline-variant p-8">
+          <div className="w-16 h-16 rounded-2xl bg-warning/15 flex items-center justify-center mx-auto mb-5">
+            <Link2Off className="w-8 h-8 text-warning" />
+          </div>
+          <h1 className="text-xl font-black text-on-surface mb-2">{error}</h1>
+          <p className="text-sm text-on-surface-variant leading-relaxed">Ask the traveler to share a new tracking link.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // The link's own token checked out (no `error` above), but nobody has
+  // proven they know the shared PIN yet in this browser tab.
+  if (!pin) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-surface-container-lowest px-6 text-center">
+        <div className="w-full max-w-sm bg-white rounded-3xl shadow-md border border-outline-variant p-8">
+          <div className="w-16 h-16 rounded-2xl bg-primary/12 flex items-center justify-center mx-auto mb-5">
+            <KeyRound className="w-8 h-8 text-primary" />
+          </div>
+          <h1 className="text-xl font-black text-on-surface mb-2">Enter the tracking PIN</h1>
+          <p className="text-sm text-on-surface-variant leading-relaxed mb-6">
+            The traveler shared a 4-digit PIN with you separately from this link — enter it to open live tracking.
+          </p>
+          <form onSubmit={submitPin} className="space-y-3">
+            <input
+              inputMode="numeric" maxLength={4} placeholder="••••" autoFocus
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              className="w-full h-14 rounded-2xl border border-outline-variant bg-surface-container px-4 text-center text-2xl font-black tracking-[0.5em] tabular-nums focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            {pinError && <p className="text-sm text-sos font-semibold">{pinError}</p>}
+            <button type="submit" disabled={pinSubmitting || pinInput.length !== 4}
+              className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-bold flex items-center justify-center gap-2 disabled:opacity-40 active:scale-[0.98] transition-transform">
+              {pinSubmitting ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : 'Unlock tracking'}
+            </button>
+          </form>
+        </div>
       </div>
     )
   }
@@ -494,7 +578,9 @@ export default function TrackingPage() {
       ) : (
         <div className="h-[200px] bg-surface-container-high flex items-center justify-center">
           <div className="text-center">
-            <MapPin className="w-8 h-8 text-on-surface-variant mx-auto mb-2" />
+            <div className="w-12 h-12 rounded-2xl bg-outline-variant/60 flex items-center justify-center mx-auto mb-2">
+              <MapPin className="w-6 h-6 text-on-surface-variant" />
+            </div>
             <p className="text-sm text-on-surface-variant">Location not available</p>
           </div>
         </div>

@@ -10,6 +10,7 @@ import {
   ArrowLeft, Share2, Download, Map, List, Package, FileText, AlertTriangle,
   Rocket, Sparkles, RefreshCw, Loader2, Check, Lightbulb, HeartPulse, Backpack, LocateFixed,
   Users, Copy, LogOut, Clock, Newspaper, ChevronDown, Plus, Trash2, Wallet, MapPin, CheckCircle2,
+  MoreVertical, Ban,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
@@ -18,6 +19,7 @@ import 'leaflet/dist/leaflet.css'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '../../components/ui/dropdown-menu'
 import { TSIBadge, EmptyState, PageSkeleton, NewsFeed, TSIBreakdown, JourneyRiskGraph, SafetyAdvisory, DestinationSearchField, ConfirmDialog } from '../../components/shared'
 import { StopDetailSheet } from '../../components/shared/StopDetailSheet'
 import tripApi from '../../api/trip.api'
@@ -134,6 +136,33 @@ export default function TripDetailPage() {
     onSuccess: () => { toast.success(t('tripDetail.toastTripActivated')); queryClient.invalidateQueries({ queryKey: ['trips'] }) },
   })
 
+  // Cancel keeps the trip and its history (SOS events, check-ins, E-FIRs
+  // filed on it all survive — see the trips FK design) but marks it as no
+  // longer a live plan. Delete is the genuinely destructive option, only
+  // ever reachable through the confirm dialog below.
+  const [confirmCancelTrip, setConfirmCancelTrip] = useState(false)
+  const [confirmDeleteTrip, setConfirmDeleteTrip] = useState(false)
+
+  const { mutate: cancelTrip, isPending: cancelling } = useMutation({
+    mutationFn: () => tripApi.updateTripStatus(id!, { status: 'CANCELLED' }),
+    onSuccess: () => {
+      toast.success(t('tripDetail.toastTripCancelled'))
+      queryClient.invalidateQueries({ queryKey: ['trips'] })
+      setConfirmCancelTrip(false)
+    },
+    onError: () => toast.error(t('tripDetail.toastTripCancelFailed')),
+  })
+
+  const { mutate: removeTrip, isPending: deletingTrip } = useMutation({
+    mutationFn: () => tripApi.deleteTrip(id!),
+    onSuccess: () => {
+      toast.success(t('tripDetail.toastTripDeleted'))
+      queryClient.invalidateQueries({ queryKey: ['trips'] })
+      navigate('/trips')
+    },
+    onError: () => toast.error(t('tripDetail.toastTripDeleteFailed')),
+  })
+
   // Direct navigation, not an axios blob fetch — see passport.api.ts for why.
   const handleDownloadPassport = () => {
     window.location.href = passportApi.getDownloadUrl(id!)
@@ -210,8 +239,11 @@ export default function TripDetailPage() {
   if (isLoading) return <div className="min-h-screen bg-surface"><PageSkeleton /></div>
   if (!trip) {
     return (
-      <EmptyState icon={Map} title={t('tripDetail.tripNotFoundTitle')} description={t('tripDetail.tripNotFoundDesc')}
-        action={<Button onClick={() => navigate('/trips')} className="rounded-full">{t('tripDetail.backToTrips')}</Button>} />
+      <div className="min-h-screen bg-surface flex items-center justify-center px-5">
+        <EmptyState icon={Map} title={t('tripDetail.tripNotFoundTitle')} description={t('tripDetail.tripNotFoundDesc')}
+          boxed className="w-full max-w-sm"
+          action={<Button onClick={() => navigate('/trips')} className="rounded-full">{t('tripDetail.backToTrips')}</Button>} />
+      </div>
     )
   }
 
@@ -261,6 +293,25 @@ export default function TripDetailPage() {
                 <Download className="w-4 h-4" />
               </button>
             )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button title={t('tripDetail.moreOptions')}
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {trip.status !== TRIP_STATUSES.CANCELLED && trip.status !== TRIP_STATUSES.COMPLETED && (
+                  <DropdownMenuItem onClick={() => setConfirmCancelTrip(true)}>
+                    <Ban className="w-4 h-4" /> {t('tripDetail.cancelTrip')}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={() => setConfirmDeleteTrip(true)}>
+                  <Trash2 className="w-4 h-4" /> {t('tripDetail.deleteTrip')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -594,6 +645,7 @@ export default function TripDetailPage() {
           <div className="space-y-4">
             {checklist.length === 0 ? (
               <EmptyState icon={Backpack} title={t('tripDetail.noPackingListTitle')} description={t('tripDetail.noPackingListDesc')}
+                boxed
                 action={
                   <Button onClick={() => generatePacking()} disabled={generatingPacking}
                     className="bg-primary hover:brightness-95 text-on-surface rounded-full px-6 font-bold flex items-center gap-2">
@@ -761,6 +813,26 @@ export default function TripDetailPage() {
         confirmLabel={t('tripDetail.removeActivity')}
         pending={savingStops}
         onConfirm={() => confirmDeleteActivity && removeActivity(confirmDeleteActivity.stopIdx, confirmDeleteActivity.activityIdx)}
+      />
+      <ConfirmDialog
+        open={confirmCancelTrip}
+        onOpenChange={setConfirmCancelTrip}
+        title={t('tripDetail.cancelTripTitle')}
+        description={t('tripDetail.cancelTripDesc')}
+        confirmLabel={t('tripDetail.cancelTrip')}
+        destructive={false}
+        pending={cancelling}
+        onConfirm={() => cancelTrip()}
+      />
+      <ConfirmDialog
+        open={confirmDeleteTrip}
+        onOpenChange={setConfirmDeleteTrip}
+        title={t('tripDetail.deleteTripTitle')}
+        description={t('tripDetail.deleteTripDesc')}
+        confirmLabel={t('tripDetail.deleteTrip')}
+        destructive
+        pending={deletingTrip}
+        onConfirm={() => removeTrip()}
       />
       <StopDetailSheet
         open={detailStopIdx !== null}

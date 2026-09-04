@@ -176,9 +176,13 @@ export default function GovtLayout() {
   const pendingTrustAppealCount = pendingTrustAppeals?.length ?? 0
 
   return (
-    <div className="min-h-screen flex bg-surface font-sans">
-      {/* Desktop sidebar — always visible from lg up, hidden below it */}
-      <aside className="hidden lg:flex w-64 bg-surface-container-lowest border-r border-outline-variant flex-col shadow-sm flex-shrink-0">
+    <div className="h-screen flex bg-surface font-sans overflow-hidden">
+      {/* Desktop sidebar — always visible from lg up, hidden below it.
+          Pinned to the viewport (sticky + its own h-screen + internal
+          scroll) so a tall main-content page never carries the sidebar
+          off-screen with it — the sidebar's own nav list scrolls
+          independently if it ever outgrows a short viewport. */}
+      <aside className="hidden lg:flex sticky top-0 h-screen w-64 bg-surface-container-lowest border-r border-outline-variant flex-col shadow-sm flex-shrink-0 overflow-y-auto">
         <SidebarContent navItems={navItems} activeSosCount={activeSosCount} pendingVolunteerCount={pendingVolunteerCount} filedIncidentCount={filedIncidentCount} pendingTrustAppealCount={pendingTrustAppealCount} canScanCheckpoints={canScanCheckpoints} />
       </aside>
 

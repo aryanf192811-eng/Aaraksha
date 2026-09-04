@@ -20,18 +20,20 @@ const touristApi = {
   updateMe: (data: UpdateProfilePayload) =>
     api.patch<APIResponse<Tourist>>('/tourists/me', data),
 
-  // Public — no auth required, used by the Guardian Portal.
-  getGuardianView: (token: string) =>
-    api.get<APIResponse<GuardianView>>(`/tourists/guardian/${token}`),
+  // Public — no auth beyond the link's own token + a PIN the traveler
+  // shares over a separate channel (see migration 028) — the link alone no
+  // longer opens tracking.
+  getGuardianView: (token: string, pin: string) =>
+    api.get<APIResponse<GuardianView>>(`/tourists/guardian/${token}`, { params: { pin } }),
 
-  // Tourist <-> Guardian messaging — same token-in-URL model as
-  // getGuardianView, no separate auth. Every send re-validates the token
-  // server-side (guardian_token_expires), same as every other guardian call.
-  getGuardianMessages: (token: string) =>
-    api.get<APIResponse<Message[]>>(`/tourists/guardian/${token}/messages`),
+  // Tourist <-> Guardian messaging — same token+PIN model as
+  // getGuardianView. Every call re-validates both server-side, same as
+  // every other guardian call.
+  getGuardianMessages: (token: string, pin: string) =>
+    api.get<APIResponse<Message[]>>(`/tourists/guardian/${token}/messages`, { params: { pin } }),
 
-  sendGuardianMessage: (token: string, body: string) =>
-    api.post<APIResponse<Message>>(`/tourists/guardian/${token}/messages`, { body }),
+  sendGuardianMessage: (token: string, pin: string, body: string) =>
+    api.post<APIResponse<Message>>(`/tourists/guardian/${token}/messages`, { body }, { params: { pin } }),
 }
 
 export default touristApi

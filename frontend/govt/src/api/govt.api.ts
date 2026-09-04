@@ -223,6 +223,15 @@ export interface AssignableOfficer {
 
 // Mirrors backend ntn_messages rows (migration 024_ntn_messages), joined
 // with the tourist's name for display.
+export interface RecentSOSItem {
+  id: string
+  category: string
+  status: string
+  created_at: string
+  full_name: string
+  phone: string
+}
+
 export interface NTNMessage {
   id: string
   tourist_id: string
@@ -241,8 +250,11 @@ const govtApi = {
   getDashboard: () =>
     api.get<APIResponse<GovtDashboard>>('/govt/dashboard'),
 
-  getRecentNTNActivity: () =>
-    api.get<APIResponse<NTNMessage[]>>('/govt/ntn/recent'),
+  getRecentNTNActivity: (params?: { limit?: number; days?: number }) =>
+    api.get<APIResponse<NTNMessage[]>>('/govt/ntn/recent', { params }),
+
+  getRecentSOSActivity: (params?: { limit?: number; days?: number }) =>
+    api.get<APIResponse<RecentSOSItem[]>>('/govt/sos/recent', { params }),
 
   getActiveSOS: (params?: { status?: string; category?: string; page?: number; limit?: number }) =>
     api.get<PaginatedResponse<SOSWithDetails>>('/govt/sos/active', { params }),

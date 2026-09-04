@@ -26,6 +26,18 @@ class LocalOperatorRepository extends BaseRepository {
     )
   }
 
+  // Single-row existence/lookup for the review-creation path below — same
+  // invariant as findByDestinationId: a review can only be attached to a
+  // provider a tourist could actually see and use, never a pending or
+  // rejected row.
+  async findVerifiedById(id) {
+    return this.queryOne(
+      `SELECT ${SAFE_COLS} FROM local_operators
+       WHERE id = $1 AND is_verified = TRUE AND is_active = TRUE`,
+      [id]
+    )
+  }
+
   // Batch, Map<destinationId, LocalOperator[]> — mirrors
   // travelPlanner.repository.js#getReviewSummaries's ANY($1::uuid[]) batching,
   // used by buildJourney/getRoutesBetween so a multi-stop journey is one

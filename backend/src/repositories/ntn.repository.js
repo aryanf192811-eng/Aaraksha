@@ -14,7 +14,18 @@ class NTNRepository extends BaseRepository {
     )
   }
 
-  async findRecent(limit = 20) {
+  async findRecent(limit = 20, days = null) {
+    if (days) {
+      return this.query(
+        `SELECT nm.*, t.full_name AS tourist_name
+         FROM ntn_messages nm
+         JOIN tourists t ON t.id = nm.tourist_id
+         WHERE nm.created_at >= NOW() - ($2 || ' days')::interval
+         ORDER BY nm.created_at DESC
+         LIMIT $1`,
+        [limit, days]
+      )
+    }
     return this.query(
       `SELECT nm.*, t.full_name AS tourist_name
        FROM ntn_messages nm

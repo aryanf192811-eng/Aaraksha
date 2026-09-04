@@ -35,3 +35,15 @@
   * { -webkit-tap-highlight-color: transparent; }
   input, textarea, select { font-size: 16px; }
 }
+
+@layer utilities {
+  /* Soft teal-on-teal mesh behind the login screen — same lift-off-flat-
+     white move as the tourist app's own hero-mesh, tuned to this portal's
+     single-hue teal brand instead of a two-color amber/teal blend. */
+  .hero-mesh {
+    background:
+      radial-gradient(480px 240px at 15% -10%, rgba(15, 118, 110, 0.14), transparent 65%),
+      radial-gradient(420px 260px at 105% 10%, rgba(15, 118, 110, 0.10), transparent 60%),
+      #f8faf9;
+  }
+}

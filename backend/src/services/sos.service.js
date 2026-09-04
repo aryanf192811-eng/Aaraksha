@@ -207,7 +207,7 @@ async function markFalseAlarm(sosId, touristId) {
   // AVAILABLE, leaving them permanently stuck DEPLOYED with no active job
   // pointing at them. Confirmed live: reproducible on the very first
   // tourist-side false-alarm of an already-assigned SOS.
-  const updated = await withTransaction(async (client) => {
+  const result = await withTransaction(async (client) => {
     const sosRepo_t = new SOSRepository(client)
     const rescueRepo_t = new RescueRepository(client)
 
@@ -230,11 +230,12 @@ async function markFalseAlarm(sosId, touristId) {
     // notification closed out too, or it sits in their "Active alerts"
     // list forever pointing at an emergency that's already over.
     await new VolunteerDispatchRepository(client).declineAllPendingForSOS(sosId)
-    return updated
+    return { updated, volunteerId: assignment?.volunteer_id ?? null }
   })
-  if (!updated) throw Object.assign(new Error(ERRORS.SOS_ALREADY_CLOSED), { statusCode: 400 })
+  if (!result) throw Object.assign(new Error(ERRORS.SOS_ALREADY_CLOSED), { statusCode: 400 })
+  const { updated, volunteerId } = result
 
-  emitSOSResolved(updated, 'Tourist confirmed false alarm')
+  emitSOSResolved(updated, 'Tourist confirmed false alarm', volunteerId)
   logger.info({ sosId, touristId }, 'SOS marked false alarm')
 
   // Rewarded, never punished -- a tourist realizing it's not actually an

@@ -45,6 +45,13 @@ async function getDashboard() {
   }
 }
 
+// Dedicated "View all" query behind the dashboard's compact Recent
+// Incidents stack — the dashboard itself keeps its own fixed limit-5 call
+// inside getDashboard() above, this is the wider, filterable read.
+async function getRecentSOSActivity(limit, days) {
+  return new SOSRepository().findRecent(limit, days)
+}
+
 // Same "rescuer's live GPS if reported, else registered base" fallback as
 // sos.service.js#getActiveRescueInfo — kept as a second small computation
 // rather than importing that function, since it operates on the govt list
@@ -168,7 +175,7 @@ async function resolveSOS(sosId, resolutionNotes, govtUserId, overrideReason) {
     throw Object.assign(new Error(ERRORS.HANDOFF_NOT_VERIFIED), { statusCode: 400 })
   }
 
-  const { resolved } = await withTransaction(async (client) => {
+  const { resolved, volunteerId } = await withTransaction(async (client) => {
     const sosRepo_t    = new SOSRepository(client)
     const rescueRepo_t = new RescueRepository(client)
 
@@ -195,10 +202,14 @@ async function resolveSOS(sosId, resolutionNotes, govtUserId, overrideReason) {
       await volunteerRepo_t.updateStatus(assignment.volunteer_id, VOLUNTEER_STATUSES.AVAILABLE)
     }
     await new VolunteerDispatchRepository(client).declineAllPendingForSOS(sosId)
-    return { resolved }
+    return { resolved, volunteerId: assignment?.volunteer_id ?? null }
   })
 
-  emitSOSResolved(resolved, resolutionNotes)
+  // A govt operator resolving the case directly (not via the volunteer's
+  // own handoff-verified path) still means an assigned volunteer's
+  // ActiveJobPage needs to hear about it live, same reasoning as the
+  // tourist-initiated false-alarm path in sos.service.js#markFalseAlarm.
+  emitSOSResolved(resolved, resolutionNotes, volunteerId)
   logger.info({ sosId }, 'SOS resolved')
   return resolved
 }
@@ -401,7 +412,7 @@ async function rejectLocalOperator(operatorId) {
 }
 
 module.exports = {
-  getDashboard, getActiveSOS, assignRescue, resolveSOS, getNearbyRescuers, getActiveRescuers,
+  getDashboard, getRecentSOSActivity, getActiveSOS, assignRescue, resolveSOS, getNearbyRescuers, getActiveRescuers,
   getLiveTourists, getRiskOverview, getRiskModelInfo, getRescueTeams, updateTeamStatus, getAnalytics,
   getPendingVolunteers, getAllVolunteers, createVolunteer, verifyVolunteer, rejectVolunteer,
   getPendingLocalOperators, getAllLocalOperators, verifyLocalOperator, rejectLocalOperator,

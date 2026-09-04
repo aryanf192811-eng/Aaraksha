@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import type { ComponentType } from 'react'
 import {
   ArrowLeft, Search, AlertTriangle, Shield, MapPin, Activity,
-  CheckCircle2, ShieldAlert, Ban, ClipboardList, HeartPulse, Users,
+  CheckCircle2, ShieldAlert, Ban, ClipboardList, HeartPulse, Users, Phone,
 } from 'lucide-react'
 import { Input } from '../../components/ui/input'
 import { WeatherBadge } from '../../components/shared'
@@ -176,10 +176,20 @@ export default function AdvisoryPage() {
                 )}
 
                 {dest.nearest_hospital_km && (
-                  <p className="text-xs text-on-surface-variant mt-2 flex items-center gap-1">
-                    <HeartPulse className="w-3 h-3" /> {dest.nearest_hospital_name || t('advisory.nearestHospitalFallback')}: {dest.nearest_hospital_km}km
-                    {dest.nearest_hospital_phone && ` · ${dest.nearest_hospital_phone}`}
-                  </p>
+                  <div className="bg-sos/10 border border-sos/25 rounded-xl p-2.5 mt-2 flex items-center gap-2.5">
+                    <span className="w-8 h-8 rounded-full bg-sos/15 flex items-center justify-center flex-shrink-0"><HeartPulse className="w-4 h-4 text-sos-dark" /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-sos-dark">{t('advisory.nearestHospitalTitle')}</p>
+                      <p className="text-xs font-bold text-on-surface truncate">{dest.nearest_hospital_name || t('advisory.nearestHospitalFallback')}</p>
+                      <p className="text-[10px] text-on-surface-variant">{dest.nearest_hospital_km}km {t('advisory.away')}</p>
+                    </div>
+                    {dest.nearest_hospital_phone && (
+                      <a href={`tel:${dest.nearest_hospital_phone}`}
+                        className="flex-shrink-0 h-8 px-3 rounded-full bg-sos text-white text-[11px] font-bold flex items-center gap-1">
+                        <Phone className="w-3 h-3" /> {t('advisory.call')}
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

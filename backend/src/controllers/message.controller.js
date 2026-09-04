@@ -32,7 +32,7 @@ const sendGuardianMessageAsTourist = async (req, res, next) => {
 // GET /api/tourists/guardian/:token/messages
 const getGuardianThreadAsGuardian = async (req, res, next) => {
   try {
-    const messages = await messageService.getGuardianThreadForGuardian(req.params.token, parseLimit(req.query.limit))
+    const messages = await messageService.getGuardianThreadForGuardian(req.params.token, req.query.pin, parseLimit(req.query.limit))
     sendSuccess(res, messages)
   } catch (err) { next(err) }
 }
@@ -40,7 +40,7 @@ const getGuardianThreadAsGuardian = async (req, res, next) => {
 // POST /api/tourists/guardian/:token/messages
 const sendGuardianMessageAsGuardian = async (req, res, next) => {
   try {
-    const message = await messageService.sendGuardianMessageAsGuardian(req.params.token, req.validatedBody.body)
+    const message = await messageService.sendGuardianMessageAsGuardian(req.params.token, req.query.pin, req.validatedBody.body)
     sendSuccess(res, message, 'Message sent', 201)
   } catch (err) { next(err) }
 }

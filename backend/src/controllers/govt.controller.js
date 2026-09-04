@@ -105,8 +105,19 @@ const decideAppeal = async (req, res, next) => {
 
 const getRecentNTNActivity = async (req, res, next) => {
   try {
-    const messages = await ntnService.getRecentMessages(20)
+    const limit = req.query.limit ? Math.min(parseInt(req.query.limit, 10), 200) : 20
+    const days = req.query.days ? parseInt(req.query.days, 10) : null
+    const messages = await ntnService.getRecentMessages(limit, days)
     sendSuccess(res, messages)
+  } catch (err) { next(err) }
+}
+
+const getRecentSOSActivity = async (req, res, next) => {
+  try {
+    const limit = req.query.limit ? Math.min(parseInt(req.query.limit, 10), 200) : 5
+    const days = req.query.days ? parseInt(req.query.days, 10) : null
+    const events = await govtService.getRecentSOSActivity(limit, days)
+    sendSuccess(res, events)
   } catch (err) { next(err) }
 }
 
@@ -276,4 +287,4 @@ module.exports = { getDashboard, getLiveTourists, getRiskOverview, getRiskModelI
   getAnomalies, resolveAnomaly,
   getIncidentQueue, getIncident, getAssignableOfficers, assignIncident, updateIncidentStatus, downloadEfirReport,
   confirmFraudulentSOS, getPendingAppeals, decideAppeal, getOpenClusters, resolveCluster,
-  getRecentNTNActivity }
+  getRecentNTNActivity, getRecentSOSActivity }

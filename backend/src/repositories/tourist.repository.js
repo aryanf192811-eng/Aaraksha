@@ -16,9 +16,9 @@ const { BaseRepository } = require('./base.repository')
 const SAFE_COLS = `
   id, full_name, phone, email, blood_group, medical_info,
   emergency_contacts, govt_id_type, govt_id_suffix,
-  guardian_token, guardian_token_expires,
+  guardian_token, guardian_token_expires, guardian_pin,
   rescue_readiness_score, profile_photo_url,
-  trust_score, trust_restricted_at,
+  trust_score, trust_restricted_at, local_points,
   is_active, created_at, updated_at`
 
 class TouristRepository extends BaseRepository {
@@ -27,15 +27,15 @@ class TouristRepository extends BaseRepository {
       INSERT INTO tourists (
         full_name, phone, email, blood_group, medical_info,
         emergency_contacts, govt_id_type, govt_id_hash, govt_id_suffix,
-        guardian_token, guardian_token_expires, password_hash
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        guardian_token, guardian_token_expires, guardian_pin, password_hash
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
       RETURNING ${SAFE_COLS}`,
       [
         data.fullName, data.phone, data.email ?? null,
         data.bloodGroup ?? null, data.medicalInfo ?? null,
         JSON.stringify(data.emergencyContacts),
         data.govtIdType, data.govtIdHash, data.govtIdSuffix,
-        data.guardianToken, data.guardianTokenExpires, data.passwordHash,
+        data.guardianToken, data.guardianTokenExpires, data.guardianPin, data.passwordHash,
       ]
     )
   }
@@ -96,6 +96,16 @@ class TouristRepository extends BaseRepository {
       WHERE id = $${idx} AND is_active = TRUE
       RETURNING ${SAFE_COLS}`,
       values
+    )
+  }
+
+  // Mirrors volunteer.repository.js#addPoints exactly — an atomic
+  // increment, not a read-modify-write, so two concurrent reviews from the
+  // same tourist can't race and drop one award.
+  async addLocalPoints(id, points) {
+    return this.queryOne(
+      `UPDATE tourists SET local_points = local_points + $2 WHERE id = $1 RETURNING ${SAFE_COLS}`,
+      [id, points]
     )
   }
 }

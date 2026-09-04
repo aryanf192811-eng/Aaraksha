@@ -162,11 +162,19 @@ export default function HomePage() {
         <section>
           <h2 className="font-display font-black text-on-surface mb-3">Active alerts</h2>
           {active.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-outline-variant p-6 text-center">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                <Siren className="w-6 h-6 text-primary" />
+            <div className="rounded-2xl bg-primary/5 border border-primary/15 p-6 text-center">
+              <div className="relative w-12 h-12 mx-auto mb-3">
+                {volunteer.status === 'AVAILABLE' && (
+                  <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+                )}
+                <div className="relative w-12 h-12 rounded-full bg-primary/15 flex items-center justify-center">
+                  <Siren className="w-6 h-6 text-primary" />
+                </div>
               </div>
-              <p className="text-sm text-on-surface-variant">No nearby SOS right now</p>
+              <p className="text-sm font-medium text-on-surface">No nearby SOS right now</p>
+              <p className="text-xs text-on-surface-variant mt-0.5">
+                {volunteer.status === 'AVAILABLE' ? "You're listening for alerts nearby" : "Go Available to start listening"}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -205,15 +213,18 @@ export default function HomePage() {
             <h2 className="font-display font-black text-on-surface mb-3">How dispatch works</h2>
             <div className="space-y-3">
               {[
-                { icon: Radio, text: `Stay "Available" and you'll get an alert the instant an SOS fires nearby` },
-                { icon: Siren, text: 'Respond, and a live road route to them opens automatically' },
+                { icon: Radio, text: `Stay "Available" and you'll get an alert the instant an SOS fires nearby`, tint: 'bg-primary/12 text-primary' },
+                { icon: Siren, text: 'Respond, and a live road route to them opens automatically', tint: 'bg-sos/12 text-sos' },
                 volunteer.rescuer_type === 'OFFICIAL'
-                  ? { icon: ShieldCheck, text: 'Confirm the Rescue Verification Code with the tourist once you reach them' }
-                  : { icon: Award, text: 'Complete the response to earn reputation points' },
-              ].map(({ icon: Icon, text }) => (
-                <div key={text} className="flex items-center gap-3 bg-surface-container-lowest rounded-2xl px-4 py-3.5">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-4.5 h-4.5 text-primary" />
+                  ? { icon: ShieldCheck, text: 'Confirm the Rescue Verification Code with the tourist once you reach them', tint: 'bg-warning/15 text-warning' }
+                  : { icon: Award, text: 'Complete the response to earn reputation points', tint: 'bg-safe/15 text-safe' },
+              ].map(({ icon: Icon, text, tint }, i) => (
+                <div key={text} className="flex items-center gap-3 bg-surface-container-lowest rounded-2xl px-4 py-3.5 shadow-sm border border-outline-variant/60">
+                  <div className={cn('relative w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0', tint)}>
+                    <Icon className="w-4.5 h-4.5" />
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-on-surface text-surface text-[9px] font-black flex items-center justify-center">
+                      {i + 1}
+                    </span>
                   </div>
                   <p className="text-sm text-on-surface-variant leading-snug">{text}</p>
                 </div>

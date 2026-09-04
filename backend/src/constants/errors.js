@@ -54,9 +54,12 @@ const ERRORS = Object.freeze({
 
   // Reviews
   REVIEW_ALREADY_EXISTS: 'You have already reviewed this destination',
+  OPERATOR_REVIEW_ALREADY_EXISTS: 'You have already reviewed this provider',
 
   // Guardian
   GUARDIAN_TOKEN_INVALID: 'Tracking link not found or expired',
+  GUARDIAN_PIN_REQUIRED:  'Enter the 4-digit PIN the traveler shared with you',
+  GUARDIAN_PIN_INCORRECT: 'Incorrect PIN — ask the traveler to confirm it',
 
   // Messaging
   MESSAGE_NOT_YOUR_SOS:       'This SOS doesn\'t belong to you',

@@ -241,7 +241,16 @@ class SOSRepository extends BaseRepository {
     return row?.c || 0
   }
 
-  async findRecent(limit = 5) {
+  async findRecent(limit = 5, days = null) {
+    if (days) {
+      return this.query(`
+        SELECT se.id, se.category, se.status, se.created_at, t.full_name, t.phone
+        FROM sos_events se LEFT JOIN tourists t ON t.id = se.tourist_id
+        WHERE se.created_at >= NOW() - ($2 || ' days')::interval
+        ORDER BY se.created_at DESC LIMIT $1`,
+        [limit, days]
+      )
+    }
     return this.query(`
       SELECT se.id, se.category, se.status, se.created_at, t.full_name, t.phone
       FROM sos_events se LEFT JOIN tourists t ON t.id = se.tourist_id

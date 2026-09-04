@@ -57,6 +57,11 @@ export interface Tourist {
   govt_id_suffix: string
   guardian_token: string
   guardian_token_expires: string
+  guardian_pin: string
+  // "Vocal for Local" gamification — earned by reviewing a verified local
+  // operator (see localOperatorReview.service.js), not a booking/visit
+  // this project has no way to actually verify.
+  local_points: number
   rescue_readiness_score: number
   profile_photo_url: string | null
   is_active: boolean
@@ -311,6 +316,23 @@ export interface LocalOperator {
   verified_at: string | null
   is_active: boolean
   created_at: string
+  // Trust Economy loop (migration 029) — attached by
+  // destination.service.js#getDestinationById, not a raw local_operators
+  // column. reviewCount is always present (0 if none); avgRating is only
+  // non-null once at least one review exists.
+  reviewCount: number
+  avgRating: number | null
+}
+
+export interface LocalOperatorReview {
+  id: string
+  local_operator_id: string
+  tourist_id: string
+  trip_id: string | null
+  rating: number
+  review_text: string | null
+  created_at: string
+  tourist_name: string
 }
 
 // ── Scam report ────────────────────────────────────────────────────────────

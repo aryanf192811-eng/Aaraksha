@@ -31,7 +31,7 @@ class TripRepository extends BaseRepository {
   }
 
   async findByTouristId(touristId, filters = {}) {
-    const conditions = ['tourist_id = $1', 'status != \'CANCELLED\'']
+    const conditions = ['tourist_id = $1']
     const params = [touristId]
     let idx = 2
 
@@ -39,6 +39,8 @@ class TripRepository extends BaseRepository {
       conditions.push(`status = $${idx}`)
       params.push(filters.status)
       idx++
+    } else {
+      conditions.push('status != \'CANCELLED\'')
     }
 
     const total = await this.queryCount(

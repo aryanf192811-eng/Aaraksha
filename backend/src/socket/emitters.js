@@ -62,7 +62,17 @@ function emitSOSCategoryAmended(sosEvent, volunteerId) {
 // Govt dashboard + the reporting tourist's own room: SOS resolved or marked
 // false alarm. sosEvent is the post-update row (RETURNING *), so its status
 // reflects which of the two actually happened rather than assuming RESOLVED.
-function emitSOSResolved(sosEvent, resolutionNotes) {
+//
+// volunteerId: the assignment's volunteer, if the SOS was actively assigned
+// to one when it closed (markFalseAlarm/resolveSOS both already look this
+// up to release the volunteer back to AVAILABLE — this just also tells
+// their own client). Without this, a volunteer mid-response to a tourist's
+// own false-alarm never found out live: their ActiveJobPage kept showing
+// the job as active until the next 20s getActiveAssignment poll silently
+// dropped it, with no explanation of why it vanished. Official teams have
+// no login/room to reach, same limitation emitSOSCategoryAmended already
+// documents.
+function emitSOSResolved(sosEvent, resolutionNotes, volunteerId = null) {
   const payload = {
     sosId: sosEvent.id, status: sosEvent.status, resolutionNotes,
     resolvedAt: sosEvent.resolved_at || new Date().toISOString(),
@@ -75,6 +85,9 @@ function emitSOSResolved(sosEvent, resolutionNotes) {
       body: sosEvent.status === 'FALSE_ALARM' ? 'Your SOS was marked as a false alarm.' : 'Your SOS has been marked resolved.',
       url: '/sos',
     })
+  }
+  if (volunteerId) {
+    safeEmit(SOCKET_ROOMS.volunteer(volunteerId), SOCKET_EVENTS.SOS_STATUS_UPDATED, payload)
   }
 }
 

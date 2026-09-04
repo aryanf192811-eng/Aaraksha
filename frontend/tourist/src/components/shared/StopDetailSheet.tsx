@@ -7,11 +7,13 @@
 // the same leg-row visual language JourneyResultCard.tsx established for
 // the Travel Assistant's own itinerary cards — one route vocabulary
 // across the app, not two.
-import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
   X, MapPin, Mountain, HeartPulse, Shield, CalendarDays, Star, Train, Plane,
   Bus, Car, Ship, Waypoints, Clock, IndianRupee, FileWarning, Phone,
-  Building2, Home, Compass, Palette, ShieldCheck,
+  Building2, Home, Compass, Palette, ShieldCheck, ChevronDown,
 } from 'lucide-react'
 import { useDragSheet } from '../../hooks/useDragSheet'
 import { formatINR, cn } from '../../lib/utils'
@@ -19,6 +21,10 @@ import { tEnum } from '../../lib/i18nEnums'
 import { useTranslation } from 'react-i18next'
 import destinationApi from '../../api/destination.api'
 import travelPlannerApi from '../../api/travelPlanner.api'
+import localOperatorApi from '../../api/localOperator.api'
+import { queryClient } from '../../lib/queryClient'
+import { getErrorMessage } from '../../api/client'
+import { useAuthStore } from '../../store/auth.store'
 import { getDestinationImage } from '../../lib/destinationImages'
 import type { Stop, LocalOperator } from '../../types/api.types'
 
@@ -32,6 +38,17 @@ const MODE_LABEL: Record<string, string> = {
 }
 const OPERATOR_CATEGORY_ICON: Record<LocalOperator['category'], typeof Building2> = {
   HOTEL: Building2, HOMESTAY: Home, GUIDE: Compass, EXPERIENCE: Mountain, ARTISAN: Palette,
+}
+// A provider whose `source` cites a real OpenStreetMap node/way gets a
+// direct, precise link to that exact map object — the same node/way this
+// project's own research already verified, not a fresh lookup. Everything
+// else (govt-registry/cooperative citations with no coordinate anywhere in
+// this data model) falls back to a real, functional Google Maps search —
+// honest about being a search, not a fabricated pin.
+function getOperatorMapsUrl(op: LocalOperator): string {
+  const osmMatch = op.source.match(/(?:OpenStreetMap|OSM)\s+(node|way)\s+(\d+)/i)
+  if (osmMatch) return `https://www.openstreetmap.org/${osmMatch[1].toLowerCase()}/${osmMatch[2]}`
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${op.business_name}, ${op.district}, ${op.state}`)}`
 }
 // Same category→color mapping as the govt LocalOperatorsPage roster cards —
 // one visual vocabulary for "what kind of provider is this" across portals.
@@ -64,12 +81,35 @@ export function StopDetailSheet({ open, stop, previousStop, onClose }: {
 }) {
   const { t } = useTranslation()
   const { handleProps, sheetStyle } = useDragSheet({ onClose })
+  const [descExpanded, setDescExpanded] = useState(false)
+  const [ratingOperatorId, setRatingOperatorId] = useState<string | null>(null)
+  const [ratingValue, setRatingValue] = useState(0)
+  const [ratingText, setRatingText] = useState('')
+
+  const updateTourist = useAuthStore((s) => s.updateTourist)
+  const { mutate: submitOperatorReview, isPending: submittingRating } = useMutation({
+    mutationFn: (operatorId: string) => localOperatorApi.createReview(operatorId, { rating: ratingValue, reviewText: ratingText.trim() || undefined }),
+    onSuccess: (res) => {
+      const { pointsAwarded, touristLocalPoints } = res.data.data
+      toast.success(t('tripDetail.operatorReviewSubmittedWithPoints', { points: pointsAwarded }))
+      if (touristLocalPoints != null) updateTourist({ local_points: touristLocalPoints })
+      setRatingOperatorId(null)
+      setRatingValue(0)
+      setRatingText('')
+      queryClient.invalidateQueries({ queryKey: ['destination', stop?.destinationId] })
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
+  })
 
   const { data: destination, isLoading: loadingDestination } = useQuery({
     queryKey: ['destination', stop?.destinationId],
     queryFn: () => destinationApi.getById(stop!.destinationId!).then((r) => r.data.data),
     enabled: open && !!stop?.destinationId,
   })
+
+  // Reset to collapsed whenever a different place is opened, so an
+  // expanded long-form description doesn't carry over to the next stop.
+  useEffect(() => { setDescExpanded(false); setRatingOperatorId(null); setRatingValue(0); setRatingText('') }, [stop?.destinationId])
 
   const { data: routesData, isLoading: loadingRoutes } = useQuery({
     queryKey: ['routes-between', previousStop?.destinationId, stop?.destinationId],
@@ -134,9 +174,35 @@ export function StopDetailSheet({ open, stop, previousStop, onClose }: {
             </div>
           ) : destination ? (
             <>
-              {destination.description && (
-                <p className="text-sm text-on-surface-variant leading-relaxed">{destination.description}</p>
-              )}
+              {destination.description && (() => {
+                // First sentence (or ~110 chars) leads as the scannable
+                // summary; the rest — real, researched detail — sits behind
+                // a tap rather than rendering as one dense paragraph.
+                const firstSentenceEnd = destination.description.search(/(?<=[.!?])\s(?=[A-Z])/)
+                const cut = firstSentenceEnd > 20 && firstSentenceEnd < 160 ? firstSentenceEnd : 110
+                const isLong = destination.description.length > cut + 20
+                const summary = isLong ? destination.description.slice(0, cut).trimEnd() : destination.description
+                return (
+                  <div>
+                    <p className="text-sm text-on-surface-variant leading-relaxed">
+                      {summary}
+                      {isLong && !descExpanded && '…'}
+                    </p>
+                    {isLong && descExpanded && (
+                      <p className="text-sm text-on-surface-variant leading-relaxed mt-1.5">
+                        {destination.description.slice(cut).trimStart()}
+                      </p>
+                    )}
+                    {isLong && (
+                      <button onClick={() => setDescExpanded((v) => !v)}
+                        className="mt-1 text-xs font-bold text-primary-dark flex items-center gap-0.5">
+                        {descExpanded ? t('tripDetail.readLess') : t('tripDetail.readMore')}
+                        <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', descExpanded && 'rotate-180')} />
+                      </button>
+                    )}
+                  </div>
+                )
+              })()}
 
               {destination.govt_advisory && (
                 <div className="rounded-2xl bg-tsi-high/10 border border-tsi-high/25 px-3 py-2.5 flex items-start gap-2">
@@ -145,22 +211,30 @@ export function StopDetailSheet({ open, stop, previousStop, onClose }: {
                 </div>
               )}
 
+              {destination.nearest_hospital_name && (
+                <div className="rounded-2xl bg-sos/10 border border-sos/25 px-3.5 py-3 flex items-center gap-3">
+                  <span className="w-10 h-10 rounded-full bg-sos/15 flex items-center justify-center flex-shrink-0"><HeartPulse className="w-5 h-5 text-sos-dark" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-sos-dark">Nearest Hospital</p>
+                    <p className="text-sm font-bold text-on-surface truncate">{destination.nearest_hospital_name}</p>
+                    {destination.nearest_hospital_km != null && (
+                      <p className="text-xs text-on-surface-variant">{destination.nearest_hospital_km}km away</p>
+                    )}
+                  </div>
+                  {destination.nearest_hospital_phone && (
+                    <a href={`tel:${destination.nearest_hospital_phone}`}
+                      className="flex-shrink-0 h-9 px-3.5 rounded-full bg-sos text-white text-xs font-bold flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5" /> Call
+                    </a>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-2">
                 {destination.best_months && (
                   <div className="flex items-center gap-2.5 text-xs">
                     <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0"><CalendarDays className="w-4 h-4 text-primary-dark" /></span>
                     <span className="text-on-surface-variant">Best time to visit: <span className="font-semibold text-on-surface">{destination.best_months}</span></span>
-                  </div>
-                )}
-                {destination.nearest_hospital_name && (
-                  <div className="flex items-center gap-2.5 text-xs">
-                    <span className="w-8 h-8 rounded-full bg-sos/10 flex items-center justify-center flex-shrink-0"><HeartPulse className="w-4 h-4 text-sos-dark" /></span>
-                    <span className="text-on-surface-variant">
-                      {destination.nearest_hospital_name}{destination.nearest_hospital_km != null && ` · ${destination.nearest_hospital_km}km`}
-                      {destination.nearest_hospital_phone && (
-                        <a href={`tel:${destination.nearest_hospital_phone}`} className="ml-1.5 text-primary-dark font-semibold inline-flex items-center gap-0.5"><Phone className="w-3 h-3" /> call</a>
-                      )}
-                    </span>
                   </div>
                 )}
                 {destination.ilp_required && (
@@ -211,12 +285,18 @@ export function StopDetailSheet({ open, stop, previousStop, onClose }: {
                               <IndianRupee className="w-3 h-3" /> {op.price_range_text}
                             </p>
                           )}
-                          {op.contact_phone && (
-                            <a href={`tel:${op.contact_phone}`}
-                              className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-primary-dark bg-primary/10 px-2.5 py-1.5 rounded-full">
-                              <Phone className="w-3 h-3" /> {op.contact_phone}
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            {op.contact_phone && (
+                              <a href={`tel:${op.contact_phone}`}
+                                className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-dark bg-primary/10 px-2.5 py-1.5 rounded-full">
+                                <Phone className="w-3 h-3" /> {op.contact_phone}
+                              </a>
+                            )}
+                            <a href={getOperatorMapsUrl(op)} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-on-surface-variant bg-surface-container px-2.5 py-1.5 rounded-full">
+                              <MapPin className="w-3 h-3" /> {t('tripDetail.viewOnMap')}
                             </a>
-                          )}
+                          </div>
                           {/* Verified badge and source citation stay two distinct
                               elements — a trust signal vs. fine-print attribution. */}
                           <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 w-fit px-2 py-0.5 rounded-full">
@@ -225,6 +305,55 @@ export function StopDetailSheet({ open, stop, previousStop, onClose }: {
                           <p className="text-[10px] text-on-surface-variant/70 mt-1">
                             {t('tripDetail.localOperatorSource', { source: op.source })}
                           </p>
+
+                          {/* Trust Economy loop — a real tourist rating, distinct
+                              from the govt-verified badge above (who confirmed
+                              this exists vs. what people who actually used it
+                              think of it). */}
+                          <div className="mt-2 flex items-center gap-2 flex-wrap">
+                            {op.avgRating != null ? (
+                              <span className="flex items-center gap-1 text-xs font-bold text-on-surface">
+                                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                {op.avgRating.toFixed(1)}
+                                <span className="text-on-surface-variant font-medium">
+                                  ({t('tripDetail.operatorReviewCount', { count: op.reviewCount })})
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-on-surface-variant">{t('tripDetail.operatorNoReviewsYet')}</span>
+                            )}
+                            {ratingOperatorId !== op.id && (
+                              <button onClick={() => { setRatingOperatorId(op.id); setRatingValue(0); setRatingText('') }}
+                                className="text-xs font-bold text-primary-dark underline">
+                                {t('tripDetail.operatorRateThis')}
+                              </button>
+                            )}
+                          </div>
+
+                          {ratingOperatorId === op.id && (
+                            <div className="mt-2.5 bg-surface-container rounded-xl p-3">
+                              <div className="flex items-center gap-1 mb-2">
+                                {[1, 2, 3, 4, 5].map((n) => (
+                                  <button key={n} onClick={() => setRatingValue(n)} aria-label={`${n} star`}
+                                    className="p-0.5">
+                                    <Star className={cn('w-5 h-5', n <= ratingValue ? 'fill-amber-400 text-amber-400' : 'text-outline-variant')} />
+                                  </button>
+                                ))}
+                              </div>
+                              <textarea value={ratingText} onChange={(e) => setRatingText(e.target.value)} rows={2}
+                                placeholder={t('tripDetail.operatorReviewPlaceholder')}
+                                className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-2.5 py-2 text-xs resize-none focus:outline-none focus:border-primary" />
+                              <div className="mt-2 flex items-center gap-2">
+                                <button onClick={() => submitOperatorReview(op.id)} disabled={ratingValue === 0 || submittingRating}
+                                  className="h-8 px-3.5 rounded-full bg-primary text-on-surface text-xs font-bold disabled:opacity-40">
+                                  {submittingRating ? t('tripDetail.operatorReviewSubmitting') : t('tripDetail.operatorReviewSubmit')}
+                                </button>
+                                <button onClick={() => setRatingOperatorId(null)} className="text-xs font-semibold text-on-surface-variant">
+                                  {t('common.cancel')}
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

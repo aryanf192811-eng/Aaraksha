@@ -1,12 +1,13 @@
 // src/pages/DashboardPage.tsx
-import type { ComponentType } from 'react'
+import { useState, type ComponentType } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Bell, Users, Shield, MapPin, Activity, Download } from 'lucide-react'
 import { AreaChart, Area, PieChart, Pie, Cell, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { Button } from '../components/ui/button'
 import { useSOSSocket } from '../hooks/useSOSSocket'
 import { NTNPanel } from '../components/NTNPanel'
-import govtApi from '../api/govt.api'
+import { RecentActivityDialog } from '../components/RecentActivityDialog'
+import govtApi, { type RecentSOSItem } from '../api/govt.api'
 import { formatTimeAgo } from '../lib/utils'
 import type { GovtDashboard } from '../types/api.types'
 import type { AnalyticsResponse } from '../api/govt.api'
@@ -50,13 +51,20 @@ function StatCard({ label, value, subLabel, trend, trendUp, accentClass, icon: I
   )
 }
 
+// OTHER used to share the card's own near-white background (#e2e8f0 on a
+// white card), so any real OTHER slice rendered as an unexplained "empty"
+// gap in the donut — most of the ring with no legend key to match. Slate-400
+// is dark enough to read as a real, deliberate segment, and OTHER is no
+// longer excluded from the legend below (it stayed a real category the
+// donut can honestly render, just previously invisible).
 const SOS_COLORS: Record<string, string> = {
   MEDICAL: '#10b981', LOST: '#475569', TRAPPED: '#f59e0b', DISASTER: '#ef4444',
-  MISSING: '#0ea5e9', CRIME: '#7c3aed', OTHER: '#e2e8f0',
+  MISSING: '#0ea5e9', CRIME: '#7c3aed', OTHER: '#94a3b8',
 }
 
 export default function DashboardPage() {
   const { latestNTNStatus } = useSOSSocket()
+  const [incidentsViewAllOpen, setIncidentsViewAllOpen] = useState(false)
 
   const { data: dashboard } = useQuery({
     queryKey: ['govt', 'dashboard'],
@@ -177,7 +185,7 @@ export default function DashboardPage() {
               </PieChart>
             </ResponsiveContainer>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-3 w-full">
-              {Object.entries(SOS_COLORS).slice(0, -1).map(([cat, color]) => (
+              {Object.entries(SOS_COLORS).map(([cat, color]) => (
                 <div key={cat} className="flex items-center gap-1.5 text-xs text-on-surface-variant">
                   <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                   {cat}
@@ -192,16 +200,38 @@ export default function DashboardPage() {
       <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-6 shadow-sm">
         <h2 className="text-lg font-bold text-on-surface mb-4">Recent Incidents</h2>
         {d?.recentSOS && d.recentSOS.length > 0 ? (
-          <div className="space-y-2">
-            {d.recentSOS.map(sos => (
-              <div key={sos.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 border-b border-outline-variant last:border-0">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${sos.status === 'ACTIVE' ? 'bg-sos animate-pulse' : 'bg-green-500'}`} />
-                <span className="font-semibold text-on-surface text-sm flex-1 min-w-[8rem]">{sos.full_name}</span>
-                <span className="text-xs text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">{sos.category}</span>
-                <span className="text-xs text-on-surface-variant ml-auto">{formatTimeAgo(sos.created_at)}</span>
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="space-y-2">
+              {d.recentSOS.slice(0, 3).map(sos => (
+                <div key={sos.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 border-b border-outline-variant last:border-0">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${sos.status === 'ACTIVE' ? 'bg-sos animate-pulse' : 'bg-green-500'}`} />
+                  <span className="font-semibold text-on-surface text-sm flex-1 min-w-[8rem]">{sos.full_name}</span>
+                  <span className="text-xs text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">{sos.category}</span>
+                  <span className="text-xs text-on-surface-variant ml-auto">{formatTimeAgo(sos.created_at)}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setIncidentsViewAllOpen(true)}
+              className="mt-3 text-xs font-bold text-primary-dark hover:underline">
+              View all
+            </button>
+            <RecentActivityDialog<RecentSOSItem>
+              open={incidentsViewAllOpen} onOpenChange={setIncidentsViewAllOpen}
+              title="Recent Incidents" description="All SOS incidents in the selected window."
+              queryKey="govt-sos-activity"
+              queryFn={(days) => govtApi.getRecentSOSActivity({ limit: 200, days }).then((r) => r.data.data)}
+              emptyLabel="No SOS incidents in this window."
+              renderRow={(sos) => (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 border-b border-outline-variant last:border-0">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${sos.status === 'ACTIVE' ? 'bg-sos animate-pulse' : 'bg-green-500'}`} />
+                  <span className="font-semibold text-on-surface text-sm flex-1 min-w-[8rem]">{sos.full_name}</span>
+                  <span className="text-xs text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">{sos.category}</span>
+                  <span className="text-xs text-on-surface-variant">{sos.status}</span>
+                  <span className="text-xs text-on-surface-variant ml-auto">{formatTimeAgo(sos.created_at)}</span>
+                </div>
+              )}
+            />
+          </>
         ) : (
           <div className="text-center py-12">
             <MapPin className="w-8 h-8 text-slate-300 mx-auto mb-2" />

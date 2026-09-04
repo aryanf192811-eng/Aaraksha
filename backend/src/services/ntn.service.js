@@ -18,8 +18,8 @@ function getChannelStatus(scenario) {
   return sampleChannel(scenario)
 }
 
-function getRecentMessages(limit) {
-  return new NTNRepository().findRecent(limit)
+function getRecentMessages(limit, days) {
+  return new NTNRepository().findRecent(limit, days)
 }
 
 async function sendViaNTN(touristId, sosData, scenario) {

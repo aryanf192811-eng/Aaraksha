@@ -37,10 +37,10 @@ export function DMSCard({ dms, className }: DMSCardProps) {
   return (
     <div className={cn(
       'rounded-2xl border-2 p-5 transition-all duration-300',
-      isTriggered   ? 'border-sos bg-sos/5' :
-      isWarning     ? 'border-primary bg-primary/5 animate-pulse' :
-      dms.status === 'PAUSED' ? 'border-outline-variant bg-surface-container' :
-                      'border-tsi-low/40 bg-tsi-low/5',
+      isTriggered   ? 'border-sos bg-sos/5 shadow-lg shadow-sos/10' :
+      isWarning     ? 'border-primary bg-primary/5 shadow-md shadow-primary/10 animate-pulse' :
+      dms.status === 'PAUSED' ? 'border-outline-variant bg-surface-container shadow-sm' :
+                      'border-tsi-low/40 bg-tsi-low/5 shadow-sm',
       className,
     )}>
       <div className="flex items-center justify-between mb-3">

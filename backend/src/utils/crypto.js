@@ -15,6 +15,19 @@ function generatePublicToken() {
   return crypto.randomBytes(16).toString('hex')
 }
 
+// Guardian PIN: a 4-digit code the tourist shares with a guardian over a
+// SEPARATE channel (voice call, in person) from the tracking link itself —
+// the point is that anyone who intercepts the link alone (e.g. it gets
+// posted publicly) still can't open live tracking without it. Deliberately
+// stored in plaintext, not hashed like OTPs: it's meant to be re-displayed
+// on the tourist's own profile indefinitely so they can re-share it, not
+// a single-use secret — the guardian-view rate limiter (IP-keyed) plus a
+// tight per-token PIN-attempt limiter are the actual brute-force defense
+// for a 4-digit (10,000-combination) space.
+function generateGuardianPin() {
+  return String(crypto.randomInt(0, 10000)).padStart(4, '0')
+}
+
 // Group-trip invite code: short enough to read aloud/type on a second
 // phone. Excludes 0/O/1/I — easy to mis-type and mis-read on a small screen.
 const INVITE_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -84,6 +97,7 @@ function sha256Hex(input) {
 
 module.exports = {
   generateGuardianToken,
+  generateGuardianPin,
   generatePublicToken,
   generateInviteCode,
   generateTempPassword,

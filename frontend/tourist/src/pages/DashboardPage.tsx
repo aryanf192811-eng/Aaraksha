@@ -219,6 +219,7 @@ export default function DashboardPage() {
             {!isLoading && trips.length === 0 && (
               <EmptyState icon={Plane} title={t('dashboard.noTripsTitle')}
                 description={t('dashboard.noTripsDescription')}
+                boxed
                 action={
                   <Button onClick={() => navigate('/trips/new')} className="bg-primary hover:brightness-95 text-primary-foreground rounded-full px-6">
                     <Plus className="w-4 h-4 mr-2" /> {t('dashboard.planNewTrip')}
@@ -276,7 +277,7 @@ function SafetyStrip({ dms, activeSOSId, onOpen, t, minimal }: {
 }) {
   return (
     <div className="px-5 mt-5">
-      <div className="rounded-3xl bg-surface-container-lowest border border-outline-variant p-4 flex items-center gap-3.5">
+      <div className="rounded-3xl bg-surface-container-lowest border border-outline-variant shadow-md p-4 flex items-center gap-3.5">
         <div className={cn('w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0',
           activeSOSId ? 'bg-sos/15 text-sos-dark animate-pulse' : 'bg-tsi-low/10 text-tsi-low')}>
           {activeSOSId ? <Siren className="w-6 h-6" /> : <ShieldCheck className="w-6 h-6" />}
@@ -308,7 +309,7 @@ function QuickActionsRow({ navigate, t }: { navigate: (route: string) => void; t
       <div className="grid grid-cols-3 gap-3">
         {QUICK_ACTIONS.map(({ Icon, labelKey, route }) => (
           <button key={labelKey} onClick={() => navigate(route)}
-            className="rounded-2xl py-4 flex flex-col items-center gap-2 font-bold text-xs text-on-surface bg-surface-container-lowest active:scale-95 transition-all cursor-pointer">
+            className="rounded-2xl py-4 flex flex-col items-center gap-2 font-bold text-xs text-on-surface bg-surface-container-lowest border border-outline-variant shadow-sm hover:shadow-md active:scale-95 transition-all cursor-pointer">
             <Icon className="w-6 h-6 text-primary-dark" />
             {t(labelKey)}
           </button>
@@ -323,7 +324,7 @@ function TripCard({ trip, onClick }: { trip: Trip; onClick: () => void }) {
   const photo = getDestinationImage(trip.stops?.[0]?.city, { w: 400, q: 80 })
   return (
     <div onClick={onClick} role="button"
-      className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-3 flex items-center gap-4 active:scale-[0.98] transition-transform cursor-pointer">
+      className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm hover:shadow-md p-3 flex items-center gap-4 active:scale-[0.98] transition-transform cursor-pointer">
       <img src={photo} alt="" loading="lazy" width={56} height={56}
         className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
       <div className="flex-1 min-w-0">

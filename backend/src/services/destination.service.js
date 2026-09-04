@@ -4,6 +4,7 @@
 const { DestinationRepository } = require('../repositories/destination.repository')
 const { ScamRepository }         = require('../repositories/scam.repository')
 const { LocalOperatorRepository } = require('../repositories/localOperator.repository')
+const { LocalOperatorReviewRepository } = require('../repositories/localOperatorReview.repository')
 const { ERRORS } = require('../constants/errors')
 
 async function getAllDestinations(filters) {
@@ -24,7 +25,19 @@ async function getDestinationById(id) {
     scamRepo.countByDestination(id),
     new LocalOperatorRepository().findByDestinationId(id),
   ])
-  return { ...dest, scamReports, scamAggregate, localOperators }
+
+  // Attach each provider's rating aggregate (Trust Economy loop — see
+  // migration 029) in one batched query rather than the repository doing
+  // it per-row, so findByDestinationId itself stays a clean read of
+  // local_operators alone.
+  const ratingsByOperatorId = await new LocalOperatorReviewRepository()
+    .getAggregatesByOperatorIds(localOperators.map((op) => op.id))
+  const localOperatorsWithRatings = localOperators.map((op) => ({
+    ...op,
+    ...(ratingsByOperatorId.get(op.id) || { reviewCount: 0, avgRating: null }),
+  }))
+
+  return { ...dest, scamReports, scamAggregate, localOperators: localOperatorsWithRatings }
 }
 
 module.exports = { getAllDestinations, getDestinationById }

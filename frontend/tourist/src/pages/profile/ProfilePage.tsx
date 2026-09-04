@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Copy, ExternalLink, LogOut, User, Phone, Droplet, Lock, Eye, Siren, CheckCircle2, Pencil, ShieldCheck, Loader2, QrCode, Languages, FileLock2, HelpCircle, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Copy, ExternalLink, LogOut, User, Phone, Droplet, Lock, Eye, Siren, CheckCircle2, Pencil, ShieldCheck, Loader2, QrCode, Languages, FileLock2, HelpCircle, MessageCircle, Sprout } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -23,6 +23,7 @@ import { SOCKET_EVENTS } from '../../constants/enums'
 import { getErrorMessage } from '../../api/client'
 import { cn } from '../../lib/utils'
 import { SUPPORTED_LANGUAGES } from '../../i18n/config'
+import { getLocalPointsTier, getNextLocalPointsTier } from '../../lib/localPoints'
 import { TRIP_STATUSES } from '../../constants/enums'
 import type { EmergencyContact } from '../../types/api.types'
 
@@ -201,6 +202,11 @@ export default function ProfilePage() {
             so this is the same number wherever a tourist sees it. */}
         <RescueReadinessChecklist tourist={profile} activeTrip={activeTrip} dms={dms} />
 
+        {/* "Vocal for Local" — earned by reviewing verified local operators
+            (see StopDetailSheet.tsx), the tourism-industry counterpart to
+            the safety-focused Rescue Readiness card above. */}
+        {profile && <LocalPointsCard points={profile.local_points} />}
+
         {/* Health info */}
         <div className="bg-surface-container-lowest rounded-2xl shadow-sm p-5 space-y-3">
           <h3 className="font-bold text-on-surface flex items-center gap-2">
@@ -304,6 +310,13 @@ export default function ProfilePage() {
             )}
           </div>
           <p className="text-xs text-primary mt-2 mb-3">{t('profile.guardianLinkValidity')}</p>
+          {profile?.guardian_pin && (
+            <div className="bg-surface-container-lowest rounded-xl p-3 mb-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant mb-1">{t('profile.guardianPinTitle')}</p>
+              <p className="text-2xl font-black tabular-nums tracking-[0.3em] text-on-surface">{profile.guardian_pin}</p>
+              <p className="text-xs text-on-surface-variant mt-1.5 leading-snug">{t('profile.guardianPinHint')}</p>
+            </div>
+          )}
           <button onClick={() => setShowGuardianChat(true)}
             className="w-full h-10 rounded-full bg-surface-container-lowest text-primary text-xs font-bold flex items-center justify-center gap-1.5 border border-primary/20">
             <MessageCircle className="w-3.5 h-3.5" /> Message your guardian
@@ -421,6 +434,43 @@ export default function ProfilePage() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+// "Vocal for Local" — SIH PS 26204's "boost hotels, travel and others"
+// mandate, made visible: a real, checkable count of reviews left for
+// verified local operators, not a fabricated "trips booked" number this
+// project has no booking system to actually produce.
+function LocalPointsCard({ points }: { points: number }) {
+  const { t } = useTranslation()
+  const tier = getLocalPointsTier(points)
+  const next = getNextLocalPointsTier(points)
+  const progressPct = next ? Math.min(100, Math.round((points / next.minPoints) * 100)) : 100
+
+  return (
+    <div className="bg-trust-light border border-trust/20 rounded-2xl shadow-md p-5">
+      <div className="flex items-center gap-3 mb-1">
+        <div className="w-11 h-11 rounded-full bg-trust/15 flex items-center justify-center flex-shrink-0 text-lg">
+          {tier.emoji || <Sprout className="w-5 h-5 text-trust-dark" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-sm text-trust-dark">{t('profile.localPointsTitle')}</p>
+          <p className="text-xs text-trust-dark/80">{t(tier.labelKey)}</p>
+        </div>
+        <p className="text-xl font-black text-trust-dark tabular-nums">{points}</p>
+      </div>
+      <p className="text-xs text-trust-dark/70 leading-snug mb-2.5">{t('profile.localPointsSubtitle')}</p>
+      {next && (
+        <>
+          <div className="h-1.5 bg-trust/15 rounded-full overflow-hidden">
+            <div className="h-full bg-trust rounded-full transition-all" style={{ width: `${progressPct}%` }} />
+          </div>
+          <p className="text-[11px] text-trust-dark/70 mt-1.5">
+            {t('profile.localPointsToNextTier', { points: next.minPoints - points, tier: t(next.labelKey) })}
+          </p>
+        </>
+      )}
     </div>
   )
 }
