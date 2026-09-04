@@ -19,6 +19,80 @@ agent has no idea what you did.
 
 ---
 
+## ⚠️ ONE-OFF CODE TASK — read this before anything below
+
+Everything below this section is about **dataset curation** (destinations,
+typical_routes) and explicitly forbids touching application code — that
+rule does **not** apply to this task. This is a deliberate, human-authorized
+exception: a real frontend feature build, not data curation. If you're
+picking this up, do this task and stop; don't fall through into the
+data-curation workflow below unless a human asks for that separately.
+
+**Task: add Hindi + Assamese i18n to the govt, guardian, and volunteer
+portals.** `frontend/tourist` already has full i18next coverage in all
+three languages (English/Hindi/Assamese) — the other three portals
+(`frontend/govt`, `frontend/guardian`, `frontend/volunteer`) are still
+English-only. Mirror the tourist portal's setup exactly; don't redesign it.
+
+**The pattern to copy, file-for-file, into each of the three portals:**
+
+1. `frontend/tourist/src/i18n/config.ts` — the i18next bootstrap. Same
+   packages (`i18next`, `react-i18next`, `i18next-browser-languagedetector`
+   — already in tourist's `package.json` at `^26.4.0` / `^17.0.12` /
+   `^8.2.1`; add matching versions to each portal's `package.json`, don't
+   drift versions across portals for no reason). Same dev-only key-parity
+   checker (the `flatten()` warning block) — it's what catches a locale
+   file silently missing a key before it ships. Same `LanguageDetector`
+   config (`localStorage` + `navigator`, cache key can stay
+   `aaraksha_lang` — no reason to diverge).
+2. `frontend/tourist/src/i18n/locales/{en,hi,as}.ts` — the locale files
+   themselves. **Do not copy tourist's actual keys/strings** — each portal
+   has its own UI text. Extract every user-facing string in that portal
+   into `en.ts` first (this is the real work: walking every page/component
+   and pulling out hardcoded strings into `t('namespace.key')` calls, same
+   as tourist's own `en.ts` demonstrates), then translate `en.ts` into
+   `hi.ts` and `as.ts` — real Hindi and real Assamese, not transliteration,
+   not machine-translation-shaped filler. Tourist's `hi.ts`/`as.ts` are the
+   quality bar: natural phrasing a native speaker actually uses, not a
+   word-for-word gloss. If you're not confident a translation is natural,
+   say so in the session log below rather than guessing.
+3. `frontend/tourist/src/main.tsx`'s `import './i18n/config'` (a bare
+   side-effect import, before the app renders) — same one-line wiring in
+   each portal's entry file.
+4. Every component that renders user-facing text needs `useTranslation()`
+   from `react-i18next` and its strings routed through `t()`. This is the
+   bulk of the effort — there is no shortcut, every hardcoded string in
+   every page/component in all three portals needs finding and replacing.
+5. A language switcher UI — tourist's Profile page has one
+   (`SUPPORTED_LANGUAGES` rendered as a `<select>`, see
+   `frontend/tourist/src/pages/profile/ProfilePage.tsx`). Each of the
+   three portals needs an equivalent, placed wherever makes sense for that
+   portal's own layout (govt: likely near the sidebar's user/sign-out
+   block; guardian: it's a single public page, put it near the header;
+   volunteer: near the header/profile area).
+
+**Suggested order** (smallest surface to largest, so there's a working
+result even if only one session's worth of time is available):
+guardian (single page, `TrackingPage.tsx` + `NotFoundPage.tsx` + the PIN
+gate this session added) → volunteer (4 pages) → govt (the largest surface
+— sidebar nav, ~9 pages, `NTNPanel`/`RecentActivityDialog` shared
+components).
+
+**Definition of done, same bar as everywhere else in this repo:**
+- `npx tsc -b` clean in whichever portal(s) you touched.
+- The dev-only key-parity checker in `config.ts` prints no warnings (open
+  the app with the console open, switch languages, confirm silence).
+- Every portal you finished has a working language switcher that actually
+  changes rendered text, verified by actually clicking through it — not
+  just "the code compiles."
+- **Log what you did below** (see the session log format further down
+  this file) — which portal(s), how many strings/components touched, any
+  translation you were unsure about, and what's left for the next session
+  if you didn't finish all three. Prefix the entry `[i18n task]` so it's
+  easy to find.
+
+---
+
 ## How this works (the supervisor model)
 
 There is no live orchestration between agents — no shared queue, no API.
