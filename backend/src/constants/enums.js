@@ -13,6 +13,7 @@ const TRAVEL_TYPES = Object.freeze({
 const TRIP_STATUSES = Object.freeze({
   PLANNED: 'PLANNED',
   ACTIVE: 'ACTIVE',
+  PAUSED: 'PAUSED',
   COMPLETED: 'COMPLETED',
   CANCELLED: 'CANCELLED',
 })

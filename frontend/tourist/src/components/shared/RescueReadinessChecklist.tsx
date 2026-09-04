@@ -9,7 +9,7 @@
 // fresh" principle tourist.service.js's computeProfileReadiness already
 // uses for the profile-only version of this number.
 import { useEffect, useState } from 'react'
-import { Check, X } from 'lucide-react'
+import { Check, X, ChevronDown } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import type { Tourist, Trip, DMS } from '../../types/api.types'
 
@@ -53,6 +53,10 @@ export function RescueReadinessChecklist({ tourist, activeTrip, dms }: {
   const offlineReady = useServiceWorkerReady()
   const items = computeReadinessItems(tourist, activeTrip, dms, offlineReady)
   const score = Math.round((items.filter(i => i.done).length / items.length) * 100)
+  // Collapsed by default -- the score badge + bar already say "how ready am
+  // I," the item-by-item breakdown is detail a tourist taps into, not
+  // something that needs to occupy space on every visit to this card.
+  const [expanded, setExpanded] = useState(false)
 
   return (
     <div className="bg-surface-container-lowest rounded-2xl shadow-md border border-outline-variant p-5">
@@ -72,17 +76,26 @@ export function RescueReadinessChecklist({ tourist, activeTrip, dms }: {
         )} style={{ width: `${score}%` }} />
       </div>
 
-      <div className="space-y-2">
-        {items.map((item) => (
-          <div key={item.key} className="flex items-center gap-2.5">
-            <div className={cn('w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0',
-              item.done ? 'bg-tsi-low/15 text-tsi-low' : 'bg-surface-container-high text-on-surface-variant')}>
-              {item.done ? <Check className="w-3 h-3" strokeWidth={3} /> : <X className="w-3 h-3" strokeWidth={3} />}
-            </div>
-            <span className={cn('text-sm', item.done ? 'text-on-surface' : 'text-on-surface-variant')}>{item.label}</span>
-          </div>
-        ))}
-      </div>
+      <button type="button" onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between gap-2 text-xs font-bold text-on-surface-variant hover:text-primary transition-colors">
+        {expanded ? 'Hide checklist' : 'Show checklist'}
+        <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', expanded && 'rotate-180')} />
+      </button>
+
+      {expanded && (
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {items.map((item) => (
+            <span key={item.key} className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-full',
+              item.done ? 'bg-tsi-low/10 text-tsi-low' : 'bg-surface-container-high text-on-surface-variant')}>
+              <span className={cn('w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0',
+                item.done ? 'bg-tsi-low/20' : 'bg-outline-variant/40')}>
+                {item.done ? <Check className="w-2.5 h-2.5" strokeWidth={3} /> : <X className="w-2.5 h-2.5" strokeWidth={3} />}
+              </span>
+              {item.label}
+            </span>
+          ))}
+        </div>
+      )}
 
       {score < 100 && (
         <p className="text-xs text-on-surface-variant mt-3 pt-3 border-t border-outline-variant">

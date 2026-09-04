@@ -296,6 +296,27 @@ export interface Destination {
   weather_updated_at?: string
   scam_count?: number
   localOperators?: LocalOperator[]
+  highlights: string[]
+}
+
+// ── Govt-approved / curated multi-day itineraries (migration 032) ──
+export interface CuratedItineraryStop {
+  destinationId: string
+  city: string
+  state: string
+  days: number
+}
+export interface CuratedItinerary {
+  id: string
+  title: string
+  region: string
+  days: number
+  summary: string | null
+  stops: CuratedItineraryStop[]
+  source: string
+  is_govt_approved: boolean
+  govt_approval_ref: string | null
+  created_at: string
 }
 
 // ── Local tourism provider (govt-verified hotels/homestays/guides/experiences/

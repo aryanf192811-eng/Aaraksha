@@ -26,7 +26,6 @@ import { useTranslation } from 'react-i18next'
 import { Plus, Map, ChevronRight, MapPin, AlertTriangle, Plane, Newspaper, Compass, CheckCircle2, ShieldCheck, Siren, HelpCircle } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { TSIBadge, DMSCard, OfflineBanner, TripCardSkeleton, EmptyState, NewsFeed, ExploreDestinations } from '../components/shared'
-import { RescueReadinessChecklist } from '../components/shared/RescueReadinessChecklist'
 import { SafetyTimeline, useEscalationLevel } from '../components/shared/SafetyTimeline'
 import { useAuthStore } from '../store/auth.store'
 import { useSafetyStore } from '../store/safety.store'
@@ -42,6 +41,7 @@ import { TRIP_STATUSES } from '../constants/enums'
 const STATUS_COLORS: Record<string, string> = {
   PLANNED:   'bg-slate-100 text-slate-600',
   ACTIVE:    'bg-tsi-low/15 text-tsi-low',
+  PAUSED:    'bg-amber-100 text-amber-700',
   COMPLETED: 'bg-trust/15 text-trust-dark',
   CANCELLED: 'bg-sos/15 text-sos-dark',
 }
@@ -157,7 +157,7 @@ export default function DashboardPage() {
                     <h2 className="font-display text-xl font-extrabold text-on-surface flex items-center gap-1.5">
                       <Newspaper className="w-5 h-5" /> {t('dashboard.latestAlerts')}
                     </h2>
-                    <Button variant="ghost" size="sm" onClick={() => navigate(`/trips/${activeTrip.id}?tab=news`)} className="text-primary-dark font-semibold">
+                    <Button variant="ghost" size="sm" onClick={() => navigate('/news')} className="text-primary-dark font-semibold">
                       {t('common.viewAll')}
                     </Button>
                   </div>
@@ -248,13 +248,6 @@ export default function DashboardPage() {
               <SafetyTimeline dms={dms} />
             </div>
           )}
-
-      {/* ── Rescue Readiness ─────────────────────────────────────── */}
-      {tourist && (
-        <div className="px-5 mt-8">
-          <RescueReadinessChecklist tourist={tourist} activeTrip={activeTrip} dms={dms} />
-        </div>
-      )}
 
     </div>
   )

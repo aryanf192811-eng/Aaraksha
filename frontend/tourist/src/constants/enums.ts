@@ -17,6 +17,7 @@ export type TravelType = typeof TRAVEL_TYPES[keyof typeof TRAVEL_TYPES]
 export const TRIP_STATUSES = {
   PLANNED:   'PLANNED',
   ACTIVE:    'ACTIVE',
+  PAUSED:    'PAUSED',
   COMPLETED: 'COMPLETED',
   CANCELLED: 'CANCELLED',
 } as const

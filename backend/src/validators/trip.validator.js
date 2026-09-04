@@ -74,7 +74,7 @@ const CreateTripSchema = TripFieldsSchema.refine(
 const UpdateTripSchema = TripFieldsSchema.partial()
 
 const UpdateTripStatusSchema = z.object({
-  status: z.enum([TRIP_STATUSES.ACTIVE, TRIP_STATUSES.COMPLETED, TRIP_STATUSES.CANCELLED]),
+  status: z.enum([TRIP_STATUSES.ACTIVE, TRIP_STATUSES.PAUSED, TRIP_STATUSES.COMPLETED, TRIP_STATUSES.CANCELLED]),
 })
 
 const UpdateChecklistSchema = z.object({

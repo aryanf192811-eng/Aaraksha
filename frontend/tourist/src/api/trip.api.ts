@@ -44,7 +44,7 @@ export interface CreateTripPayload {
 }
 
 export interface UpdateTripStatusPayload {
-  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED'
 }
 
 const tripApi = {

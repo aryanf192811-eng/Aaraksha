@@ -16,7 +16,8 @@ const INVITE_CODE_MAX_ATTEMPTS = 5
 
 const VALID_TRANSITIONS = {
   [TRIP_STATUSES.PLANNED]:   [TRIP_STATUSES.ACTIVE, TRIP_STATUSES.CANCELLED],
-  [TRIP_STATUSES.ACTIVE]:    [TRIP_STATUSES.COMPLETED, TRIP_STATUSES.CANCELLED],
+  [TRIP_STATUSES.ACTIVE]:    [TRIP_STATUSES.PAUSED, TRIP_STATUSES.COMPLETED, TRIP_STATUSES.CANCELLED],
+  [TRIP_STATUSES.PAUSED]:    [TRIP_STATUSES.ACTIVE, TRIP_STATUSES.COMPLETED, TRIP_STATUSES.CANCELLED],
   [TRIP_STATUSES.COMPLETED]: [],
   [TRIP_STATUSES.CANCELLED]: [],
 }
@@ -234,10 +235,19 @@ async function updateTripStatus(tripId, touristId, newStatus) {
     )
   }
 
+  // Switching a trip to ACTIVE while a different trip is already ACTIVE used
+  // to be a hard 400 (TRIP_ALREADY_ACTIVE) -- a tourist genuinely juggling
+  // two plans (e.g. a short detour trip while a longer one is paused) had no
+  // way to make room for the new one short of cancelling the old one
+  // outright. Auto-pausing the previous trip instead makes "switch active
+  // trip" a deliberate, reversible user action rather than a dead end --
+  // findActiveByTouristId (guardian view, DMS, checkpoint scans) still only
+  // ever sees at most one ACTIVE trip, so that invariant is preserved.
   if (newStatus === TRIP_STATUSES.ACTIVE) {
     const active = await tripRepo.findActiveByTouristId(touristId)
     if (active && active.id !== tripId) {
-      throw Object.assign(new Error(ERRORS.TRIP_ALREADY_ACTIVE), { statusCode: 400 })
+      await tripRepo.updateStatus(active.id, touristId, TRIP_STATUSES.PAUSED)
+      logger.info({ tripId: active.id, touristId }, 'Trip auto-paused to activate another')
     }
   }
 

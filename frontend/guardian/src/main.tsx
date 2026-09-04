@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import './index.css'
+import './i18n/config'
 import TrackingPage from './pages/TrackingPage'
 import NotFoundPage from './pages/NotFoundPage'
 

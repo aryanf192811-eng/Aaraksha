@@ -17,10 +17,11 @@ import { formatDate, formatINR, cn } from '../../lib/utils'
 import { tEnum } from '../../lib/i18nEnums'
 import { getDestinationImage, HERO_PHOTO } from '../../lib/destinationImages'
 
-const STATUS_TABS = ['All', 'ACTIVE', 'PLANNED', 'COMPLETED', 'CANCELLED']
+const STATUS_TABS = ['All', 'ACTIVE', 'PAUSED', 'PLANNED', 'COMPLETED', 'CANCELLED']
 const STATUS_STYLES: Record<string, string> = {
   PLANNED:   'bg-slate-900/60 text-white',
   ACTIVE:    'bg-tsi-low/90 text-white',
+  PAUSED:    'bg-amber-500/90 text-white',
   COMPLETED: 'bg-trust/90 text-white',
   CANCELLED: 'bg-sos/90 text-white',
 }

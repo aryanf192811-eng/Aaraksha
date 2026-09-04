@@ -5,6 +5,7 @@ const { DestinationRepository } = require('../repositories/destination.repositor
 const { ScamRepository }         = require('../repositories/scam.repository')
 const { LocalOperatorRepository } = require('../repositories/localOperator.repository')
 const { LocalOperatorReviewRepository } = require('../repositories/localOperatorReview.repository')
+const { CuratedItineraryRepository } = require('../repositories/curatedItinerary.repository')
 const { ERRORS } = require('../constants/errors')
 
 async function getAllDestinations(filters) {
@@ -40,4 +41,9 @@ async function getDestinationById(id) {
   return { ...dest, scamReports, scamAggregate, localOperators: localOperatorsWithRatings }
 }
 
-module.exports = { getAllDestinations, getDestinationById }
+async function getCuratedItineraries(region) {
+  if (!region) return []
+  return new CuratedItineraryRepository().findByRegion(region)
+}
+
+module.exports = { getAllDestinations, getDestinationById, getCuratedItineraries }

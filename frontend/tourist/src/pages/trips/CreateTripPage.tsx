@@ -2,8 +2,8 @@
 // Multi-step: Step1 (basics) -> Step2 (stops) -> Step3 (review + create)
 // FIELD NAMES: title, travelType, startDate, endDate, budgetInr, stops[]
 // Zod schema verified against backend src/validators/trip.validator.js
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -25,7 +25,7 @@ import { tEnum } from '../../lib/i18nEnums'
 import { getDestinationImage } from '../../lib/destinationImages'
 import { cn } from '../../lib/utils'
 import type { TravelType } from '../../constants/enums'
-import type { Destination } from '../../types/api.types'
+import type { Destination, CuratedItineraryStop } from '../../types/api.types'
 
 const CreateTripSchema = z.object({
   title:      z.string().min(1, 'Trip name required').max(255),
@@ -98,8 +98,15 @@ const STOP_ACCENTS = [
 
 export default function CreateTripPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { t } = useTranslation()
   const [step, setStep] = useState(1)
+
+  // Arriving from a destination's "Use this itinerary" (DestinationDetailPage)
+  // carries a curated itinerary's title + stops as router state, not a URL
+  // param — same reasoning DestinationSearchField's result already avoids
+  // round-tripping through query strings for structured data.
+  const prefill = location.state as { prefillTitle?: string; prefillStops?: CuratedItineraryStop[] } | null
 
   // Real destination rows (id, connectivity, difficulty, altitude_m,
   // zone_type, hospital_km) — quick-add stops must carry this, not
@@ -111,12 +118,59 @@ export default function CreateTripPage() {
     staleTime: 5 * 60 * 1000,
   })
 
-  const { register, handleSubmit, watch, setValue, control, formState: { errors } } = useForm<FormInput, unknown, FormOutput>({
+  const { register, handleSubmit, watch, setValue, control, reset, formState: { errors } } = useForm<FormInput, unknown, FormOutput>({
     resolver: zodResolver(CreateTripSchema),
     defaultValues: { travelType: 'SOLO', stops: [], isPublic: false }
   })
   const { fields: stops, append, remove } = useFieldArray({ control, name: 'stops' })
   const watchedData = watch()
+
+  // A curated itinerary's stops only carry destinationId/city/state/days —
+  // the extra TSI-relevant fields (connectivity/difficulty/altitude_m/
+  // zone_type/hospital_km) have to come from the real destination record,
+  // the same lookup addQuickStop already does below. defaultValues can't
+  // safely embed that lookup (react-hook-form evaluates it once, on mount,
+  // before `destinations` has necessarily loaded), so this waits for the
+  // destinations query to resolve and then reset()s the form — reset()
+  // re-syncs useFieldArray too, so this is the one write, not a race
+  // against append() calls from elsewhere.
+  const prefillApplied = useRef(false)
+  useEffect(() => {
+    if (prefillApplied.current) return
+    if (!prefill?.prefillStops?.length) return
+    if (destinations.length === 0) return
+    const mappedStops = prefill.prefillStops.map((ps) => {
+      const dest = destinations.find((d) => d.id === ps.destinationId)
+      if (!dest) {
+        // Destination in the curated itinerary no longer resolves (renamed/
+        // removed) — fall back to its own city/state/days with the same
+        // generic defaults AddStopDialog's custom-stop path already uses,
+        // rather than dropping the stop silently.
+        return {
+          city: ps.city, state: ps.state, destinationId: ps.destinationId || null,
+          lat: null, lng: null, days: ps.days || 2,
+          connectivity: 'MODERATE', difficulty: 'EASY', altitude_m: 0, zone_type: 'SAFE', hospital_km: 0,
+        }
+      }
+      const lat = dest.latitude != null ? Number(dest.latitude) : null
+      const lng = dest.longitude != null ? Number(dest.longitude) : null
+      return {
+        city: dest.name, state: dest.state, destinationId: dest.id,
+        lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null,
+        days: ps.days || 2,
+        connectivity: dest.connectivity, difficulty: dest.difficulty,
+        altitude_m: dest.altitude_m, zone_type: dest.zone_type,
+        hospital_km: dest.nearest_hospital_km ?? 0,
+      }
+    })
+    reset({ title: prefill.prefillTitle || '', travelType: 'SOLO', isPublic: false, stops: mappedStops })
+    prefillApplied.current = true
+    // Basics (title) are already filled from the curated itinerary — jump
+    // straight to Step 2 so the tourist reviews/edits stops, but Step 1's
+    // own fields (startDate/endDate/travelType) have no curated-itinerary
+    // equivalent, so those still need a normal visit before creating.
+    setStep(2)
+  }, [prefill, destinations, reset])
 
   // Live, derived — no submit required to see it. Trip length recomputes
   // on every date keystroke; the stops summary recomputes on every

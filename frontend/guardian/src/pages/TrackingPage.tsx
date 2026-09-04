@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import axios from 'axios'
-import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off, LocateFixed, Truck, MessageCircle, X, KeyRound, Loader2 } from 'lucide-react'
+import { Shield, MapPin, Battery, Clock, RefreshCw, CheckCircle2, Siren, WifiOff, Stethoscope, Link2Off, LocateFixed, Truck, MessageCircle, X, KeyRound, Loader2, Languages } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
+import { useTranslation } from 'react-i18next'
+import { SUPPORTED_LANGUAGES } from '../i18n/config'
 import touristApi from '../api/tourist.api'
 import { connectSocket, disconnectSocket } from '../lib/socket'
 import { getErrorMessage } from '../api/client'
@@ -42,44 +44,36 @@ function formatEta(minutes: number): string {
 type StatusType = 'SAFE' | 'SOS' | 'ASSIGNED' | 'WARNING' | 'NO_SIGNAL'
 
 const STATUS_CONFIG: Record<StatusType, {
-  banner: string; Icon: typeof CheckCircle2; headline: (name: string) => string; sub: string; dotColor: string
+  banner: string; Icon: typeof CheckCircle2; statusKey: 'safe' | 'sos' | 'assigned' | 'warning' | 'noSignal'; dotColor: string
 }> = {
   SAFE: {
     banner:   'bg-green-50 border-b-4 border-green-500',
     Icon:     CheckCircle2,
-    headline: (n) => `${n} is safe`,
-    sub:      'Last check-in received',
+    statusKey: 'safe',
     dotColor: 'bg-green-500',
   },
   SOS: {
     banner:   'bg-red-500 text-white',
     Icon:     Siren,
-    headline: (n) => `${n} needs help!`,
-    sub:      'Emergency services have been notified',
+    statusKey: 'sos',
     dotColor: 'bg-surface-container-lowest animate-pulse',
   },
-  // Distinct from SOS on purpose — once a rescue team is actually dispatched
-  // this is no longer "we don't know what's happening," it's "help is
-  // confirmed and on the way," and the color should say that at a glance.
   ASSIGNED: {
     banner:   'bg-amber-500 text-white',
     Icon:     Truck,
-    headline: (n) => `Help is on the way to ${n}`,
-    sub:      'A rescue team has been dispatched',
+    statusKey: 'assigned',
     dotColor: 'bg-surface-container-lowest animate-pulse',
   },
   WARNING: {
     banner:   'bg-amber-50 border-b-4 border-amber-500',
     Icon:     Clock,
-    headline: (n) => `${n}'s check-in is due`,
-    sub:      'Waiting for next check-in',
+    statusKey: 'warning',
     dotColor: 'bg-primary',
   },
   NO_SIGNAL: {
     banner:   'bg-surface-container-high border-b-4 border-outline-variant',
     Icon:     WifiOff,
-    headline: (n) => `No signal from ${n}`,
-    sub:      'Last location shown below',
+    statusKey: 'noSignal',
     dotColor: 'bg-outline',
   },
 }
@@ -87,10 +81,10 @@ const STATUS_CONFIG: Record<StatusType, {
 // Recenter control — the map has no default zoom controls (zoomControl is
 // off for this single-purpose view), so this is the only way to return to
 // the tourist's location after panning around to look at the area.
-function RecenterControl({ center }: { center: [number, number] }) {
+function RecenterControl({ center, title }: { center: [number, number]; title: string }) {
   const map = useMap()
   return (
-    <button onClick={() => map.flyTo(center, 14)} title="Recenter on traveler" aria-label="Recenter on traveler"
+    <button onClick={() => map.flyTo(center, 14)} title={title} aria-label={title}
       className="absolute bottom-14 right-3 z-[1000] w-10 h-10 rounded-full bg-surface-container-lowest shadow-md flex items-center justify-center hover:bg-surface-container active:scale-95 transition-all">
       <LocateFixed className="w-5 h-5 text-on-surface" />
     </button>
@@ -119,6 +113,7 @@ const RESCUER_ICON = L.divIcon({
 })
 
 export default function TrackingPage() {
+  const { t, i18n } = useTranslation()
   const { token } = useParams<{ token: string }>()
   // The PIN gates every guardian call now (see migration 028) — entered
   // once per browser tab and cached in sessionStorage so the 30s
@@ -194,11 +189,6 @@ export default function TrackingPage() {
     setSendingMessage(true)
     try {
       const res = await touristApi.sendGuardianMessage(token, pin, body)
-      // The MESSAGE_RECEIVED socket push for this same message can win the
-      // race and arrive before this HTTP response does (the backend emits
-      // over the socket before the POST's response finishes sending) — dedupe
-      // here too, not just in the socket handler, or that ordering still
-      // appends the message twice.
       setMessages((prev) => {
         const next = prev ?? []
         return next.some((m) => m.id === res.data.data.id) ? next : [...next, res.data.data]
@@ -216,9 +206,6 @@ export default function TrackingPage() {
     setPinSubmitting(true)
     setPinError(null)
     try {
-      // Verify against the real endpoint before caching it — a 200 here IS
-      // the verification, so this single request both confirms the PIN and
-      // loads the first tracking snapshot.
       const res = await touristApi.getGuardianView(token, pinInput)
       sessionStorage.setItem(`guardian_pin_${token}`, pinInput)
       setView(res.data.data)
@@ -246,10 +233,6 @@ export default function TrackingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, pin])
 
-  // Socket.IO: real-time updates via the shared singleton (guardian-scoped
-  // auth). GUARDIAN_SOS_ALERT and GUARDIAN_ETA_UPDATE are both wired
-  // server-side (see sos.service.js / dms.service.js and govt.service.js's
-  // assignRescue), so this is a live push, not just the 30s poll fallback.
   useEffect(() => {
     if (!token) return
     const socket = connectSocket('guardian', token)
@@ -270,61 +253,34 @@ export default function TrackingPage() {
         },
       } : prev)
     })
-    // Fans out from the same event volunteer.service.js#updateRescuerLocation
-    // writes to (see ActiveJobPage.tsx on the Rescuer app side) — drives the
-    // marker live between the 30s polls instead of waiting on a refetch.
     socket.on('RESCUER_LOCATION_UPDATE', (data: { latitude: number; longitude: number }) => {
       setRescuerLivePos([data.latitude, data.longitude])
     })
-    // Ephemeral — a direct reflection of the rescuer's own "Navigate"
-    // toggle, live. Nothing is persisted, so this just won't be set until
-    // the next toggle on a fresh page load.
     socket.on('RESCUER_NAVIGATING_STATE', (data: { navigating: boolean }) => {
       setRescuerNavigating(data.navigating)
     })
-    // The rescuer has confirmed reaching the tourist in person (code +
-    // proximity check passed) — surface it the instant it happens rather
-    // than waiting on the 30s poll, since this is the reassuring moment a
-    // family member watching this screen most wants to see immediately.
     socket.on('HANDOFF_VERIFIED', (data: { sosId: string; verifiedAt: string }) => {
       setView(prev => (prev && prev.activeSOS && prev.activeSOS.id === data.sosId)
         ? { ...prev, activeSOS: { ...prev.activeSOS, handoffVerifiedAt: data.verifiedAt } }
         : prev)
     })
-    // The assigned volunteer had to back out — the SOS itself is still
-    // active (government is reassigning), so this reverts to the plain
-    // "help is on the way" (well, not yet) ACTIVE state rather than
-    // clearing the whole banner, matching what GUARDIAN_SOS_ALERT already
-    // does for a brand-new SOS. A family member watching this screen
-    // deserves the same honest explanation the tourist's own app shows,
-    // not a rescuer marker that just quietly stops moving.
     socket.on('RESCUER_ASSIGNMENT_CANCELLED', (data: { sosId: string; reason?: string }) => {
       setView(prev => (prev && prev.activeSOS && prev.activeSOS.id === data.sosId)
         ? { ...prev, activeSOS: { ...prev.activeSOS, status: 'ACTIVE', rescueTeam: null, rescuer: null } }
         : prev)
       setRescuerLivePos(null)
-      toast.info("The assigned rescuer couldn't continue — government is reassigning.", {
+      toast.info(t('assigned.rescuerCancelled'), {
         description: data.reason || undefined,
         duration: 10000,
       })
     })
-    // A new guardian-thread message — append it live if the panel is open,
-    // matching what the tourist app's own MESSAGE_RECEIVED handler does.
-    // Rescue-thread messages (conversation_type TOURIST_RESCUER) fan out on
-    // this same event name too, but this portal never opens that thread, so
-    // filtering to TOURIST_GUARDIAN keeps it from appending someone else's
-    // conversation here.
     socket.on('MESSAGE_RECEIVED', (data: Message) => {
-      // The backend echoes a sent message back to the sender's own room too
-      // (see emitMessageReceived), and sendMessage() below already appends
-      // locally on HTTP success -- dedupe by id so the sender doesn't see
-      // their own message twice.
       if (data.conversation_type === 'TOURIST_GUARDIAN') {
         setMessages((prev) => (prev && !prev.some((m) => m.id === data.id) ? [...prev, data] : prev))
       }
     })
     return () => { disconnectSocket() }
-  }, [token])
+  }, [token, t])
 
   const rescuer = view?.activeSOS?.rescuer
   const rescuerPos: [number, number] | null = rescuer
@@ -334,12 +290,6 @@ export default function TrackingPage() {
     ? [view.location.latitude, view.location.longitude]
     : null
 
-  // Real road route — refetched whenever the rescuer's position moves.
-  // Falls back to no route line (still shows both markers) if OSRM is
-  // unreachable, matching every other portal's degrade-not-break pattern.
-  // Throttled so a burst of RESCUER_LOCATION_UPDATE pushes doesn't hammer
-  // the free public OSRM server faster than the route could meaningfully
-  // change.
   const lastRouteFetchRef = useRef<{ time: number; lat: number; lng: number } | null>(null)
   useEffect(() => {
     if (!rescuerPos || !touristPos) { setRoute(null); return }
@@ -355,42 +305,49 @@ export default function TrackingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rescuerPos?.[0], rescuerPos?.[1], touristPos?.[0], touristPos?.[1]])
 
-  // Delay-aware reassurance, calm and never alarming. This portal has no
-  // access to the real rescue_assignments.assigned_at (GuardianView doesn't
-  // carry it), so createdAt is used as the baseline instead — it biases the
-  // elapsed-time comparison to run a little longer than the rescuer's own
-  // more precise check, which is the safe direction for a reassurance
-  // message (better to under-trigger than nag a worried family early).
+  const currentEtaMin = route?.durationMin ?? view?.activeSOS?.rescueTeam?.etaMinutes ?? null
   useEffect(() => {
-    if (route && originalEtaMinRef.current === null) originalEtaMinRef.current = route.durationMin
-  }, [route])
+    if (currentEtaMin != null && originalEtaMinRef.current == null) {
+      originalEtaMinRef.current = currentEtaMin
+    }
+    if (!view?.activeSOS) {
+      originalEtaMinRef.current = null
+      setDelayed(false)
+    }
+  }, [currentEtaMin, view?.activeSOS])
+
   useEffect(() => {
-    const sos = view?.activeSOS
-    if (!sos || sos.handoffVerifiedAt) { setDelayed(false); return }
     const check = () => {
-      const originalEta = originalEtaMinRef.current
-      if (!originalEta) return
-      const elapsedMin = (Date.now() - new Date(sos.createdAt).getTime()) / 60000
-      setDelayed(elapsedMin > originalEta * 1.6)
+      if (!view?.activeSOS || view.activeSOS.status !== 'ASSIGNED' || view.activeSOS.handoffVerifiedAt) {
+        setDelayed(false)
+        return
+      }
+      const orig = originalEtaMinRef.current
+      if (orig == null) return
+      if (currentEtaMin != null && currentEtaMin - orig >= 15) {
+        setDelayed(true)
+        return
+      }
+      const assignedAt = new Date(view.activeSOS.createdAt).getTime()
+      const elapsedMin = (Date.now() - assignedAt) / 60000
+      if (elapsedMin > orig + 15) {
+        setDelayed(true)
+        return
+      }
+      setDelayed(false)
     }
     check()
     const interval = setInterval(check, 30_000)
     return () => clearInterval(interval)
-  }, [view?.activeSOS?.createdAt, view?.activeSOS?.handoffVerifiedAt])
+  }, [view?.activeSOS?.createdAt, view?.activeSOS?.handoffVerifiedAt, currentEtaMin, view?.activeSOS])
 
   const status = getStatus(view)
   const statusConfig = STATUS_CONFIG[status]
   const StatusIcon = statusConfig.Icon
-  const name = view?.firstName || 'Traveler'
-  // SOS and ASSIGNED share the "urgent, white-on-color" banner treatment —
-  // the color itself (red vs amber) is what tells them apart.
+  const name = view?.firstName || t('common.defaultTraveler')
   const isUrgent = status === 'SOS' || status === 'ASSIGNED'
   const isSOSActive = status === 'SOS'
   const isAssigned = status === 'ASSIGNED'
-  // Distinct from "help is on the way" — the rescuer has confirmed reaching
-  // the tourist in person (code + proximity check passed), not just been
-  // dispatched. Still the same ASSIGNED status bucket, not a new top-level
-  // state — only the banner's copy and accent shift to reflect it.
   const isVerified = isAssigned && !!view?.activeSOS?.handoffVerifiedAt
 
   if (loading) {
@@ -399,7 +356,7 @@ export default function TrackingPage() {
         <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center mb-4 animate-pulse">
           <Shield className="w-7 h-7 text-white" />
         </div>
-        <p className="text-on-surface-variant font-medium">Loading tracking data...</p>
+        <p className="text-on-surface-variant font-medium">{t('common.loading')}</p>
       </div>
     )
   }
@@ -412,14 +369,12 @@ export default function TrackingPage() {
             <Link2Off className="w-8 h-8 text-warning" />
           </div>
           <h1 className="text-xl font-black text-on-surface mb-2">{error}</h1>
-          <p className="text-sm text-on-surface-variant leading-relaxed">Ask the traveler to share a new tracking link.</p>
+          <p className="text-sm text-on-surface-variant leading-relaxed">{t('error.shareNewLink')}</p>
         </div>
       </div>
     )
   }
 
-  // The link's own token checked out (no `error` above), but nobody has
-  // proven they know the shared PIN yet in this browser tab.
   if (!pin) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-surface-container-lowest px-6 text-center">
@@ -427,13 +382,13 @@ export default function TrackingPage() {
           <div className="w-16 h-16 rounded-2xl bg-primary/12 flex items-center justify-center mx-auto mb-5">
             <KeyRound className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-xl font-black text-on-surface mb-2">Enter the tracking PIN</h1>
+          <h1 className="text-xl font-black text-on-surface mb-2">{t('pin.title')}</h1>
           <p className="text-sm text-on-surface-variant leading-relaxed mb-6">
-            The traveler shared a 4-digit PIN with you separately from this link — enter it to open live tracking.
+            {t('pin.desc')}
           </p>
           <form onSubmit={submitPin} className="space-y-3">
             <input
-              inputMode="numeric" maxLength={4} placeholder="••••" autoFocus
+              inputMode="numeric" maxLength={4} placeholder={t('pin.placeholder')} autoFocus
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
               className="w-full h-14 rounded-2xl border border-outline-variant bg-surface-container px-4 text-center text-2xl font-black tracking-[0.5em] tabular-nums focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
@@ -441,7 +396,7 @@ export default function TrackingPage() {
             {pinError && <p className="text-sm text-sos font-semibold">{pinError}</p>}
             <button type="submit" disabled={pinSubmitting || pinInput.length !== 4}
               className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-bold flex items-center justify-center gap-2 disabled:opacity-40 active:scale-[0.98] transition-transform">
-              {pinSubmitting ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : 'Unlock tracking'}
+              {pinSubmitting ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : t('pin.unlock')}
             </button>
           </form>
         </div>
@@ -452,12 +407,29 @@ export default function TrackingPage() {
   return (
     <div className="min-h-screen bg-surface-container-lowest">
       {/* ── Brand header ──────────────────────────────────────── */}
-      <div className="bg-surface-container-lowest border-b border-outline-variant px-5 py-4 flex items-center gap-2">
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+      <div className="bg-surface-container-lowest border-b border-outline-variant px-5 py-3 flex items-center gap-2">
+        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
           <Shield className="w-5 h-5 text-white" />
         </div>
-        <span className="font-black text-on-surface">Aaraksha</span>
-        <span className="text-xs text-on-surface-variant ml-auto">Guardian Portal</span>
+        <span className="font-black text-on-surface">{t('brand.title')}</span>
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-xs text-on-surface-variant hidden sm:inline">{t('brand.portal')}</span>
+          <div className="flex items-center gap-1.5 bg-surface-container rounded-xl px-2.5 py-1 border border-outline-variant text-xs">
+            <Languages className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+            <select
+              value={i18n.language ? i18n.language.slice(0, 2) : 'en'}
+              onChange={(e) => i18n.changeLanguage(e.target.value)}
+              className="bg-transparent text-xs font-bold text-on-surface focus:outline-none cursor-pointer"
+              aria-label={t('common.language')}
+            >
+              {SUPPORTED_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code} className="bg-surface-container-lowest text-on-surface">
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* ── Status Banner ─────────────────────────────────────── */}
@@ -465,20 +437,24 @@ export default function TrackingPage() {
         <div className="flex items-center gap-2 mb-2">
           <div className={`w-3 h-3 rounded-full ${isVerified ? 'bg-white' : statusConfig.dotColor}`} />
           <span className={`text-xs font-bold uppercase tracking-widest ${isUrgent ? 'text-white/80' : 'text-on-surface-variant'}`}>
-            {isVerified ? 'Confirmed' : status.replace('_', ' ')}
+            {isVerified ? t('status.confirmed.badge') : t(`status.${statusConfig.statusKey}.badge`)}
           </span>
         </div>
         <h1 className={`flex items-center gap-2.5 text-3xl font-black leading-tight ${isUrgent ? 'text-white' : 'text-on-surface'}`}>
           {isVerified ? <CheckCircle2 className="w-7 h-7 flex-shrink-0" /> : <StatusIcon className="w-7 h-7 flex-shrink-0" />}
-          {isVerified ? `Help has reached ${name}` : statusConfig.headline(name)}
+          {isVerified ? t('status.confirmed.headline', { name }) : t(`status.${statusConfig.statusKey}.headline`, { name })}
         </h1>
         <p className={`text-sm mt-1 ${isUrgent ? 'text-white/80' : 'text-on-surface-variant'}`}>
-          {isVerified ? 'Confirmed in person — the case is being closed' : statusConfig.sub}
+          {isVerified ? t('status.confirmed.sub') : t(`status.${statusConfig.statusKey}.sub`)}
         </p>
         {isSOSActive && view?.activeSOS && (
           <div className="mt-3 bg-red-600 rounded-xl px-4 py-2">
-            <p className="text-white text-sm font-bold">Category: {view.activeSOS.category}</p>
-            <p className="text-red-100 text-xs">Triggered at {new Date(view.activeSOS.createdAt).toLocaleTimeString('en-IN')}</p>
+            <p className="text-white text-sm font-bold">
+              {t('sos.category', { category: t(`enums.sosCategory.${view.activeSOS.category}`, { defaultValue: view.activeSOS.category }) })}
+            </p>
+            <p className="text-red-100 text-xs">
+              {t('sos.triggeredAt', { time: new Date(view.activeSOS.createdAt).toLocaleTimeString('en-IN') })}
+            </p>
           </div>
         )}
         {isAssigned && view?.activeSOS && (
@@ -486,27 +462,27 @@ export default function TrackingPage() {
             <p className="text-white text-sm font-bold flex items-center gap-1.5">
               {isVerified ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <Truck className="w-4 h-4 flex-shrink-0" />}
               {isVerified
-                ? `Verified by ${rescuer?.name ?? view.activeSOS.rescueTeam?.name ?? 'the rescue team'}`
-                : `${rescuer?.name ?? view.activeSOS.rescueTeam?.name ?? 'Rescue team'} dispatched`}
+                ? t('assigned.verifiedBy', { name: rescuer?.name ?? view.activeSOS.rescueTeam?.name ?? t('assigned.defaultTeam') })
+                : t('assigned.dispatched', { name: rescuer?.name ?? view.activeSOS.rescueTeam?.name ?? t('assigned.defaultTeam') })}
             </p>
             <p className={`text-xs ${isVerified ? 'text-emerald-100' : 'text-amber-100'}`}>
-              {rescuer?.kind === 'VOLUNTEER' ? 'Local Volunteer · ' : view.activeSOS.rescueTeam?.type ? `${view.activeSOS.rescueTeam.type} · ` : ''}
+              {rescuer?.kind === 'VOLUNTEER' ? t('assigned.volunteerPrefix') : view.activeSOS.rescueTeam?.type ? `${view.activeSOS.rescueTeam.type} · ` : ''}
               {isVerified
-                ? (view.activeSOS.handoffVerifiedAt ? `Confirmed at ${new Date(view.activeSOS.handoffVerifiedAt).toLocaleTimeString('en-IN')}` : 'Confirmed')
-                : route ? `ETA ~${formatEta(Math.round(route.durationMin))}`
-                : view.activeSOS.rescueTeam?.etaMinutes != null ? `ETA ~${formatEta(view.activeSOS.rescueTeam.etaMinutes)}` : 'On the way'}
-              {!isVerified && rescuerNavigating && ' · 🧭 Navigating to them'}
+                ? (view.activeSOS.handoffVerifiedAt
+                    ? t('assigned.confirmedAt', { time: new Date(view.activeSOS.handoffVerifiedAt).toLocaleTimeString('en-IN') })
+                    : t('assigned.confirmed'))
+                : route ? t('assigned.eta', { eta: formatEta(Math.round(route.durationMin)) })
+                : view.activeSOS.rescueTeam?.etaMinutes != null ? t('assigned.eta', { eta: formatEta(view.activeSOS.rescueTeam.etaMinutes) }) : t('assigned.onTheWay')}
+              {!isVerified && rescuerNavigating && t('assigned.navigating')}
             </p>
           </div>
         )}
-        {/* Calm, never alarming — response times genuinely vary in this
-            terrain; the point is reassurance plus a real next step. */}
         {isAssigned && !isVerified && delayed && (
           <div className="mt-2 bg-white/15 rounded-xl px-4 py-2">
             <p className="text-white text-xs leading-snug">
-              Response times can vary in this terrain — help is still on the way.{' '}
+              {t('assigned.delayedTitle')}{' '}
               <button onClick={() => setShowChat(true)} className="font-bold underline">
-                Message them if you need an update.
+                {t('assigned.delayedAction')}
               </button>
             </p>
           </div>
@@ -526,7 +502,6 @@ export default function TrackingPage() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution="© OpenStreetMap"
             />
-            {/* Urgent pulse ring — red while unassigned, amber once a team is dispatched */}
             {isUrgent && (
               <Circle
                 center={[view.location.latitude, view.location.longitude]}
@@ -540,16 +515,13 @@ export default function TrackingPage() {
                 <div className="text-center">
                   <p className="font-bold">{name}</p>
                   <p className="text-xs text-on-surface-variant">
-                    Last seen {new Date(view.location.updatedAt).toLocaleTimeString('en-IN')}
+                    {t('map.lastSeen', { time: new Date(view.location.updatedAt).toLocaleTimeString('en-IN') })}
                   </p>
                 </div>
               </Popup>
             </Marker>
             {isAssigned && rescuerPos && (
               <>
-                {/* Before OSRM resolves this is straight-line displacement,
-                    not a route — a neutral grey/fine-dot style keeps it from
-                    reading as "the route, still loading" once it appears. */}
                 <Polyline
                   positions={route?.coordinates ?? [rescuerPos, [view.location.latitude, view.location.longitude]]}
                   pathOptions={route ? { color: '#0f766e', weight: 4, opacity: 0.9 } : { color: '#94a3b8', weight: 3, opacity: 0.6, dashArray: '2 6' }}
@@ -558,21 +530,20 @@ export default function TrackingPage() {
                   <Popup>
                     <div className="text-center">
                       <p className="font-bold">{rescuer?.name}</p>
-                      <p className="text-xs text-on-surface-variant">{rescuer?.isLive ? 'Live position' : 'Dispatch base'}</p>
+                      <p className="text-xs text-on-surface-variant">{rescuer?.isLive ? t('map.livePosition') : t('map.dispatchBase')}</p>
                     </div>
                   </Popup>
                 </Marker>
               </>
             )}
-            <RecenterControl center={[view.location.latitude, view.location.longitude]} />
+            <RecenterControl center={[view.location.latitude, view.location.longitude]} title={t('map.recenter')} />
           </MapContainer>
-          {/* Map overlay: Google Maps link */}
           <a
             href={`https://maps.google.com/?q=${view.location.latitude},${view.location.longitude}`}
             target="_blank" rel="noopener noreferrer"
             className="absolute bottom-3 right-3 bg-surface-container-lowest rounded-lg shadow-md px-3 py-1.5 text-xs font-semibold text-on-surface flex items-center gap-1"
           >
-            <MapPin className="w-3 h-3 text-red-500" /> Open in Maps
+            <MapPin className="w-3 h-3 text-red-500" /> {t('map.openInMaps')}
           </a>
         </div>
       ) : (
@@ -581,32 +552,31 @@ export default function TrackingPage() {
             <div className="w-12 h-12 rounded-2xl bg-outline-variant/60 flex items-center justify-center mx-auto mb-2">
               <MapPin className="w-6 h-6 text-on-surface-variant" />
             </div>
-            <p className="text-sm text-on-surface-variant">Location not available</p>
+            <p className="text-sm text-on-surface-variant">{t('map.locationNotAvailable')}</p>
           </div>
         </div>
       )}
 
       {/* ── Info Cards ────────────────────────────────────────── */}
       <div className="px-5 py-5 space-y-4">
-        {/* Status info grid */}
         <div className="grid grid-cols-3 gap-3">
           {[
             {
               icon: <Clock className="w-5 h-5 text-amber-500" />,
-              label: 'Last Seen',
+              label: t('cards.lastSeen'),
               value: view?.location?.updatedAt
                 ? new Date(view.location.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-                : 'Unknown',
+                : t('cards.unknown'),
             },
             {
               icon: <Battery className={`w-5 h-5 ${(view?.location?.batteryPct ?? 100) < 20 ? 'text-red-500' : 'text-green-500'}`} />,
-              label: 'Battery',
+              label: t('cards.battery'),
               value: view?.location?.batteryPct !== null && view?.location?.batteryPct !== undefined
                 ? `${view.location.batteryPct}%` : '—',
             },
             {
               icon: <MapPin className="w-5 h-5 text-blue-500" />,
-              label: 'Destination',
+              label: t('cards.destination'),
               value: view?.activeTripCity || '—',
             },
           ].map(({ icon, label, value }) => (
@@ -618,11 +588,10 @@ export default function TrackingPage() {
           ))}
         </div>
 
-        {/* TSI score if available */}
         {view?.tsiScore !== null && view?.tsiScore !== undefined && (
           <div className="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-outline-variant flex items-center gap-4">
             <div>
-              <p className="text-xs text-on-surface-variant font-medium mb-1">Travel Safety Index</p>
+              <p className="text-xs text-on-surface-variant font-medium mb-1">{t('cards.tsi')}</p>
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-black text-on-surface">{view.tsiScore}/100</span>
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
@@ -630,36 +599,31 @@ export default function TrackingPage() {
                   view.tsiScore >= 60 ? 'bg-yellow-100 text-yellow-700' :
                   view.tsiScore >= 40 ? 'bg-orange-100 text-orange-700' :
                                          'bg-red-100 text-red-700'
-                }`}>{view.tsiLabel}</span>
+                }`}>{t(`enums.tsiLabel.${view.tsiLabel}`, { defaultValue: view.tsiLabel })}</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Medical info (if blood group available) */}
         {(view?.bloodGroup || view?.medicalInfo) && (
           <div className="bg-red-50 rounded-2xl p-4 border border-red-200">
             <p className="flex items-center gap-1.5 text-xs font-bold text-red-700 uppercase tracking-wide mb-2">
-              <Stethoscope className="w-3.5 h-3.5" /> Medical Info
+              <Stethoscope className="w-3.5 h-3.5" /> {t('cards.medicalInfo')}
             </p>
-            {view?.bloodGroup && <p className="text-sm text-on-surface">Blood Group: <strong>{view.bloodGroup}</strong></p>}
+            {view?.bloodGroup && <p className="text-sm text-on-surface">{t('cards.bloodGroup')} <strong>{view.bloodGroup}</strong></p>}
             {view?.medicalInfo && <p className="text-sm text-on-surface-variant mt-1">{view.medicalInfo}</p>}
           </div>
         )}
 
-        {/* Message the traveler — always available, not tied to an active
-            SOS. This portal had no way to reach the traveler at all before
-            (no tel: link either) — genuinely new, not an extension. */}
         <button onClick={() => setShowChat(true)}
           className="w-full h-12 rounded-2xl bg-primary text-white font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform">
-          <MessageCircle className="w-4.5 h-4.5" /> Message {name}
+          <MessageCircle className="w-4.5 h-4.5" /> {t('cards.messageTraveler', { name })}
         </button>
 
-        {/* Refresh indicator */}
         <div className="flex items-center justify-center gap-2 py-4">
           <RefreshCw className="w-3.5 h-3.5 text-on-surface-variant" />
           <p className="text-xs text-on-surface-variant">
-            Updated {lastRefresh.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · Auto-refreshes every 30s
+            {t('cards.autoRefresh', { time: lastRefresh.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) })}
           </p>
         </div>
       </div>
@@ -670,7 +634,7 @@ export default function TrackingPage() {
           <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
             <Shield className="w-4 h-4 text-white" />
           </div>
-          <span className="text-sm text-on-surface-variant">Aaraksha · Smart Tourism · Safe Journey</span>
+          <span className="text-sm text-on-surface-variant">{t('brand.tagline')}</span>
         </div>
       </div>
 

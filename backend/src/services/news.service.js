@@ -36,6 +36,12 @@ async function getNewsForDestination(destinationId) {
   return new NewsRepository().findByDestinationId(destinationId)
 }
 
+// Backing the /news page's general feed — every destination's news, with
+// optional destination/state/severity/category filters and real pagination.
+async function getAllNews(filters) {
+  return new NewsRepository().findAllFiltered(filters)
+}
+
 async function getNewsForTrip(tripId, touristId) {
   const tripRepo = new TripRepository()
   const trip = await tripRepo.findById(tripId, touristId)
@@ -120,4 +126,4 @@ async function rotateNewsForAllDestinations() {
   return { destinationsChecked: destinations.length, posted }
 }
 
-module.exports = { getNewsForDestination, getNewsForTrip, postNews, rotateNewsForAllDestinations }
+module.exports = { getNewsForDestination, getNewsForTrip, getAllNews, postNews, rotateNewsForAllDestinations }

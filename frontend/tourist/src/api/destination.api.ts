@@ -1,7 +1,7 @@
 // src/api/destination.api.ts
 // FIELD NAMES: verified against backend src/services/destination.service.js
 import api from './client'
-import type { APIResponse, Destination, ScamReport } from '../types/api.types'
+import type { APIResponse, Destination, ScamReport, CuratedItinerary } from '../types/api.types'
 
 // Live per-zone tourist density — same aggregation govt.service.js's
 // Command Center dashboard uses, exposed read-only to the tourist app too.
@@ -36,6 +36,9 @@ const destinationApi = {
 
   getRiskOverview: () =>
     api.get<APIResponse<RiskOverviewEntry[]>>('/destinations/risk-overview'),
+
+  getCuratedItineraries: (region: string) =>
+    api.get<APIResponse<CuratedItinerary[]>>('/destinations/curated-itineraries', { params: { region } }),
 }
 
 export default destinationApi

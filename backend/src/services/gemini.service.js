@@ -312,12 +312,32 @@ async function extractPlanningIntent(freeText, currentContext) {
   const prompt = `A traveller planning a trip in Northeast India sent this follow-up message:
 "${freeText}"
 
-Current plan context: budget ₹${currentContext.budgetInr ?? 'unset'}, ${currentContext.days ?? 'unset'} days,
-stops: ${(currentContext.stopNames || []).join(', ') || 'none yet'}, interests: ${(currentContext.interests || []).join(', ') || 'none'}.
+CURRENT VALUES (the baseline for any relative change):
+- budget: ₹${currentContext.budgetInr ?? 'unset'}
+- days: ${currentContext.days ?? 'unset'}
+- stops: ${(currentContext.stopNames || []).join(', ') || 'none yet'}
+- interests: ${(currentContext.interests || []).join(', ') || 'none'}
+
+For budget and days, decide whether the message states an ABSOLUTE new value
+("set my budget to ₹15,000", "only ₹12,000 now", "make it a 7 day trip") or a
+RELATIVE change from the current value ("₹4,000 less", "reduce by 2000", "cut
+it by half", "2 days more"). For a relative change, report a SIGNED DELTA and
+never compute the resulting total yourself — the system applies the delta to
+the current value deterministically, so your job is only to extract the raw
+number and its direction, not to do the arithmetic.
+
+Examples:
+- "I have ₹4,000 less now" -> {"budgetDeltaInr": -4000}
+- "cut my budget by 2000" -> {"budgetDeltaInr": -2000}
+- "add 3000 to the budget" -> {"budgetDeltaInr": 3000}
+- "only ₹12,000 now" -> {"budgetInr": 12000}  (states the new total directly, not a change)
+- "2 days less" -> {"daysDelta": -2}
+- "make it a 7 day trip" -> {"days": 7}
 
 Return ONLY a valid JSON object (no markdown, no code blocks) with any of
-these keys that changed, omitting keys that didn't:
-{"budgetInr": number, "days": number, "dropStopNames": ["string"], "addInterests": ["NATURE"|"ADVENTURE"|"CULTURE"|"WILDLIFE"|"RELAXATION"], "understood": boolean}
+these keys that changed, omitting keys that didn't -- include AT MOST ONE of
+budgetInr/budgetDeltaInr, and AT MOST ONE of days/daysDelta:
+{"budgetInr": number, "budgetDeltaInr": number, "days": number, "daysDelta": number, "dropStopNames": ["string"], "addInterests": ["NATURE"|"ADVENTURE"|"CULTURE"|"WILDLIFE"|"RELAXATION"], "understood": boolean}
 Set "understood" to false if the message isn't a planning adjustment at all.
 You may interpret intent and explain results in plain language. You must
 never invent a specific cost, distance, or safety figure, override a
@@ -328,13 +348,32 @@ computed and enforced by the system, not you.`
     const result = await generateContentWithTimeout(model, prompt)
     const text = result.response.text()
     const clean = text.replace(/```json|```/g, '').trim()
-    const parsed = JSON.parse(clean)
+    const parsed = resolveDeltas(JSON.parse(clean), currentContext)
+
     logger.info({ freeText, parsed }, 'Gemini planning intent extracted')
     return { ...parsed, understood: parsed.understood !== false, source: 'GEMINI_AI' }
   } catch (err) {
     logger.error({ err: { message: err.message } }, 'Gemini intent extraction failed')
     return { understood: false, source: 'OFFLINE_FALLBACK' }
   }
+}
+
+// Delta -> absolute happens here, deterministically, never inside the
+// model's own generation -- a bad arithmetic result on Gemini's side is
+// structurally impossible this way, not just discouraged by a prompt (same
+// invariant this whole module is built around for cost/safety figures
+// elsewhere). Exported as a pure function so the arithmetic itself has real
+// regression coverage without needing a live Gemini call in tests.
+function resolveDeltas(parsed, currentContext) {
+  if (parsed.budgetDeltaInr != null && typeof currentContext.budgetInr === 'number') {
+    parsed.budgetInr = Math.max(0, Math.round(currentContext.budgetInr + parsed.budgetDeltaInr))
+  }
+  delete parsed.budgetDeltaInr
+  if (parsed.daysDelta != null && typeof currentContext.days === 'number') {
+    parsed.days = Math.max(1, Math.round(currentContext.days + parsed.daysDelta))
+  }
+  delete parsed.daysDelta
+  return parsed
 }
 
 // Free-text -> a FRESH set of planning constraints (no existing context to
@@ -382,4 +421,4 @@ computed and enforced by the system, not you.`
   }
 }
 
-module.exports = { generatePackingList, generateSafetyAdvisory, generateJourneyNarrative, extractPlanningIntent, extractTripIntent }
+module.exports = { generatePackingList, generateSafetyAdvisory, generateJourneyNarrative, extractPlanningIntent, extractTripIntent, resolveDeltas }

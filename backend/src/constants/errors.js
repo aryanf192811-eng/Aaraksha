@@ -19,7 +19,6 @@ const ERRORS = Object.freeze({
 
   // Trip
   TRIP_NOT_FOUND:         'Trip not found or access denied',
-  TRIP_ALREADY_ACTIVE:    'You already have an active trip. Complete or cancel it first.',
   INVALID_TRIP_TRANSITION:'Invalid status transition',
   TRIP_DATE_INVALID:      'End date must be after start date',
 

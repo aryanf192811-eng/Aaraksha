@@ -10,7 +10,7 @@ import {
   ArrowLeft, Share2, Download, Map, List, Package, FileText, AlertTriangle,
   Rocket, Sparkles, RefreshCw, Loader2, Check, Lightbulb, HeartPulse, Backpack, LocateFixed,
   Users, Copy, LogOut, Clock, Newspaper, ChevronDown, Plus, Trash2, Wallet, MapPin, CheckCircle2,
-  MoreVertical, Ban,
+  MoreVertical, Ban, PauseCircle, Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
@@ -41,6 +41,7 @@ const ACTIVITY_TYPE_COLORS: Record<string, string> = {
 const STATUS_STYLES: Record<string, string> = {
   PLANNED:   'bg-slate-900/60 text-white',
   ACTIVE:    'bg-tsi-low/90 text-white',
+  PAUSED:    'bg-amber-500/90 text-white',
   COMPLETED: 'bg-trust/90 text-white',
   CANCELLED: 'bg-sos/90 text-white',
 }
@@ -131,9 +132,22 @@ export default function TripDetailPage() {
     onSuccess: () => { toast.success(t('tripDetail.toastPackingGenerated')); queryClient.invalidateQueries({ queryKey: ['trips', id] }) },
   })
 
+  // Same mutation for both PLANNED->ACTIVE (first activation) and
+  // PAUSED->ACTIVE (resume) -- the backend transition and the toast are the
+  // only things that differ, and the toast just needs to know which one
+  // actually happened, not two separate mutations.
   const { mutate: activateTrip, isPending: activating } = useMutation({
     mutationFn: () => tripApi.updateTripStatus(id!, { status: 'ACTIVE' }),
-    onSuccess: () => { toast.success(t('tripDetail.toastTripActivated')); queryClient.invalidateQueries({ queryKey: ['trips'] }) },
+    onSuccess: () => {
+      toast.success(trip?.status === TRIP_STATUSES.PAUSED ? t('tripDetail.toastTripResumed') : t('tripDetail.toastTripActivated'))
+      queryClient.invalidateQueries({ queryKey: ['trips'] })
+    },
+  })
+
+  const { mutate: pauseTrip, isPending: pausing } = useMutation({
+    mutationFn: () => tripApi.updateTripStatus(id!, { status: 'PAUSED' }),
+    onSuccess: () => { toast.success(t('tripDetail.toastTripPaused')); queryClient.invalidateQueries({ queryKey: ['trips'] }) },
+    onError: () => toast.error(t('tripDetail.toastTripPauseFailed')),
   })
 
   // Cancel keeps the trip and its history (SOS events, check-ins, E-FIRs
@@ -220,11 +234,32 @@ export default function TripDetailPage() {
   // Pre-fill is an honest estimate (even share of the total planned
   // budget), never a claim of a known real cost -- there's no bank/UPI
   // integration behind this. Editable before confirming.
+  const [confirmCompleteTrip, setConfirmCompleteTrip] = useState(false)
   const markVisited = (stopIdx: number, actualCostInr: number) => {
     const next = (trip?.stops ?? []).map((s, i) => i === stopIdx ? { ...s, status: 'DONE' as const, actualCostInr } : s)
     saveStops(next)
     setMarkVisitedIdx(null)
+    // Every stop just got marked DONE and the trip is still live -- ask
+    // whether to close it out rather than silently leaving it ACTIVE
+    // forever (which is exactly what "completed but still shows active"
+    // turned out to be: nothing ever prompted this transition). A prompt,
+    // not an auto-transition -- COMPLETED unlocks the Journey Passport
+    // download, a real milestone the tourist should confirm, not a side
+    // effect of tapping the last stop.
+    if (next.length > 0 && next.every(s => s.status === 'DONE') && trip?.status === TRIP_STATUSES.ACTIVE) {
+      setConfirmCompleteTrip(true)
+    }
   }
+
+  const { mutate: completeTrip, isPending: completing } = useMutation({
+    mutationFn: () => tripApi.updateTripStatus(id!, { status: 'COMPLETED' }),
+    onSuccess: () => {
+      toast.success(t('tripDetail.toastTripCompleted'))
+      queryClient.invalidateQueries({ queryKey: ['trips'] })
+      setConfirmCompleteTrip(false)
+    },
+    onError: () => toast.error(t('tripDetail.toastTripCompleteFailed')),
+  })
 
   const handleShare = async () => {
     if (!trip?.is_public || !trip.public_token) {
@@ -234,6 +269,19 @@ export default function TripDetailPage() {
     const url = `${window.location.origin}/community/${trip.public_token}`
     await navigator.clipboard.writeText(url)
     toast.success(t('tripDetail.toastTripLinkCopied'))
+  }
+
+  // The Guardian Portal's PIN-gated tracking link previously lived only on
+  // Profile, disconnected from the one place a tourist actually thinks to
+  // share their trip -- this trip page's own Share action. Same URL
+  // construction as ProfilePage.tsx#guardianUrl, surfaced here too instead
+  // of only there.
+  const [showGuardianShare, setShowGuardianShare] = useState(false)
+  const GUARDIAN_PORTAL_URL = import.meta.env.VITE_GUARDIAN_PORTAL_URL || 'http://localhost:5175'
+  const guardianUrl = `${GUARDIAN_PORTAL_URL}/track/${tourist?.guardian_token}`
+  const handleCopyGuardianLink = async () => {
+    await navigator.clipboard.writeText(guardianUrl)
+    toast.success(t('tripDetail.toastGuardianLinkCopied'))
   }
 
   if (isLoading) return <div className="min-h-screen bg-surface"><PageSkeleton /></div>
@@ -283,6 +331,10 @@ export default function TripDetailPage() {
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
           <div className="flex items-center gap-1 bg-white/20 backdrop-blur-xl border border-white/30 rounded-full p-1.5 shadow-glass">
+            <button onClick={() => setShowGuardianShare(true)} title={t('tripDetail.shareWithGuardian')}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+              <Eye className="w-4 h-4" />
+            </button>
             <button onClick={handleShare} title="Share trip"
               className="w-9 h-9 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors">
               <Share2 className="w-4 h-4" />
@@ -301,6 +353,11 @@ export default function TripDetailPage() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {trip.status === TRIP_STATUSES.ACTIVE && (
+                  <DropdownMenuItem onClick={() => pauseTrip()} disabled={pausing}>
+                    <PauseCircle className="w-4 h-4" /> {t('tripDetail.pauseTrip')}
+                  </DropdownMenuItem>
+                )}
                 {trip.status !== TRIP_STATUSES.CANCELLED && trip.status !== TRIP_STATUSES.COMPLETED && (
                   <DropdownMenuItem onClick={() => setConfirmCancelTrip(true)}>
                     <Ban className="w-4 h-4" /> {t('tripDetail.cancelTrip')}
@@ -332,10 +389,11 @@ export default function TripDetailPage() {
             <p className="text-xs text-on-surface-variant">{t('tripDetail.tsiIndexLabel')}</p>
             <p className="text-sm font-bold text-on-surface mt-0.5">{trip.tsi_label || t('tripDetail.notCalculatedYet')}</p>
           </div>
-          {trip.status === TRIP_STATUSES.PLANNED && (
+          {(trip.status === TRIP_STATUSES.PLANNED || trip.status === TRIP_STATUSES.PAUSED) && (
             <Button size="sm" onClick={() => activateTrip()} disabled={activating}
               className="bg-primary hover:brightness-95 text-on-surface rounded-full text-xs px-3 py-1 font-bold flex items-center gap-1 flex-shrink-0">
-              {activating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />} {t('tripDetail.activate')}
+              {activating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />}
+              {trip.status === TRIP_STATUSES.PAUSED ? t('tripDetail.resume') : t('tripDetail.activate')}
             </Button>
           )}
         </div>
@@ -813,6 +871,47 @@ export default function TripDetailPage() {
         confirmLabel={t('tripDetail.removeActivity')}
         pending={savingStops}
         onConfirm={() => confirmDeleteActivity && removeActivity(confirmDeleteActivity.stopIdx, confirmDeleteActivity.activityIdx)}
+      />
+      <Dialog open={showGuardianShare} onOpenChange={setShowGuardianShare}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('tripDetail.shareWithGuardian')}</DialogTitle>
+            <DialogDescription>{t('tripDetail.shareWithGuardianDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="bg-surface-container-lowest rounded-xl p-3 font-mono text-xs text-on-surface-variant break-all">
+            {guardianUrl}
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleCopyGuardianLink}
+              className="flex-1 bg-primary hover:brightness-95 text-on-surface rounded-full text-xs font-bold">
+              <Copy className="w-3 h-3 mr-1" /> {t('profile.copyLink')}
+            </Button>
+            {typeof navigator.share === 'function' && (
+              <Button size="sm" variant="outline"
+                onClick={() => navigator.share({ title: 'Track my journey — Aaraksha', url: guardianUrl })}
+                className="flex-1 rounded-full text-xs">
+                {t('profile.shareLink')}
+              </Button>
+            )}
+          </div>
+          {tourist?.guardian_pin && (
+            <div className="bg-surface-container-lowest rounded-xl p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant mb-1">{t('profile.guardianPinTitle')}</p>
+              <p className="text-2xl font-black tabular-nums tracking-[0.3em] text-on-surface">{tourist.guardian_pin}</p>
+              <p className="text-xs text-on-surface-variant mt-1.5 leading-snug">{t('profile.guardianPinHint')}</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <ConfirmDialog
+        open={confirmCompleteTrip}
+        onOpenChange={setConfirmCompleteTrip}
+        title={t('tripDetail.completeTripTitle')}
+        description={t('tripDetail.completeTripDesc')}
+        confirmLabel={t('tripDetail.completeTrip')}
+        destructive={false}
+        pending={completing}
+        onConfirm={() => completeTrip()}
       />
       <ConfirmDialog
         open={confirmCancelTrip}

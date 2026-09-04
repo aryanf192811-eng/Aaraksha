@@ -1214,6 +1214,148 @@
                   }
                 }
               ]
+            },
+            {
+              "name": "Test 25a: Curated Itineraries — Sikkim",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/destinations/curated-itineraries?region=Sikkim",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "destinations",
+                    "curated-itineraries?region=Sikkim"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns array of curated itineraries', () => { pm.expect(pm.response.json().data).to.be.an('array'); });",
+                      "pm.test('Sikkim itineraries have required fields', () => {",
+                      "  const itins = pm.response.json().data;",
+                      "  if (itins.length > 0) {",
+                      "    const itin = itins[0];",
+                      "    pm.expect(itin).to.have.property('id');",
+                      "    pm.expect(itin).to.have.property('title');",
+                      "    pm.expect(itin).to.have.property('region', 'Sikkim');",
+                      "    pm.expect(itin).to.have.property('days');",
+                      "    pm.expect(itin).to.have.property('stops').that.is.an('array');",
+                      "    pm.expect(itin).to.have.property('source');",
+                      "    pm.expect(itin).to.have.property('is_govt_approved');",
+                      "  }",
+                      "});",
+                      "pm.test('No auth required for public endpoint', () => { pm.expect(pm.response.code).to.not.equal(401); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 25b: Curated Itineraries — Unknown Region (empty array)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/destinations/curated-itineraries?region=NotARealState",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "destinations",
+                    "curated-itineraries?region=NotARealState"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 for unknown region, not an error', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns empty array', () => { pm.expect(pm.response.json().data).to.be.an('array').with.length(0); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 25c: News Feed — No Filters (paginated)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/destinations/news",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "destinations",
+                    "news"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns paginated news envelope', () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.data).to.be.an('array');",
+                      "  pm.expect(body).to.have.property('pagination');",
+                      "  pm.expect(body.pagination).to.have.property('total');",
+                      "  pm.expect(body.pagination).to.have.property('page');",
+                      "  pm.expect(body.pagination).to.have.property('limit');",
+                      "  pm.expect(body.pagination).to.have.property('hasNext');",
+                      "});",
+                      "pm.test('No auth required for public endpoint', () => { pm.expect(pm.response.code).to.not.equal(401); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Test 25d: News Feed — Filter by Severity",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{BASE_URL}}/destinations/news?severity=WARNING",
+                  "host": [
+                    "{{BASE_URL}}"
+                  ],
+                  "path": [
+                    "destinations",
+                    "news?severity=WARNING"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('All returned news items are WARNING severity', () => {",
+                      "  const news = pm.response.json().data;",
+                      "  news.forEach(n => pm.expect(n.severity).to.equal('WARNING'));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
             }
           ]
         },

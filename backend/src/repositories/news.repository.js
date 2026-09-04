@@ -36,6 +36,44 @@ class NewsRepository extends BaseRepository {
       [destinationIds, limit]
     )
   }
+
+  // General "all destinations" feed for the /news page — filterable by
+  // destination, state (needs the destinations join since state only lives
+  // there), severity and category, with real LIMIT/OFFSET + a parallel
+  // COUNT(*) so the frontend can page. Same conditions/params incremental-
+  // build pattern as trip.repository.js#findByTouristId and
+  // destination.repository.js#findAll.
+  async findAllFiltered(filters = {}) {
+    const conditions = ['1=1']
+    const params = []
+    let idx = 1
+
+    if (filters.destinationId) { conditions.push(`dn.destination_id = $${idx}`); params.push(filters.destinationId); idx++ }
+    if (filters.state) { conditions.push(`d.state = $${idx}`); params.push(filters.state); idx++ }
+    if (filters.severity) { conditions.push(`dn.severity = $${idx}`); params.push(filters.severity); idx++ }
+    if (filters.category) { conditions.push(`dn.category = $${idx}`); params.push(filters.category); idx++ }
+
+    const whereClause = conditions.join(' AND ')
+
+    const total = await this.queryCount(
+      `SELECT COUNT(*) FROM destination_news dn
+       JOIN destinations d ON d.id = dn.destination_id
+       WHERE ${whereClause}`,
+      params
+    )
+
+    const rows = await this.query(`
+      SELECT dn.*, d.name as destination_name, d.state as destination_state
+      FROM destination_news dn
+      JOIN destinations d ON d.id = dn.destination_id
+      WHERE ${whereClause}
+      ORDER BY dn.published_at DESC
+      LIMIT $${idx} OFFSET $${idx + 1}`,
+      [...params, filters.limit || 20, filters.offset || 0]
+    )
+
+    return { rows, total }
+  }
 }
 
 module.exports = { NewsRepository }

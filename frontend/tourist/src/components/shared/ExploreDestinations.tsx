@@ -144,7 +144,7 @@ export function ExploreDestinations() {
             return (
               <button
                 key={dest.id}
-                onClick={() => navigate('/trips/new', { state: { destinationName: dest.name } })}
+                onClick={() => navigate(`/destinations/${dest.id}`)}
                 className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-sm active:scale-[0.97] transition-transform cursor-pointer text-left"
               >
                 <img
